@@ -468,8 +468,64 @@
   min-width: 0;
 }
 
+.active-who .label {
+  white-space: nowrap;
+}
+
 .active-head .avatar,
 .transition-card .avatar {
   border-radius: 50%;
   flex: none;
+}
+
+/* Finition conseillée (301/501/701) : en grand, juste à gauche du score restant. */
+.hero-checkout {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.hero-checkout-darts {
+  display: flex;
+  gap: 8px;
+}
+
+.hero-checkout-dart {
+  font-size: 30px;
+  font-weight: 900;
+  color: #1a1a12;
+  background: var(--gold-bright);
+  box-shadow: var(--glow-gold);
+  border-radius: 10px;
+  padding: 4px 10px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Finition conseillée (301/501/701) : en grand, juste à gauche du score restant. */
+.hero-checkout {
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.hero-checkout-darts {
+  display: flex;
+  gap: 8px;
+}
+
+.hero-checkout-dart {
+  font-size: 30px;
+  font-weight: 900;
+  color: #1a1a12;
+  background: var(--gold-bright);
+  box-shadow: var(--glow-gold);
+  border-radius: 10px;
+  padding: 4px 10px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }

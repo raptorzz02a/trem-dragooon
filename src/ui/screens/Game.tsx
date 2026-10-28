@@ -105,12 +105,13 @@ export function Game(props: Props) {
                     </div>
                   )}
                 </div>
+                {view.heroAside?.(ctx)}
                 <div className="active-remaining-box">
                   <div className="label">{hero.label}</div>
                   <div className="active-remaining">{hero.value}</div>
                 </div>
               </div>
-              <div className="active-checkout">{view.hint(ctx) ?? ' '}</div>
+              {!view.heroAside && <div className="active-checkout">{view.hint(ctx) ?? ' '}</div>}
               <div className="volley">
                 {[0, 1, 2].map((i) => {
                   const d = current.darts[i];

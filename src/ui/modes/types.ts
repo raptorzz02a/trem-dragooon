@@ -16,8 +16,10 @@ export interface ModeView {
   title(ctx: ViewContext): string;
   /** Grande valeur du joueur actif (reste, points, prochain numéro…). */
   hero(ctx: ViewContext, sideIndex: number): { label: string; value: string | number };
-  /** Ligne sous la valeur : finition, zones restantes, consigne. */
+  /** Ligne sous la valeur : zones restantes, consigne. */
   hint(ctx: ViewContext): ReactNode;
+  /** Information à mettre en grand juste à gauche de la valeur principale (ex. finition conseillée). */
+  heroAside?(ctx: ViewContext): ReactNode;
   /** Libellé d'une fléchette de la volée (par défaut : S20, T19, 50…). */
   dartLabel?(dart: ThrownDart, ctx: ViewContext): string;
   /** Texte court sous une fléchette de la volée. */

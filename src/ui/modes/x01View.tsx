@@ -22,15 +22,23 @@ export const x01View: ModeView = {
     return `${o.startScore} · ${o.out === 'double' ? 'Double Out' : 'Sortie simple'}`;
   },
   hero: ({ state }, side) => ({ label: 'Restant', value: x01(state).remaining[side]! }),
-  hint: ({ state }) => {
+  hint: () => null,
+  heroAside: ({ state }) => {
     const current = state.current;
     if (!current) return null;
     const o = state.config.options as X01Options;
     const checkout = suggestCheckout(x01(state).remaining[current.sideIndex]!, current.dartsLeft, o.out);
     return checkout ? (
-      <>
-        <span className="label">Finition</span> {checkout.map(formatDart).join(' · ')}
-      </>
+      <div className="hero-checkout">
+        <div className="label">Finition</div>
+        <div className="hero-checkout-darts">
+          {checkout.map((d, i) => (
+            <span key={i} className="hero-checkout-dart">
+              {formatDart(d)}
+            </span>
+          ))}
+        </div>
+      </div>
     ) : null;
   },
   dartNote: (d) => String(d.points),
