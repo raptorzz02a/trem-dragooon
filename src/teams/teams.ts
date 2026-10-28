@@ -10,14 +10,14 @@ export type Rng = () => number;
  */
 export const TEAM_COLORS = [
   { name: 'Rouge', hex: '#FF4D4D' },
-  { name: 'Bleu', hex: '#3DA5FF' },
+  { name: 'Bleue', hex: '#3DA5FF' },
   { name: 'Jaune', hex: '#FFE14D' },
-  { name: 'Violet', hex: '#C77DFF' },
-  { name: 'Vert', hex: '#5CE65C' },
+  { name: 'Violette', hex: '#C77DFF' },
+  { name: 'Verte', hex: '#5CE65C' },
   { name: 'Orange', hex: '#FF9A3D' },
   { name: 'Rose', hex: '#FF6FCF' },
   { name: 'Turquoise', hex: '#2EE6D6' },
-  { name: 'Blanc', hex: '#F4F3EC' },
+  { name: 'Blanche', hex: '#F4F3EC' },
   { name: 'Saumon', hex: '#FFB3A1' },
 ] as const;
 

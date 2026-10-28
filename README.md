@@ -23,3 +23,15 @@ npm run typecheck # vérification TypeScript
 
 Le moteur ne stocke que la configuration et la liste des lancers ; tout le reste (scores, vainqueur, classement)
 est recalculé en rejouant cette liste. Annuler ou corriger revient à modifier la liste.
+
+## Lancer l'application
+
+```bash
+npm install
+npm run dev       # appli de développement sur http://localhost:5173
+npm run build     # version optimisée dans dist/
+npm run preview   # sert dist/ sur http://localhost:4173
+```
+
+Sous Windows, utiliser PowerShell (pas PowerShell ISE) et `npm.cmd` si l'exécution de scripts est bloquée.
+Écran de référence : 1366 × 768, paysage, tactile.

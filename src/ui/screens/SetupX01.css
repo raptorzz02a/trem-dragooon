@@ -1,0 +1,106 @@
+.setup-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.setup-header h2 {
+  margin: 0;
+  font-size: 28px;
+  color: var(--gold);
+}
+
+.setup-header button {
+  padding: 0 20px;
+}
+
+.setup-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 28px;
+}
+
+.setup-rules,
+.setup-players {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+}
+
+.setup-rules .label:not(:first-child) {
+  margin-top: 6px;
+}
+
+.setup-add {
+  display: flex;
+  gap: 10px;
+}
+
+.setup-add input {
+  flex: 1;
+}
+
+.setup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.setup-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-raised);
+  border-radius: var(--radius);
+  padding: 4px 6px 4px 14px;
+}
+
+.setup-list li button {
+  min-height: 52px;
+  min-width: 56px;
+}
+
+.setup-pos {
+  color: var(--gold);
+  font-weight: 800;
+  width: 24px;
+}
+
+.setup-name {
+  flex: 1;
+  font-size: 22px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.setup-list .setup-team {
+  background: transparent;
+  border: 2px solid;
+  min-width: 120px;
+}
+
+.setup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.setup-footer .btn-gold {
+  min-height: 72px;
+  min-width: 300px;
+}
+
+.setup-error {
+  color: var(--text-dim);
+  font-size: 18px;
+}

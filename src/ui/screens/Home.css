@@ -1,0 +1,44 @@
+.home {
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+}
+
+.home-logo {
+  padding-bottom: 12px;
+}
+
+.home-resume {
+  min-height: 72px;
+}
+
+.home-modes {
+  display: grid;
+  grid-template-columns: repeat(4, 270px);
+  gap: 18px;
+}
+
+.home-mode {
+  height: 150px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--line);
+}
+
+.home-mode-title {
+  font-size: 28px;
+  white-space: nowrap;
+}
+
+.home-mode-sub {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.home-mode.btn-primary .home-mode-sub {
+  color: var(--text);
+}

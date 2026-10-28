@@ -1,0 +1,336 @@
+.game {
+  padding: 14px 20px;
+  gap: 12px;
+}
+
+.game-top {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.game-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold);
+}
+
+.game-round {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+.game-quit {
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+}
+
+.game-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 0.9fr 1.1fr;
+  gap: 20px;
+}
+
+.game-left {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
+}
+
+.active-card {
+  background: var(--bg-raised);
+  border: 2px solid var(--gold);
+  border-radius: 18px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: var(--glow-gold);
+}
+
+.active-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.active-name {
+  font-size: 34px;
+  font-weight: 800;
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.active-team {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.active-remaining-box {
+  text-align: right;
+}
+
+.active-remaining {
+  font-size: 96px;
+  line-height: 0.95;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 20px rgba(204, 174, 94, 0.5);
+  font-variant-numeric: tabular-nums;
+}
+
+.active-checkout {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  min-height: 28px;
+}
+
+.volley {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr) 1.1fr;
+  gap: 8px;
+}
+
+.volley-slot,
+.volley-total {
+  height: 58px;
+  border-radius: var(--radius);
+  background: var(--bg);
+  border: 1px dashed var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.volley-slot.filled {
+  border: 1px solid var(--green-bright);
+  background: var(--green);
+}
+
+.volley-dart {
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.volley-points {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+.volley-empty {
+  color: var(--line);
+  font-weight: 800;
+}
+
+.volley-total {
+  border-style: solid;
+  font-size: 26px;
+  font-weight: 900;
+  flex-direction: column;
+  gap: 0;
+}
+
+.volley-total .label {
+  font-size: 11px;
+}
+
+.game-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.game-actions button {
+  font-size: 19px;
+}
+
+.board {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-auto-rows: 44px;
+  gap: 6px;
+  overflow-y: auto;
+}
+
+.board li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 14px;
+  border-radius: 10px;
+  background: var(--bg-raised);
+  border-left: 6px solid transparent;
+  font-size: 18px;
+}
+
+.board li.active {
+  background: var(--green);
+  box-shadow: var(--glow-green);
+}
+
+.board-name {
+  flex: 1;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.board-sub {
+  font-weight: 500;
+  color: var(--text-dim);
+}
+
+.board li.active .board-sub {
+  color: var(--text);
+}
+
+.board-avg {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.board-score {
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--gold);
+  min-width: 64px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.game-right {
+  min-height: 0;
+}
+
+.transition {
+  cursor: pointer;
+  animation: fade-in 160ms ease-out;
+}
+
+.transition-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 36px 64px;
+  border: 3px solid var(--gold);
+  border-radius: 24px;
+  background: var(--bg-raised);
+  box-shadow: 0 0 40px rgba(204, 174, 94, 0.35);
+}
+
+.transition-result {
+  font-size: 24px;
+  color: var(--text-dim);
+}
+
+.transition-result.bust {
+  color: var(--danger);
+  font-size: 34px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.transition-name {
+  font-size: 80px;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(204, 174, 94, 0.6);
+  line-height: 1;
+}
+
+.transition-team {
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.transition-info {
+  font-size: 24px;
+}
+
+.transition-card button {
+  margin-top: 8px;
+  padding: 0 24px;
+}
+
+.end {
+  min-width: 720px;
+}
+
+.end-winner {
+  font-size: 56px;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(204, 174, 94, 0.6);
+}
+
+.end-ranking {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.end-ranking li {
+  display: flex;
+  gap: 16px;
+  font-size: 20px;
+}
+
+.end-rank-name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.end-avg {
+  color: var(--text-dim);
+}
+
+.end .dialog-actions button {
+  padding: 0 18px;
+  font-size: 18px;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Le pavé occupe toute la hauteur disponible : des touches plus grandes au doigt. */
+.game-right {
+  display: flex;
+  flex-direction: column;
+}
+
+.game-right .pad {
+  flex: 1;
+}
+
+.game-right .pad-numbers {
+  flex: 1;
+  grid-auto-rows: 1fr;
+}
+
+.game-right .pad-multipliers button,
+.game-right .pad-specials button {
+  min-height: 76px;
+}

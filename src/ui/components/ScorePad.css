@@ -1,0 +1,76 @@
+.pad {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pad-step {
+  margin-top: 2px;
+}
+
+.pad-multipliers,
+.pad-specials {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.pad-mult {
+  font-size: 22px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  background: var(--green);
+  opacity: 0.55;
+}
+
+.pad-mult.selected {
+  opacity: 1;
+  box-shadow: var(--glow-green);
+  outline: 3px solid var(--text);
+}
+
+.pad-mult-2.selected,
+.pad-mult-3.selected {
+  background: var(--gold);
+  color: #1a1a12;
+  box-shadow: var(--glow-gold);
+}
+
+.pad-numbers {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.pad-num {
+  font-size: 28px;
+  min-height: 66px;
+}
+
+/* Le multiplicateur choisi se voit sur tous les numéros avant l'appui. */
+.pad-m2 .pad-num,
+.pad-m3 .pad-num {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+
+.pad-prefix {
+  font-size: 18px;
+  color: var(--gold);
+  margin-right: 2px;
+}
+
+.pad-bull25 {
+  background: var(--green);
+  font-size: 22px;
+}
+
+.pad-bull50 {
+  background: #b39443;
+  color: #1a1a12;
+  font-size: 22px;
+}
+
+.pad-miss {
+  background: var(--danger-bg);
+  font-size: 22px;
+}
