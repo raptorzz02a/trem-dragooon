@@ -9,8 +9,11 @@ import type {
   ShanghaiOptions,
   X01Options,
 } from '../../game-engine/types';
+import type { Profile } from '../../profiles/types';
 import type { PlayerRef } from '../../storage/currentGame';
 import { emptyTeams, individualSides, randomOrder, randomTeams, TEAM_COLORS } from '../../teams/teams';
+import { Avatar } from '../components/Avatar';
+import { newProfile, ProfileEditor } from '../components/ProfileEditor';
 import './Setup.css';
 
 /** Réglages saisis à l'écran, conservés pour « Modifier les joueurs » après une partie. */
@@ -40,12 +43,6 @@ export const DEFAULT_SETUP: GameSetup = {
   players: [],
   teamOf: {},
 };
-
-function newId(): string {
-  return typeof crypto !== 'undefined' && 'randomUUID' in crypto
-    ? crypto.randomUUID()
-    : `p-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
 
 export const MODE_NAMES: Record<GameMode, string> = {
   x01: '301 / 501 / 701',
@@ -248,26 +245,80 @@ const TEAM_NOTES: Record<GameMode, string> = {
 
 interface Props {
   initial: GameSetup;
+  profiles: Profile[];
+  onSaveProfile: (profile: Profile) => void;
   onBack: () => void;
   onStart: (setup: GameSetup, config: GameConfig) => void;
 }
 
-export function Setup({ initial, onBack, onStart }: Props) {
-  const [setup, setSetup] = useState(initial);
-  const [name, setName] = useState('');
+/** Choix des joueurs parmi les profils existants ; un nouveau profil peut être créé sur place. */
+function PlayerPicker(props: {
+  profiles: Profile[];
+  selected: string[];
+  remaining: number;
+  onAdd: (profile: Profile) => void;
+  onNew: () => void;
+  onClose: () => void;
+}) {
+  const available = props.profiles
+    .filter((p) => !p.deleted && !props.selected.includes(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+  return (
+    <div className="overlay">
+      <div className="dialog picker">
+        <div className="picker-head">
+          <h2>Ajouter des joueurs</h2>
+          <span className="label">{props.remaining > 0 ? `Encore ${props.remaining} place(s)` : 'Partie complète'}</span>
+        </div>
+        <div className="picker-grid">
+          <button className="picker-tile picker-new btn-primary" disabled={props.remaining <= 0} onClick={props.onNew}>
+            <span className="picker-plus">＋</span>
+            <span>Nouveau joueur</span>
+          </button>
+          {available.map((p) => (
+            <button key={p.id} className="picker-tile" disabled={props.remaining <= 0} onClick={() => props.onAdd(p)}>
+              <Avatar avatar={p.avatar} color={p.color} size={84} />
+              <span className="picker-name">{p.name}</span>
+            </button>
+          ))}
+        </div>
+        <div className="dialog-actions">
+          <button className="btn-gold" onClick={props.onClose}>
+            Terminé
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function Setup({ initial, profiles, onSaveProfile, onBack, onStart }: Props) {
+  // Un profil supprimé entre-temps disparaît de la liste ; un profil renommé prend son nouveau nom.
+  const [setup, setSetup] = useState(() => ({
+    ...initial,
+    players: initial.players.flatMap((p) => {
+      const profile = profiles.find((x) => x.id === p.id);
+      return profile && !profile.deleted ? [{ id: p.id, name: profile.name }] : [];
+    }),
+  }));
+  const [picking, setPicking] = useState(false);
+  const [creating, setCreating] = useState<Profile | null>(null);
   const update = (patch: Partial<GameSetup>) => setSetup((s) => ({ ...s, ...patch }));
   const { players } = setup;
   const maxTeams = Math.min(MAX_TEAMS, Math.max(MIN_TEAMS, players.length));
+  const profileOf = (id: string) => profiles.find((p) => p.id === id);
 
-  const addPlayer = () => {
-    const trimmed = name.trim();
-    if (!trimmed || players.length >= MAX_PLAYERS) return;
-    const id = newId();
-    // Un nouveau joueur rejoint l'équipe la moins nombreuse.
-    const sizes = Array.from({ length: setup.teamCount }, (_, t) => players.filter((p) => setup.teamOf[p.id] === t).length);
-    update({ players: [...players, { id, name: trimmed }], teamOf: { ...setup.teamOf, [id]: sizes.indexOf(Math.min(...sizes)) } });
-    setName('');
-  };
+  const addPlayer = (profile: Profile) =>
+    setSetup((s) => {
+      if (s.players.length >= MAX_PLAYERS || s.players.some((p) => p.id === profile.id)) return s;
+      // Un nouveau joueur rejoint l'équipe la moins nombreuse.
+      const sizes = Array.from({ length: s.teamCount }, (_, t) => s.players.filter((p) => s.teamOf[p.id] === t).length);
+      return {
+        ...s,
+        players: [...s.players, { id: profile.id, name: profile.name }],
+        teamOf: { ...s.teamOf, [profile.id]: sizes.indexOf(Math.min(...sizes)) },
+      };
+    });
 
   const removePlayer = (id: string) => update({ players: players.filter((p) => p.id !== id) });
 
@@ -365,30 +416,16 @@ export function Setup({ initial, onBack, onStart }: Props) {
           <div className="label">
             Joueurs ({players.length}/{MAX_PLAYERS})
           </div>
-          <form
-            className="setup-add"
-            onSubmit={(e) => {
-              e.preventDefault();
-              addPlayer();
-            }}
-          >
-            <input
-              value={name}
-              maxLength={20}
-              placeholder="Nom du joueur"
-              onChange={(e) => setName(e.target.value)}
-              disabled={players.length >= MAX_PLAYERS}
-            />
-            <button type="submit" className="btn-primary" disabled={!name.trim() || players.length >= MAX_PLAYERS}>
-              Ajouter
-            </button>
-          </form>
+          <button className="btn-primary" disabled={players.length >= MAX_PLAYERS} onClick={() => setPicking(true)}>
+            ＋ Ajouter des joueurs
+          </button>
           <ol className="setup-list">
             {players.map((p, i) => {
               const team = setup.teamOf[p.id] ?? 0;
               return (
                 <li key={p.id}>
                   <span className="setup-pos">{i + 1}</span>
+                  {profileOf(p.id) && <Avatar avatar={profileOf(p.id)!.avatar} color={profileOf(p.id)!.color} size={44} />}
                   <span className="setup-name">{p.name}</span>
                   {setup.teamMode && (
                     <button
@@ -421,6 +458,30 @@ export function Setup({ initial, onBack, onStart }: Props) {
           Lancer la partie
         </button>
       </footer>
+
+      {picking && !creating && (
+        <PlayerPicker
+          profiles={profiles}
+          selected={players.map((p) => p.id)}
+          remaining={MAX_PLAYERS - players.length}
+          onAdd={addPlayer}
+          onNew={() => setCreating(newProfile())}
+          onClose={() => setPicking(false)}
+        />
+      )}
+      {creating && (
+        <ProfileEditor
+          title="Nouveau joueur"
+          initial={creating}
+          takenNames={profiles.filter((p) => !p.deleted).map((p) => p.name)}
+          onCancel={() => setCreating(null)}
+          onSave={(profile) => {
+            onSaveProfile(profile);
+            addPlayer(profile);
+            setCreating(null);
+          }}
+        />
+      )}
     </div>
   );
 }

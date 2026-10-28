@@ -17,9 +17,13 @@ import type { GameConfig } from '../game-engine/types';
 import type { GameMode } from '../game-engine/types';
 import { Game } from './screens/Game';
 import { Home } from './screens/Home';
+import { Players } from './screens/Players';
+import { Profile } from './screens/Profile';
+import { Rankings } from './screens/Rankings';
+import { useLibrary } from './useLibrary';
 import { DEFAULT_SETUP, Setup, type GameSetup } from './screens/Setup';
 
-type Screen = 'home' | 'setup' | 'game';
+type Screen = 'home' | 'setup' | 'game' | 'players' | 'profile' | 'rankings';
 
 const newGameId = () => `game-${Date.now()}`;
 
@@ -43,13 +47,28 @@ export function App() {
   const [game, setGame] = useState<SavedGame | null>(() => loadCurrentGame());
   const [screen, setScreen] = useState<Screen>('home');
   const [setup, setSetup] = useState<GameSetup>(DEFAULT_SETUP);
+  const [profileId, setProfileId] = useState<string | null>(null);
+  /** Écran à retrouver en quittant une fiche joueur. */
+  const [profileFrom, setProfileFrom] = useState<Screen>('players');
   const settings = useMemo(loadSettings, []);
+  const library = useLibrary();
   const state = useMemo(() => (game ? sessionState(game.session) : null), [game]);
 
   // Chaque action validée est sauvegardée aussitôt, pour pouvoir reprendre après une fermeture.
+  // Une partie terminée est archivée pour les statistiques ; si une annulation la rouvre, l'archive est retirée.
   const commit = (next: SavedGame | null) => {
     setGame(next);
     saveCurrentGame(next);
+    if (next?.session.status === 'finished') library.archiveGame(next);
+    else if (next && game?.session.id === next.session.id && game.session.status === 'finished') {
+      library.unarchiveGame(next.session.id);
+    }
+  };
+
+  const openProfile = (id: string, from: Screen) => {
+    setProfileId(id);
+    setProfileFrom(from);
+    setScreen('profile');
   };
 
   const act = (fn: (s: GameSession) => GameSession) => {
@@ -72,10 +91,12 @@ export function App() {
     setScreen('home');
   };
 
-  if (screen === 'setup') {
+  if (screen === 'setup' && library.ready) {
     return (
       <Setup
         initial={setup}
+        profiles={library.profiles}
+        onSaveProfile={library.saveProfile}
         onBack={() => setScreen('home')}
         onStart={(s, config) => {
           setSetup(s);
@@ -91,13 +112,14 @@ export function App() {
         session={game.session}
         state={state}
         players={game.players}
+        profiles={library.profiles}
         settings={settings}
         onDart={(dart: Dart) => act((s) => throwDart(s, dart))}
         onEndTurn={() => act((s) => endTurn(s))}
         onUndo={() => act((s) => undoLast(s))}
         onQuit={() => {
-          // L'abandon sera archivé avec les statistiques (lot 4) ; pour l'instant la partie est simplement fermée.
-          abandonSession(game.session);
+          // Une partie abandonnée apparaît dans l'historique, sans compter ni en victoire ni en défaite.
+          if (game.session.events.length > 0) library.archiveGame({ ...game, session: abandonSession(game.session) });
           leave();
         }}
         onRematch={() => start(rematchConfig(game.session.config), game.players)}
@@ -111,10 +133,50 @@ export function App() {
     );
   }
 
+  const profile = library.profiles.find((p) => p.id === profileId);
+  if (screen === 'profile' && profile && !profile.deleted) {
+    return (
+      <Profile
+        profile={profile}
+        profiles={library.profiles}
+        games={library.games}
+        onSave={library.saveProfile}
+        onDelete={library.deleteProfile}
+        onBack={() => setScreen(profileFrom)}
+      />
+    );
+  }
+
+  if (screen === 'players' || screen === 'profile') {
+    return (
+      <Players
+        profiles={library.profiles}
+        games={library.games}
+        onSaveProfile={library.saveProfile}
+        onOpen={(id) => openProfile(id, 'players')}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
+  if (screen === 'rankings') {
+    return (
+      <Rankings
+        profiles={library.profiles}
+        games={library.games}
+        onOpen={(id) => openProfile(id, 'rankings')}
+        onBack={() => setScreen('home')}
+      />
+    );
+  }
+
   const resumable = game !== null && game.session.status === 'in_progress';
   return (
     <Home
       canResume={resumable}
+      durable={library.durable}
+      onPlayers={() => setScreen('players')}
+      onRankings={() => setScreen('rankings')}
       onResume={() => setScreen('game')}
       onNewGame={(mode: GameMode) => {
         // Les joueurs et les équipes de la dernière partie restent proposés.
