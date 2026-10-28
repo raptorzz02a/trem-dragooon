@@ -74,3 +74,28 @@
   background: var(--danger-bg);
   font-size: 22px;
 }
+
+/* Cricket : six gros numéros sur trois colonnes. */
+.pad-numbers-few {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.pad-numbers-few .pad-num {
+  font-size: 44px;
+}
+
+/* Numéro à viser (Horloge, Shanghai). */
+.pad-num.pad-target {
+  background: var(--gold);
+  color: #1a1a12;
+  box-shadow: var(--glow-gold);
+}
+
+.pad-num.pad-target .pad-prefix {
+  color: #1a1a12;
+}
+
+.pad-specials .pad-target {
+  outline: 4px solid var(--gold-bright);
+  box-shadow: var(--glow-gold);
+}

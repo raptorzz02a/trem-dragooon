@@ -9,16 +9,24 @@ const MULTIPLIERS: { value: Multiplier; label: string }[] = [
   { value: 3, label: 'Triple' },
 ];
 
+const ALL_NUMBERS = Array.from({ length: 20 }, (_, i) => i + 1);
+
 interface Props {
   disabled: boolean;
   onDart: (dart: Dart) => void;
+  /** Numéros proposés (1 à 20 par défaut ; 20 à 15 pour le Cricket). */
+  numbers?: number[];
+  /** Numéro mis en surbrillance (cible de l'Horloge ou du Shanghai). */
+  highlight?: number | null;
+  /** Bull à viser (fin de parcours de l'Horloge). */
+  highlightBull?: 25 | 50 | 'any' | null;
 }
 
 /**
  * Saisie en deux étapes : on choisit la zone (Simple par défaut), puis le numéro.
  * L'appui sur le numéro enregistre la fléchette et la zone revient à Simple.
  */
-export function ScorePad({ disabled, onDart }: Props) {
+export function ScorePad({ disabled, onDart, numbers = ALL_NUMBERS, highlight = null, highlightBull = null }: Props) {
   const [multiplier, setMultiplier] = useState<Multiplier>(1);
   const guard = useTapGuard();
 
@@ -43,19 +51,28 @@ export function ScorePad({ disabled, onDart }: Props) {
         ))}
       </div>
       <div className="pad-step label">2. Choisir le numéro</div>
-      <div className="pad-numbers">
-        {Array.from({ length: 20 }, (_, i) => i + 1).map((n) => (
-          <button key={n} className="pad-num" disabled={disabled} onClick={() => throwDart({ segment: n, multiplier })}>
+      <div className={`pad-numbers ${numbers.length <= 6 ? 'pad-numbers-few' : ''}`}>
+        {numbers.map((n) => (
+          <button
+            key={n}
+            className={`pad-num ${highlight === n ? 'pad-target' : ''}`}
+            disabled={disabled}
+            onClick={() => throwDart({ segment: n, multiplier })}
+          >
             {multiplier > 1 && <span className="pad-prefix">{multiplier === 2 ? 'D' : 'T'}</span>}
             {n}
           </button>
         ))}
       </div>
       <div className="pad-specials">
-        <button className="pad-bull25" disabled={disabled} onClick={() => throwDart({ segment: BULL, multiplier: 1 })}>
+        <button
+          className={`pad-bull25 ${highlightBull === 25 || highlightBull === 'any' ? 'pad-target' : ''}`}
+          disabled={disabled} onClick={() => throwDart({ segment: BULL, multiplier: 1 })}>
           Bull 25
         </button>
-        <button className="pad-bull50" disabled={disabled} onClick={() => throwDart({ segment: BULL, multiplier: 2 })}>
+        <button
+          className={`pad-bull50 ${highlightBull === 50 || highlightBull === 'any' ? 'pad-target' : ''}`}
+          disabled={disabled} onClick={() => throwDart({ segment: BULL, multiplier: 2 })}>
           Bull 50
         </button>
         <button className="pad-miss" disabled={disabled} onClick={() => throwDart(MISS)}>

@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
-import { suggestCheckout } from '../../game-engine/checkout';
-import { playerFor } from '../../game-engine/engine';
 import { formatDart, type Dart } from '../../game-engine/darts';
-import type { X01State } from '../../game-engine/modes/x01';
-import type { GameState, TurnRecord, X01Options } from '../../game-engine/types';
+import type { GameState, TurnRecord } from '../../game-engine/types';
 import type { GameSession } from '../../game-session/session';
 import type { AppSettings } from '../../settings/settings';
 import type { PlayerRef } from '../../storage/currentGame';
 import { ScorePad } from '../components/ScorePad';
+import { MODE_VIEWS } from '../modes';
+import type { ViewContext } from '../modes/types';
 import { useTapGuard } from '../useTapGuard';
-import './GameX01.css';
+import './Game.css';
 
 interface Props {
   session: GameSession;
@@ -25,26 +24,15 @@ interface Props {
   onHome: () => void;
 }
 
-/** Moyenne par volée d'un côté : points marqués / volées jouées (un bust compte 0). */
-function averages(state: GameState): number[] {
-  return state.config.sides.map((_, i) => {
-    const turns = state.turns.filter((t) => t.sideIndex === i);
-    if (turns.length === 0) return 0;
-    const scored = turns.reduce((sum, t) => sum + (t.outcome === 'bust' ? 0 : t.darts.reduce((a, d) => a + d.points, 0)), 0);
-    return scored / turns.length;
-  });
-}
-
-const turnTotal = (t: TurnRecord) => t.darts.reduce((a, d) => a + d.points, 0);
-
-export function GameX01(props: Props) {
+/** Écran de jeu commun aux quatre modes ; ce qui diffère est fourni par la vue du mode. */
+export function Game(props: Props) {
   const { state, players, settings } = props;
-  const options = state.config.options as X01Options;
-  const x01 = state.mode as X01State;
-  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  const view = MODE_VIEWS[state.config.mode];
   const sides = state.config.sides;
+  const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
+  const sideName = (i: number) => (state.config.teamMode ? sides[i]!.name : nameOf(sides[i]!.playerIds[0]!));
+  const ctx: ViewContext = { state, nameOf, sideName };
   const current = state.current;
-  const avg = averages(state);
   const guard = useTapGuard(400);
 
   // Écran de transition : affiché quand le tour avance (pas quand on annule).
@@ -77,15 +65,15 @@ export function GameX01(props: Props) {
   const [confirmQuit, setConfirmQuit] = useState(false);
 
   const activeSide = current ? sides[current.sideIndex]! : null;
-  const remaining = current ? x01.remaining[current.sideIndex]! : 0;
-  const checkout = current ? suggestCheckout(remaining, current.dartsLeft, options.out) : null;
+  const hero = current ? view.hero(ctx, current.sideIndex) : null;
   const round = (current?.round ?? state.turns.at(-1)?.round ?? 0) + 1;
+  const result = transition ? view.turnResult(transition, ctx) : null;
 
   return (
-    <div className="screen game">
+    <div className={`screen game game-${state.config.mode}`}>
       <header className="game-top">
         <span className="game-title">
-          {options.startScore} · {options.out === 'double' ? 'Double Out' : 'Sortie simple'}
+          {view.title(ctx)}
           {state.config.teamMode ? ' · Équipes' : ''}
         </span>
         <span className="game-round">Manche {round}</span>
@@ -96,7 +84,7 @@ export function GameX01(props: Props) {
 
       <div className="game-body">
         <section className="game-left">
-          {current && activeSide && (
+          {current && activeSide && hero && (
             <div className="active-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
               <div className="active-head">
                 <div>
@@ -109,19 +97,11 @@ export function GameX01(props: Props) {
                   )}
                 </div>
                 <div className="active-remaining-box">
-                  <div className="label">Restant</div>
-                  <div className="active-remaining">{remaining}</div>
+                  <div className="label">{hero.label}</div>
+                  <div className="active-remaining">{hero.value}</div>
                 </div>
               </div>
-              <div className="active-checkout">
-                {checkout ? (
-                  <>
-                    <span className="label">Finition</span> {checkout.map(formatDart).join(' · ')}
-                  </>
-                ) : (
-                  ' '
-                )}
-              </div>
+              <div className="active-checkout">{view.hint(ctx) ?? ' '}</div>
               <div className="volley">
                 {[0, 1, 2].map((i) => {
                   const d = current.darts[i];
@@ -130,7 +110,7 @@ export function GameX01(props: Props) {
                       {d ? (
                         <>
                           <span className="volley-dart">{formatDart(d.dart)}</span>
-                          <span className="volley-points">{d.points}</span>
+                          <span className="volley-points">{view.dartNote(d, ctx)}</span>
                         </>
                       ) : (
                         <span className="volley-empty">{i + 1}</span>
@@ -140,7 +120,7 @@ export function GameX01(props: Props) {
                 })}
                 <div className="volley-total">
                   <span className="label">Volée</span>
-                  {current.darts.reduce((a, d) => a + d.points, 0)}
+                  {view.volleyTotal(current.darts, ctx)}
                 </div>
               </div>
               <div className="game-actions">
@@ -160,38 +140,18 @@ export function GameX01(props: Props) {
             </div>
           )}
 
-          <ol className="board">
-            {sides.map((side, i) => {
-              const active = current?.sideIndex === i;
-              // Joueur qui lancera la prochaine volée de ce côté.
-              const nextPlayer = current ? playerFor(state.config, i, current.round + (i < current.sideIndex ? 1 : 0)) : '';
-              return (
-                <li key={side.id} className={active ? 'active' : ''} style={{ borderLeftColor: side.color ?? 'transparent' }}>
-                  <span className="board-name">
-                    {state.config.teamMode ? side.name : nameOf(side.playerIds[0]!)}
-                    {state.config.teamMode && nextPlayer && <span className="board-sub"> · {nameOf(nextPlayer)}</span>}
-                  </span>
-                  <span className="board-avg">moy. {avg[i]!.toFixed(1)}</span>
-                  <span className="board-score">{x01.remaining[i]}</span>
-                </li>
-              );
-            })}
-          </ol>
+          <div className="game-board">{view.board(ctx)}</div>
         </section>
 
         <section className="game-right">
-          <ScorePad disabled={!current || transition !== null} onDart={props.onDart} />
+          <ScorePad disabled={!current || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
         </section>
       </div>
 
-      {transition && current && activeSide && (
+      {transition && result && current && activeSide && hero && (
         <div className="overlay transition" onClick={() => setTransition(null)}>
           <div className="transition-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
-            <div className={`transition-result ${transition.outcome === 'bust' ? 'bust' : ''}`}>
-              {transition.outcome === 'bust'
-                ? `Bust ! ${nameOf(transition.playerId)} revient à ${x01.remaining[transition.sideIndex]}`
-                : `${nameOf(transition.playerId)} : ${turnTotal(transition)} points`}
-            </div>
+            <div className={`transition-result ${result.bad ? 'bust' : ''}`}>{result.text}</div>
             <div className="label">À toi de jouer</div>
             <div className="transition-name">{nameOf(current.playerId)}</div>
             {state.config.teamMode && (
@@ -200,7 +160,7 @@ export function GameX01(props: Props) {
               </div>
             )}
             <div className="transition-info">
-              3 fléchettes · reste <strong>{remaining}</strong>
+              3 fléchettes · {hero.label.toLowerCase()} <strong>{hero.value}</strong>
             </div>
             <button
               onClick={(e) => {
@@ -218,21 +178,14 @@ export function GameX01(props: Props) {
       {state.status === 'finished' && (
         <div className="overlay">
           <div className="dialog end">
-            <div className="label">Victoire</div>
-            <div className="end-winner">
-              {state.winners
-                .map((w) => (state.config.teamMode ? sides[w]!.name : nameOf(sides[w]!.playerIds[0]!)))
-                .join(' et ')}
-            </div>
+            <div className="label">{view.winLabel?.(ctx) ?? (state.winners.length > 1 ? 'Égalité' : 'Victoire')}</div>
+            <div className="end-winner">{state.winners.map(sideName).join(' et ')}</div>
             <ol className="end-ranking">
               {state.ranking.map((r) => (
                 <li key={r.sideIndex}>
                   <span>{r.rank}.</span>
-                  <span className="end-rank-name">
-                    {state.config.teamMode ? sides[r.sideIndex]!.name : nameOf(sides[r.sideIndex]!.playerIds[0]!)}
-                  </span>
-                  <span>reste {r.value}</span>
-                  <span className="end-avg">moy. {avg[r.sideIndex]!.toFixed(1)}</span>
+                  <span className="end-rank-name">{sideName(r.sideIndex)}</span>
+                  <span>{view.rankValue(r, ctx)}</span>
                 </li>
               ))}
             </ol>

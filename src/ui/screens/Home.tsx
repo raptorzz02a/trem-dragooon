@@ -1,15 +1,21 @@
+import type { GameMode } from '../../game-engine/types';
 import { Logo } from '../components/Logo';
 import './Home.css';
 
 interface Props {
   canResume: boolean;
   onResume: () => void;
-  onNewX01: () => void;
+  onNewGame: (mode: GameMode) => void;
 }
 
-const SOON = ['Cricket', 'Horloge', 'Shanghai'];
+const MODES: { mode: GameMode; title: string; sub: string }[] = [
+  { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions' },
+  { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull' },
+  { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre' },
+  { mode: 'shanghai', title: 'Shanghai', sub: 'Un numéro par manche' },
+];
 
-export function Home({ canResume, onResume, onNewX01 }: Props) {
+export function Home({ canResume, onResume, onNewGame }: Props) {
   return (
     <div className="screen home">
       <div className="home-logo">
@@ -21,14 +27,10 @@ export function Home({ canResume, onResume, onNewX01 }: Props) {
         </button>
       )}
       <div className="home-modes">
-        <button className="home-mode btn-primary" onClick={onNewX01}>
-          <span className="home-mode-title">301 · 501 · 701</span>
-          <span className="home-mode-sub">Décompte, busts et finitions</span>
-        </button>
-        {SOON.map((name) => (
-          <button key={name} className="home-mode" disabled>
-            <span className="home-mode-title">{name}</span>
-            <span className="home-mode-sub">Bientôt</span>
+        {MODES.map((m) => (
+          <button key={m.mode} className="home-mode btn-primary" onClick={() => onNewGame(m.mode)}>
+            <span className="home-mode-title">{m.title}</span>
+            <span className="home-mode-sub">{m.sub}</span>
           </button>
         ))}
       </div>

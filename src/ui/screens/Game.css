@@ -334,3 +334,117 @@
 .game-right .pad-specials button {
   min-height: 76px;
 }
+
+.game-board {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.hint-chips {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: 14px;
+}
+
+.hint-chip {
+  font-size: 15px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 2px solid var(--gold);
+  color: var(--gold);
+}
+
+.hint-chip.done {
+  background: var(--gold);
+  color: #1a1a12;
+}
+
+.hint-bar {
+  display: inline-block;
+  vertical-align: middle;
+  width: 180px;
+  height: 10px;
+  margin-left: 14px;
+  border-radius: 999px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.hint-bar span {
+  display: block;
+  height: 100%;
+  background: var(--gold);
+}
+
+/* Tableau Cricket classique : numéros en lignes, un côté par colonne. */
+.cricket {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px 3px;
+  table-layout: fixed;
+}
+
+.cricket th,
+.cricket td {
+  text-align: center;
+  height: 34px;
+  border-radius: 8px;
+}
+
+.cricket thead th {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.cricket thead th.active {
+  background: var(--green);
+}
+
+.cricket tbody th {
+  width: 64px;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--gold);
+}
+
+.cricket td {
+  background: var(--bg-raised);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--text-dim);
+}
+
+.cricket td.active {
+  background: #1c3a28;
+}
+
+.cricket td.mark-3 {
+  color: var(--gold);
+}
+
+.cricket tr.closed th,
+.cricket tr.closed td {
+  opacity: 0.35;
+}
+
+.cricket .cricket-points td {
+  color: var(--gold);
+  font-size: 24px;
+}
+
+.game-cricket .active-card .active-remaining,
+.game-shanghai .active-card .active-remaining {
+  font-size: 80px;
+}
+
+.game-clock .active-remaining {
+  font-size: 80px;
+}
+
+.hint-chips .label {
+  align-self: center;
+}
