@@ -42,7 +42,7 @@ const profile = (id: string, name = id): Profile => ({
   id,
   name,
   color: '#1E5535',
-  avatar: { skin: 0, hair: 0, facialHair: 0, glasses: 0, hat: 0 },
+  avatar: { skin: 0, hair: 0, hairColor: 0, facialHair: 0, glasses: 0, hat: 0 },
   createdAt: '2026-10-01T00:00:00.000Z',
 });
 

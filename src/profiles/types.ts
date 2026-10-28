@@ -4,6 +4,7 @@ import type { PlayerRef } from '../storage/currentGame';
 export interface AvatarConfig {
   skin: number;
   hair: number;
+  hairColor: number;
   facialHair: number;
   glasses: number;
   hat: number;

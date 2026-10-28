@@ -8,12 +8,16 @@ import { ScorePad } from '../components/ScorePad';
 import { MODE_VIEWS } from '../modes';
 import type { ViewContext } from '../modes/types';
 import { useTapGuard } from '../useTapGuard';
+import type { Profile } from '../../profiles/types';
+import { Avatar } from '../components/Avatar';
 import './Game.css';
 
 interface Props {
   session: GameSession;
   state: GameState;
   players: PlayerRef[];
+  /** Profils, pour afficher l'avatar du joueur actif. */
+  profiles?: Profile[];
   settings: AppSettings;
   onDart: (dart: Dart) => void;
   onEndTurn: () => void;
@@ -32,6 +36,10 @@ export function Game(props: Props) {
   const nameOf = (id: string) => players.find((p) => p.id === id)?.name ?? '?';
   const sideName = (i: number) => (state.config.teamMode ? sides[i]!.name : nameOf(sides[i]!.playerIds[0]!));
   const ctx: ViewContext = { state, nameOf, sideName };
+  const avatarOf = (id: string, size: number) => {
+    const p = props.profiles?.find((x) => x.id === id);
+    return p && !p.deleted ? <Avatar avatar={p.avatar} color={p.color} size={size} /> : null;
+  };
   const current = state.current;
   const guard = useTapGuard(400);
 
@@ -87,7 +95,8 @@ export function Game(props: Props) {
           {current && activeSide && hero && (
             <div className="active-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
               <div className="active-head">
-                <div>
+                {avatarOf(current.playerId, 72)}
+                <div className="active-who">
                   <div className="label">Joueur actif</div>
                   <div className="active-name">{nameOf(current.playerId)}</div>
                   {state.config.teamMode && (
@@ -156,6 +165,7 @@ export function Game(props: Props) {
         <div className="overlay transition" onClick={() => setTransition(null)}>
           <div className="transition-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
             <div className={`transition-result ${result.bad ? 'bust' : ''}`}>{result.text}</div>
+            {avatarOf(current.playerId, 130)}
             <div className="label">À toi de jouer</div>
             <div className="transition-name">{nameOf(current.playerId)}</div>
             {state.config.teamMode && (

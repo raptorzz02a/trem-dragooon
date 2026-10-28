@@ -6,6 +6,10 @@ interface Props {
   canResume: boolean;
   onResume: () => void;
   onNewGame: (mode: GameMode) => void;
+  onPlayers: () => void;
+  onRankings: () => void;
+  /** false : IndexedDB indisponible, les profils et statistiques ne survivront pas à la fermeture. */
+  durable: boolean;
 }
 
 const MODES: { mode: GameMode; title: string; sub: string }[] = [
@@ -15,7 +19,7 @@ const MODES: { mode: GameMode; title: string; sub: string }[] = [
   { mode: 'shanghai', title: 'Shanghai', sub: 'Un numéro par manche' },
 ];
 
-export function Home({ canResume, onResume, onNewGame }: Props) {
+export function Home({ canResume, onResume, onNewGame, onPlayers, onRankings, durable }: Props) {
   return (
     <div className="screen home">
       <div className="home-logo">
@@ -34,6 +38,15 @@ export function Home({ canResume, onResume, onNewGame }: Props) {
           </button>
         ))}
       </div>
+      <div className="home-links">
+        <button onClick={onPlayers}>Joueurs</button>
+        <button onClick={onRankings}>Classements</button>
+      </div>
+      {!durable && (
+        <div className="home-warning">
+          Stockage indisponible dans ce navigateur : profils et statistiques seront perdus à la fermeture.
+        </div>
+      )}
     </div>
   );
 }

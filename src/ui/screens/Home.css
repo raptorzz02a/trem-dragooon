@@ -42,3 +42,22 @@
 .home-mode.btn-primary .home-mode-sub {
   color: var(--text);
 }
+
+.home-links {
+  display: flex;
+  gap: 18px;
+}
+
+.home-links button {
+  min-width: 270px;
+  min-height: 72px;
+  font-size: 24px;
+  background: var(--bg-raised);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+}
+
+.home-warning {
+  color: var(--danger);
+  font-size: 18px;
+}

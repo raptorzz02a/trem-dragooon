@@ -19,11 +19,18 @@ npm run typecheck # vérification TypeScript
 | `src/game-engine` | Règles des 6 modes, calcul des scores et des vainqueurs, suggestions de finition. Indépendant de l'interface. |
 | `src/game-session` | Déroulement d'une partie : états, lancers, annulation, corrections, abandon, revanche. |
 | `src/teams` | Composition des équipes, tirage au sort, ordre de passage, couleurs. |
-| `src/ui` | Écrans (accueil, réglages, jeu) ; `src/ui/modes` contient ce qui diffère d'un mode à l'autre à l'écran. |
+| `src/profiles` | Profils joueurs, statistiques par mode et classements, recalculés à partir des parties archivées. |
+| `src/storage` | Partie en cours (localStorage) ; profils et parties archivées (IndexedDB). |
+| `src/ui` | Écrans (accueil, réglages, jeu, joueurs, profil, classements) ; `src/ui/modes` contient ce qui diffère d'un mode à l'autre à l'écran. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
 
 Le moteur ne stocke que la configuration et la liste des lancers ; tout le reste (scores, vainqueur, classement)
 est recalculé en rejouant cette liste. Annuler ou corriger revient à modifier la liste.
+
+Chaque partie terminée ou abandonnée est archivée telle quelle dans IndexedDB. Les statistiques et classements
+sont recalculés à partir de ces archives : seules les parties terminées hors entraînement comptent dans les
+victoires et les classements (5 parties minimum pour être classé). Supprimer un joueur efface son nom et son
+avatar, mais garde ses parties pour l'historique des autres.
 
 ## Lancer l'application
 

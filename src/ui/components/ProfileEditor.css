@@ -1,0 +1,112 @@
+.dialog.profile-editor {
+  flex-direction: row;
+  gap: 32px;
+  padding: 22px 28px;
+}
+
+.pe-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 300px;
+}
+
+.pe-left h2 {
+  margin: 0;
+  color: var(--gold);
+  font-size: 26px;
+}
+
+.pe-left input {
+  width: 100%;
+  text-align: center;
+}
+
+.pe-preview .avatar {
+  display: block;
+  border-radius: 50%;
+  box-shadow: var(--glow-gold);
+}
+
+.pe-colors {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+  width: 100%;
+}
+
+.pe-colors button {
+  min-width: 0;
+  min-height: 46px;
+  border: 3px solid transparent;
+}
+
+.pe-colors button.selected {
+  border-color: var(--text);
+  box-shadow: var(--glow-gold);
+}
+
+.pe-right {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pe-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.pe-row .label {
+  width: 86px;
+}
+
+.pe-options {
+  display: flex;
+  gap: 8px;
+}
+
+.pe-options button {
+  min-width: 64px;
+  min-height: 60px;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid transparent;
+}
+
+.pe-options button.selected {
+  border-color: var(--gold);
+  box-shadow: var(--glow-gold);
+}
+
+.pe-options .avatar {
+  border-radius: 50%;
+}
+
+.pe-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+}
+
+.pe-footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.pe-footer button {
+  padding: 0 24px;
+}
+
+.pe-error {
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 18px;
+}

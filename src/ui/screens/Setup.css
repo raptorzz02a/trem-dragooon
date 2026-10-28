@@ -118,3 +118,60 @@
 .setup-rules .segmented button {
   min-height: 56px;
 }
+
+.setup-list .avatar {
+  border-radius: 50%;
+  flex: none;
+}
+
+.dialog.picker {
+  width: 1180px;
+  max-height: 720px;
+}
+
+.picker-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.picker-head h2 {
+  margin: 0;
+  color: var(--gold);
+}
+
+.picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.picker-tile {
+  height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px;
+  border: 1px solid var(--line);
+}
+
+.picker-tile .avatar {
+  border-radius: 50%;
+}
+
+.picker-name {
+  font-size: 19px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.picker-plus {
+  font-size: 44px;
+  line-height: 1;
+}
