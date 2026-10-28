@@ -8,7 +8,7 @@ Modes : 301 / 501 / 701, Cricket, Horloge, Shanghai. De 1 à 10 joueurs, en indi
 
 ```bash
 npm install
-npm test          # tests du moteur de jeu
+npm test          # tests automatiques
 npm run typecheck # vérification TypeScript
 ```
 
@@ -23,6 +23,10 @@ npm run typecheck # vérification TypeScript
 | `src/storage` | Partie en cours (localStorage) ; profils et parties archivées (IndexedDB). |
 | `src/ui` | Écrans (accueil, réglages, jeu, joueurs, profil, classements) ; `src/ui/modes` contient ce qui diffère d'un mode à l'autre à l'écran. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
+| `docs/guide-utilisateur.md` | Guide utilisateur (livrable 05). |
+| `docs/technique.md` | Documentation technique : architecture, installation, kiosque, données, mise à jour (livrable 06). |
+| `docs/recette.md` | Procès-verbal de recette (livrable 07). |
+| `scripts/recette-ui.cjs` | Recette automatisée de l'interface dans Chromium. |
 
 Le moteur ne stocke que la configuration et la liste des lancers ; tout le reste (scores, vainqueur, classement)
 est recalculé en rejouant cette liste. Annuler ou corriger revient à modifier la liste.

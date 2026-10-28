@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeState } from '../game-engine/engine';
 import type { GameConfig, X01Options } from '../game-engine/types';
 import { config, events, players, teams } from '../test/helpers';
+import { memoryStore } from '../storage/db';
 import type { GameRecord, Profile } from './types';
 import {
   clockStats,
@@ -169,5 +170,36 @@ describe('Classements', () => {
     expect(unranked).toHaveLength(1);
     expect(unranked[0]).toMatchObject({ name: 'Alice', games: 1, wins: 1 });
     expect(unranked[0]!.key).toBeCloseTo(301 / 3);
+  });
+});
+
+describe('G. Données et statistiques', () => {
+  it('G03 : une partie archivée deux fois (ex. annuler puis refinir) ne compte qu’une fois', async () => {
+    const store = memoryStore();
+    const rec = record(x01(), x01Win);
+    await store.putGame(rec);
+    await store.putGame(rec);
+    const games = await store.listGames();
+    expect(summary(playerGames(games, 'p1'))).toMatchObject({ played: 1, wins: 1 });
+  });
+
+  it('G09 : le classement d’un mode ignore les parties des autres modes', () => {
+    const shanghai = record(config('shanghai', { rounds: 7 }), 'S1 D1 T1');
+    const recs = [record(x01(), x01Win), shanghai];
+    const p = [profile('p1'), profile('p2')];
+    expect(rankings(recs, p, { mode: 'x01' }).unranked.map((r) => [r.playerId, r.games, r.wins])).toEqual([
+      ['p1', 1, 1],
+      ['p2', 1, 0],
+    ]);
+    expect(rankings(recs, p, { mode: 'shanghai' }).unranked.map((r) => [r.playerId, r.games, r.wins])).toEqual([
+      ['p1', 1, 1],
+      ['p2', 1, 0],
+    ]);
+  });
+
+  it('G04 / G10 : une partie abandonnée n’apparaît ni en victoire ni en défaite', () => {
+    const abandoned = record(x01(), 'T20 T20');
+    expect(abandoned.session.status).toBe('abandoned');
+    expect(summary(playerGames([abandoned], 'p2'))).toMatchObject({ played: 0, losses: 0 });
   });
 });
