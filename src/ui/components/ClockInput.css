@@ -1,0 +1,41 @@
+.clock-input {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.clock-input-target {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+.clock-input-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.clock-input-buttons.by-zone {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.clock-input-buttons button {
+  min-height: 110px;
+  font-size: 34px;
+}
+
+.clock-input-buttons.by-zone button {
+  font-size: 24px;
+}
+
+.clock-hit {
+  background: var(--green);
+  box-shadow: var(--glow-green);
+}
+
+.clock-miss {
+  background: var(--danger-bg);
+}

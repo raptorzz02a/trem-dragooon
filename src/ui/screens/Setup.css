@@ -104,3 +104,17 @@
   color: var(--text-dim);
   font-size: 18px;
 }
+
+.setup-rules {
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+.setup-note {
+  font-size: 16px;
+  color: var(--gold-bright);
+}
+
+.setup-rules .segmented button {
+  min-height: 56px;
+}

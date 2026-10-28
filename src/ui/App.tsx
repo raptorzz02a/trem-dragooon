@@ -14,26 +14,26 @@ import {
 import { loadSettings } from '../settings/settings';
 import { loadCurrentGame, saveCurrentGame, type SavedGame } from '../storage/currentGame';
 import type { GameConfig } from '../game-engine/types';
-import { GameX01 } from './screens/GameX01';
+import type { GameMode } from '../game-engine/types';
+import { Game } from './screens/Game';
 import { Home } from './screens/Home';
-import { DEFAULT_X01_SETUP, SetupX01, type X01Setup } from './screens/SetupX01';
+import { DEFAULT_SETUP, Setup, type GameSetup } from './screens/Setup';
 
 type Screen = 'home' | 'setup' | 'game';
 
 const newGameId = () => `game-${Date.now()}`;
 
 /** Réglages de l'écran de configuration retrouvés depuis une partie (pour « Modifier les joueurs »). */
-function setupFrom(game: SavedGame): X01Setup {
+function setupFrom(game: SavedGame, base: GameSetup): GameSetup {
   const { config } = game.session;
   const teamOf: Record<string, number> = {};
   config.sides.forEach((s, i) => s.playerIds.forEach((id) => (teamOf[id] = i)));
-  const options = config.mode === 'x01' ? config.options : DEFAULT_X01_SETUP;
   return {
-    ...DEFAULT_X01_SETUP,
-    startScore: options.startScore,
-    out: options.out,
+    ...base,
+    mode: config.mode,
+    [config.mode]: config.options,
     teamMode: config.teamMode,
-    teamCount: config.teamMode ? config.sides.length : 2,
+    teamCount: config.teamMode ? config.sides.length : base.teamCount,
     players: config.sides.flatMap((s) => s.playerIds).map((id) => game.players.find((p) => p.id === id)!),
     teamOf,
   };
@@ -42,7 +42,7 @@ function setupFrom(game: SavedGame): X01Setup {
 export function App() {
   const [game, setGame] = useState<SavedGame | null>(() => loadCurrentGame());
   const [screen, setScreen] = useState<Screen>('home');
-  const [setup, setSetup] = useState<X01Setup>(DEFAULT_X01_SETUP);
+  const [setup, setSetup] = useState<GameSetup>(DEFAULT_SETUP);
   const settings = useMemo(loadSettings, []);
   const state = useMemo(() => (game ? sessionState(game.session) : null), [game]);
 
@@ -74,7 +74,7 @@ export function App() {
 
   if (screen === 'setup') {
     return (
-      <SetupX01
+      <Setup
         initial={setup}
         onBack={() => setScreen('home')}
         onStart={(s, config) => {
@@ -87,7 +87,7 @@ export function App() {
 
   if (screen === 'game' && game && state) {
     return (
-      <GameX01
+      <Game
         session={game.session}
         state={state}
         players={game.players}
@@ -102,7 +102,7 @@ export function App() {
         }}
         onRematch={() => start(rematchConfig(game.session.config), game.players)}
         onEditPlayers={() => {
-          setSetup(setupFrom(game));
+          setSetup(setupFrom(game, setup));
           commit(null);
           setScreen('setup');
         }}
@@ -116,7 +116,11 @@ export function App() {
     <Home
       canResume={resumable}
       onResume={() => setScreen('game')}
-      onNewX01={() => setScreen('setup')}
+      onNewGame={(mode: GameMode) => {
+        // Les joueurs et les équipes de la dernière partie restent proposés.
+        setSetup((s) => ({ ...s, mode }));
+        setScreen('setup');
+      }}
     />
   );
 }
