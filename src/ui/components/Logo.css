@@ -1,0 +1,25 @@
+.logo {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.04em;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(204, 174, 94, 0.7), 0 0 32px rgba(204, 174, 94, 0.35);
+  line-height: 1;
+}
+
+.logo-board {
+  width: 0.78em;
+  height: 0.78em;
+  margin: 0 0.02em;
+  filter: drop-shadow(0 0 6px rgba(204, 174, 94, 0.7));
+}
+
+.logo-dart {
+  width: 1.1em;
+  height: 0.4em;
+  margin: 0 0.08em;
+  filter: drop-shadow(0 0 6px rgba(204, 174, 94, 0.7));
+}

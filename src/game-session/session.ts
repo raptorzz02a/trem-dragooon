@@ -73,9 +73,14 @@ export function endTurn(session: GameSession, now: string = nowIso()): GameSessi
   return withEvents(session, [...session.events, { type: 'endTurn' }], now);
 }
 
-/** Annule la dernière action, y compris si elle a fait passer au joueur suivant. */
+/**
+ * Annule la dernière action, y compris si elle a fait passer au joueur suivant
+ * ou si elle a donné la victoire (la partie est alors rouverte).
+ */
 export function undoLast(session: GameSession, now: string = nowIso()): GameSession {
-  assertPlaying(session);
+  if (session.status !== 'in_progress' && session.status !== 'finished') {
+    throw new Error('Cette partie ne peut plus être modifiée.');
+  }
   if (session.events.length === 0) return session;
   return withEvents(session, session.events.slice(0, -1), now);
 }

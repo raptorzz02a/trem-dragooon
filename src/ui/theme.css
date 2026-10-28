@@ -1,0 +1,162 @@
+/* Thème TREM-DRAGOOON : fond sombre, vert et or, lisible à plusieurs mètres. */
+:root {
+  --bg: #101713;
+  --bg-raised: #17221b;
+  --bg-key: #213028;
+  --bg-key-active: #2b3e33;
+  --green: #1e5535;
+  --green-bright: #2f8a55;
+  --gold: #ccae5e;
+  --gold-bright: #e6c873;
+  --text: #f4f3ec;
+  --text-dim: #a9b3ab;
+  --danger: #ff5a5a;
+  --danger-bg: #5a2a2a;
+  --line: #2a3a30;
+  --radius: 12px;
+  --touch: 64px;
+  --glow-gold: 0 0 18px rgba(204, 174, 94, 0.45);
+  --glow-green: 0 0 18px rgba(47, 138, 85, 0.45);
+  font-family: 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  /* Pas de sélection de texte ni de zoom involontaire au doigt. */
+  user-select: none;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: none;
+  border-radius: var(--radius);
+  min-height: var(--touch);
+  min-width: var(--touch);
+  cursor: pointer;
+  background: var(--bg-key);
+  font-weight: 700;
+  transition: background 80ms, transform 80ms;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.97);
+  background: var(--bg-key-active);
+}
+
+button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg-key);
+  border: 2px solid var(--line);
+  border-radius: var(--radius);
+  min-height: var(--touch);
+  padding: 0 16px;
+  font-size: 22px;
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--gold);
+}
+
+.screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 28px;
+  gap: 16px;
+}
+
+.btn-primary {
+  background: var(--green);
+  box-shadow: var(--glow-green);
+  font-size: 22px;
+  padding: 0 28px;
+}
+
+.btn-gold {
+  background: var(--gold);
+  color: #1a1a12;
+  box-shadow: var(--glow-gold);
+  font-size: 22px;
+  padding: 0 28px;
+}
+
+.btn-gold:active:not(:disabled) {
+  background: var(--gold-bright);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+}
+
+.label {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.segmented {
+  display: flex;
+  gap: 10px;
+}
+
+.segmented button {
+  flex: 1;
+  font-size: 22px;
+}
+
+.segmented button.selected {
+  background: var(--gold);
+  color: #1a1a12;
+  box-shadow: var(--glow-gold);
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(8, 12, 10, 0.92);
+  z-index: 10;
+}
+
+.dialog {
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 460px;
+  font-size: 22px;
+}
+
+.dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+}

@@ -45,6 +45,15 @@ describe('Déroulement et corrections', () => {
     expect(st.current!.darts).toHaveLength(2);
   });
 
+  it('annuler la fléchette gagnante rouvre la partie', () => {
+    const to50 = 'T20 T20 T20 0 0 0 T20 T20 T20 0 0 0 T20 T7 S10 0 0 0';
+    let s = withScript(started(), `${to50} 50`);
+    expect(s.status).toBe('finished');
+    s = undoLast(s, NOW);
+    expect(s.status).toBe('in_progress');
+    expect(sessionState(s).mode).toMatchObject({ remaining: [50, 501] });
+  });
+
   it('G08 : corriger une volée passée recalcule les scores, sans doublon', () => {
     let s = withScript(started(), 'T20 T20 T20 S1');
     s = correctDart(s, 0, S(20), NOW);
