@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import type { Dart } from '../../game-engine/darts';
 import type { ThrownDart, GameState, RankEntry, TurnRecord } from '../../game-engine/types';
 
 /** Ce qu'il faut savoir des joueurs pour l'affichage. */
@@ -17,6 +18,8 @@ export interface ModeView {
   hero(ctx: ViewContext, sideIndex: number): { label: string; value: string | number };
   /** Ligne sous la valeur : finition, zones restantes, consigne. */
   hint(ctx: ViewContext): ReactNode;
+  /** Libellé d'une fléchette de la volée (par défaut : S20, T19, 50…). */
+  dartLabel?(dart: ThrownDart, ctx: ViewContext): string;
   /** Texte court sous une fléchette de la volée. */
   dartNote(dart: ThrownDart, ctx: ViewContext): string;
   volleyTotal(darts: ThrownDart[], ctx: ViewContext): string;
@@ -28,5 +31,7 @@ export interface ModeView {
   rankValue(entry: RankEntry, ctx: ViewContext): string;
   /** Tableau des scores de tous les côtés. */
   board(ctx: ViewContext): ReactNode;
+  /** Saisie propre au mode, à la place du pavé zone + numéro. */
+  input?(ctx: ViewContext, onDart: (dart: Dart) => void, disabled: boolean): ReactNode;
   pad(ctx: ViewContext): { numbers?: number[]; highlight?: number | null; highlightBull?: 25 | 50 | 'any' | null };
 }

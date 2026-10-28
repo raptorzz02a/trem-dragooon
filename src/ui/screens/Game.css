@@ -448,3 +448,13 @@
 .hint-chips .label {
   align-self: center;
 }
+
+/* Horloge : une fléchette ratée se voit en rouge dans la volée. */
+.game-clock .volley-slot.zero {
+  background: var(--danger-bg);
+  border-color: var(--danger);
+}
+
+.game-clock .volley-dart {
+  font-size: 26px;
+}

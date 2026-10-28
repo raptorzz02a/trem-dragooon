@@ -106,10 +106,10 @@ export function Game(props: Props) {
                 {[0, 1, 2].map((i) => {
                   const d = current.darts[i];
                   return (
-                    <div key={i} className={`volley-slot ${d ? 'filled' : ''}`}>
+                    <div key={i} className={`volley-slot ${d ? 'filled' : ''} ${d && d.points === 0 ? 'zero' : ''}`}>
                       {d ? (
                         <>
-                          <span className="volley-dart">{formatDart(d.dart)}</span>
+                          <span className="volley-dart">{view.dartLabel?.(d, ctx) ?? formatDart(d.dart)}</span>
                           <span className="volley-points">{view.dartNote(d, ctx)}</span>
                         </>
                       ) : (
@@ -144,7 +144,11 @@ export function Game(props: Props) {
         </section>
 
         <section className="game-right">
-          <ScorePad disabled={!current || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
+          {view.input ? (
+            view.input(ctx, props.onDart, !current || transition !== null)
+          ) : (
+            <ScorePad disabled={!current || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
+          )}
         </section>
       </div>
 

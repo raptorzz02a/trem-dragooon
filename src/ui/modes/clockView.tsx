@@ -1,5 +1,6 @@
 import { currentStep, isFinished, type ClockState, type ClockStep } from '../../game-engine/modes/clock';
 import type { ClockOptions, GameState } from '../../game-engine/types';
+import { ClockInput } from '../components/ClockInput';
 import { ListBoard } from './ListBoard';
 import type { ModeView } from './types';
 
@@ -34,7 +35,8 @@ export const clockView: ModeView = {
       </>
     );
   },
-  dartNote: (d) => (d.points > 0 ? '✓' : '·'),
+  dartLabel: (d) => (d.points > 0 ? `✓ ${d.dart.segment === 25 ? 'Bull' : d.dart.segment}` : '✗'),
+  dartNote: () => '',
   volleyTotal: (darts) => `+${darts.reduce((a, d) => a + d.points, 0)}`,
   turnResult: (turn, ctx) => {
     const advance = turn.darts.reduce((a, d) => a + d.points, 0);
@@ -54,6 +56,19 @@ export const clockView: ModeView = {
       }}
     />
   ),
+  input: ({ state }, onDart, disabled) => {
+    const s = ck(state);
+    const side = state.current?.sideIndex ?? state.turns.at(-1)?.sideIndex ?? 0;
+    return (
+      <ClockInput
+        options={state.config.options as ClockOptions}
+        steps={s.steps}
+        progress={s.progress[side]!}
+        disabled={disabled}
+        onDart={onDart}
+      />
+    );
+  },
   pad: ({ state }) => {
     const side = state.current?.sideIndex;
     const step = side === undefined ? null : currentStep(ck(state), side);
