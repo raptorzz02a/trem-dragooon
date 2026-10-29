@@ -46,7 +46,24 @@ classements** montre les classements et les fiches de tout le monde.
 
 Sécurité : seule une empreinte du mot de passe est stockée (PBKDF2-SHA256, 100 000 tours, sel par compte).
 Après 10 essais ratés, le pseudo est bloqué 15 minutes, y compris quand on l'ajoute sur la borne. Pas
-d'e-mail, donc pas de « mot de passe oublié » : un mot de passe perdu se réinitialise à la main dans la base.
+d'e-mail, donc pas de « mot de passe oublié » : c'est l'administrateur qui donne un mot de passe provisoire
+(voir ci-dessous). Chacun change son mot de passe depuis l'accueil (**Mot de passe**) ; ses autres appareils
+sont alors déconnectés.
+
+## Espace administrateur
+
+Le bouton **Administration** (accueil) n'apparaît que pour les pseudos listés dans `ADMINS`
+(`server/wrangler.toml`, séparés par des virgules). Un pseudo administrateur est attaché pour de bon au
+compte qui le porte : changer de pseudo ensuite ne donne pas l'accès à celui qui reprendrait l'ancien.
+
+- liste de tous les comptes : date de création, date de dernière utilisation (connexion, ouverture de
+  l'appli ou partie terminée, à 10 minutes près ; pour les comptes d'avant le suivi, dernière connexion
+  connue), nombre de parties ;
+- **Reset stats** : le compte est retiré de toutes ses parties, qui restent valables pour ses adversaires ;
+- **Reset mot de passe** : crée un mot de passe provisoire (8 caractères) à transmettre au joueur, et
+  déconnecte ses appareils ;
+- **Supprimer** : le compte disparaît, ses parties restent pour les autres au nom « Joueur supprimé ».
+  On ne peut pas supprimer son propre compte.
 
 ## Reprendre les stats de la borne
 

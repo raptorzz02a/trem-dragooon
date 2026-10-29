@@ -79,13 +79,7 @@ export const importedGameId = (localGameId: string) => `local-${localGameId}`;
  * Les autres joueurs de la partie gardent leur profil local tant qu'ils ne l'ont pas rattaché à leur compte.
  */
 export function claimRecord(record: GameRecord, from: string, to: PublicAccount): GameRecord {
-  const swap = (id: string) => (id === from ? to.id : id);
-  const { session } = record;
-  return {
-    ...record,
-    session: { ...session, config: { ...session.config, sides: session.config.sides.map((s) => ({ ...s, playerIds: s.playerIds.map(swap) })) } },
-    players: record.players.map((p) => (p.id === from ? { id: to.id, name: to.name } : p)),
-  };
+  return detachPlayer(record, from, to.id, to.name);
 }
 
 /** La partie concerne-t-elle ce profil local ? (Seules les parties terminées ou abandonnées sont reprises.) */
@@ -95,4 +89,36 @@ export function involves(record: GameRecord, localId: string): boolean {
     (session.status === 'finished' || session.status === 'abandoned') &&
     session.config.sides.some((s) => s.playerIds.includes(localId))
   );
+}
+
+/** Un compte vu depuis l'espace administrateur. */
+export interface AdminAccount extends PublicAccount {
+  /** Dernière connexion ou ouverture de l'appli avec ce compte (null : jamais vu depuis le suivi). */
+  lastSeenAt: string | null;
+  /** Parties en ligne terminées qui comptent pour ce compte. */
+  games: number;
+  admin: boolean;
+}
+
+/**
+ * Dans une partie archivée, le joueur `accountId` devient `newId` / `name`. Sert à rattacher un profil de la borne
+ * à un compte, et à l'inverse à retirer un compte d'une partie : elle reste valable pour les autres joueurs
+ * (victoires, confrontations), mais ne compte plus pour ce compte.
+ */
+export function detachPlayer(record: GameRecord, accountId: string, newId: string, name: string): GameRecord {
+  const swap = (id: string) => (id === accountId ? newId : id);
+  const { session } = record;
+  return {
+    ...record,
+    session: { ...session, config: { ...session.config, sides: session.config.sides.map((s) => ({ ...s, playerIds: s.playerIds.map(swap) })) } },
+    players: record.players.map((p) => (p.id === accountId ? { id: newId, name } : p)),
+  };
+}
+
+/** Mot de passe provisoire donné par l'administrateur : sans caractères qu'on confond (0/O, 1/l). */
+export function temporaryPassword(random: () => number): string {
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 8; i++) out += alphabet[Math.floor(random() * alphabet.length)];
+  return out;
 }

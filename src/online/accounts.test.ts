@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { abandonSession, createSession, startSession } from '../game-session/session';
 import { config } from '../test/helpers';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
-import { claimRecord, cleanAvatar, cleanColor, involves, passwordProblem, pseudoKey, pseudoProblem } from './accounts';
+import { claimRecord, cleanAvatar, cleanColor, detachPlayer, involves, passwordProblem, pseudoKey, pseudoProblem, temporaryPassword } from './accounts';
 
 describe('comptes en ligne', () => {
   it('un pseudo est unique sans tenir compte des majuscules ni des espaces', () => {
@@ -54,5 +54,22 @@ describe('reprise des stats de la borne', () => {
     const over = { ...record, session: abandonSession(record.session) };
     expect(involves(over, 'local-ju')).toBe(true);
     expect(involves(over, 'local-zoe')).toBe(false);
+  });
+
+  it('retire un compte d’une partie sans toucher à ses adversaires (reset des stats, suppression)', () => {
+    const detached = detachPlayer(record, 'local-max', 'supprime-1', 'Joueur supprimé');
+    expect(detached.session.config.sides.flatMap((s) => s.playerIds)).toEqual(['local-ju', 'supprime-1']);
+    expect(detached.players[1]).toEqual({ id: 'supprime-1', name: 'Joueur supprimé' });
+    expect(detached.players[0]).toBe(record.players[0]);
+  });
+});
+
+describe('espace administrateur', () => {
+  it('donne un mot de passe provisoire valable et lisible', () => {
+    let i = 0;
+    const password = temporaryPassword(() => (i++ * 0.13) % 1);
+    expect(password).toHaveLength(8);
+    expect(passwordProblem(password)).toBeNull();
+    expect(password).not.toMatch(/[01lo]/);
   });
 });

@@ -2,14 +2,14 @@ import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
 import { cleanSetup } from '../src/game-setup/setup';
 import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, roomView, setConnected, type Room } from '../src/online/room';
-import { AccountsObject } from './accounts';
+import { AccountsObject, type AccountsEnv } from './accounts';
 
 export { AccountsObject };
 
 // Serveur de salons en ligne : un Durable Object par code de partie.
 // Il garde l'état du salon, arbitre chaque action avec le moteur de l'appli et la renvoie à tous les joueurs.
 
-interface Env {
+interface Env extends AccountsEnv {
   ROOMS: DurableObjectNamespace<RoomObject>;
   ACCOUNTS: DurableObjectNamespace<AccountsObject>;
   ASSETS: Fetcher;
@@ -46,12 +46,27 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       return json({ ok: true });
     }
     if (path === '/api/account' && method === 'GET') {
-      const account = await db.me(bearer(request));
-      return account ? json({ account }) : json({ error: 'Session expirée : reconnecte-toi.' }, 401);
+      const opened = await db.open(bearer(request));
+      return opened ? json(opened) : json({ error: 'Session expirée : reconnecte-toi.' }, 401);
     }
     if (path === '/api/account' && method === 'PUT') {
       const b = await body(request);
       return json({ account: await db.update(bearer(request), b.name, b.color, b.avatar) });
+    }
+    if (path === '/api/account/password' && method === 'POST') {
+      const b = await body(request);
+      return json({ token: await db.changePassword(bearer(request), b.current, b.next) });
+    }
+    if (path === '/api/admin/accounts' && method === 'GET') return json({ accounts: await db.adminList(bearer(request)) });
+    const admin = /^\/api\/admin\/accounts\/([^/]+)(\/[a-z-]+)?$/.exec(path);
+    if (admin && method === 'POST') {
+      const id = decodeURIComponent(admin[1]!);
+      if (admin[2] === '/reset-stats') return json({ games: await db.adminResetStats(bearer(request), id) });
+      if (admin[2] === '/reset-password') return json({ password: await db.adminResetPassword(bearer(request), id) });
+    }
+    if (admin && !admin[2] && method === 'DELETE') {
+      await db.adminDelete(bearer(request), decodeURIComponent(admin[1]!));
+      return json({ ok: true });
     }
     if (path === '/api/account/import' && method === 'POST') {
       // Parties de la borne : jusqu'à IMPORT_BATCH parties complètes par envoi.
@@ -85,7 +100,7 @@ function cors(request: Request, response: Response): Response {
   const out = new Response(response.body, response);
   out.headers.set('Access-Control-Allow-Origin', origin);
   out.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
-  out.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  out.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   out.headers.set('Vary', 'Origin');
   return out;
 }
