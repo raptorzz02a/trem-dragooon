@@ -76,9 +76,21 @@ L'interface prend la couleur du saloon ouvert.
   réglages, suppression).
 - Plusieurs parties peuvent se jouer en même temps, dans un saloon comme dans des saloons différents :
   chaque partie a sa salle et son code.
+- **Parties d'un saloon** : seuls ses membres y jouent (un compte non membre est refusé, même avec le
+  code ; un **Nouveau joueur** créé sur l'appareil de l'hôte entre dans le saloon). L'accueil du saloon
+  liste les **Parties en cours** (sans leur code) : on peut les **Regarder** en spectateur, l'hôte et les
+  joueurs voient l'œil et le nombre de spectateurs. Pour jouer, il faut toujours le code. Un point vert
+  sur l'icône du saloon signale une partie lancée.
+- **Réglages par défaut** : dans la salle d'attente, l'hôte admin du saloon (pour le saloon public :
+  l'administrateur de l'appli) peut garder les réglages pour les prochaines parties du saloon ; le mode
+  reste celui choisi à l'accueil.
+- **Borne** : menu du joueur, « Fixer ce saloon sur cet appareil » : la borne s'ouvre toujours sur ce
+  saloon, sans sélecteur (réglage de l'appareil, à défaire par le même menu).
+- Les liens de partage d'une partie sont maintenant `?partie=CODE` (les anciens `?salon=CODE` marchent encore).
 - Une partie créée appartient au saloon ouvert à ce moment-là (champ `saloonId` des parties enregistrées).
 
-Recette : `node scripts/recette-saloons.cjs` avec `npm run online:dev` lancé à côté.
+Recettes : `node scripts/recette-saloons.cjs` et `node scripts/recette-saloons-parties.cjs`, avec
+`npm run online:dev` lancé à côté.
 
 ## Espace administrateur
 

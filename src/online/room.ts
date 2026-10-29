@@ -13,7 +13,7 @@ import {
 } from '../game-session/session';
 import type { Rng } from '../teams/teams';
 import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomPlace, RoomView } from './protocol';
-import { PUBLIC_SALOON_ID } from './saloons';
+import { PUBLIC_SALOON_ID, type LiveSummary } from './saloons';
 
 // Règles d'un salon en ligne, sans réseau ni stockage : le serveur les applique, les tests les vérifient.
 // Le serveur est l'arbitre : il refuse une fléchette saisie par un joueur dont ce n'est pas le tour.
@@ -44,8 +44,10 @@ export function createRoom(code: string, place: RoomPlace = 'remote', setup: Gam
   return saloonId && saloonId !== PUBLIC_SALOON_ID ? { ...room, saloonId } : room;
 }
 
-export function roomView(room: Room): RoomView {
+export function roomView(room: Room, watchers = 0): RoomView {
   return {
+    ...(room.saloonId ? { saloonId: room.saloonId } : {}),
+    watchers,
     code: room.code,
     hostId: room.hostId,
     status: room.status,
@@ -54,6 +56,17 @@ export function roomView(room: Room): RoomView {
     players: room.players.map(({ token: _token, ...p }) => p),
     session: room.session,
   };
+}
+
+/**
+ * Ce que la liste « Parties en cours » du saloon montre de la partie ; null quand elle n'a plus à y figurer
+ * (terminée ou arrêtée, ou salle d'attente vide).
+ */
+export function liveSummary(room: Room, watchers: number): LiveSummary | null {
+  const players = room.players.filter((p) => !p.spectator).map((p) => p.name);
+  if (room.players.length === 0) return null;
+  if (room.status === 'playing' && room.session && room.session.status !== 'in_progress' && room.session.status !== 'ready') return null;
+  return { mode: room.setup.mode, place: room.place, status: room.status === 'playing' ? 'playing' : 'lobby', players, watchers };
 }
 
 function cleanIdentity(identity: OnlineIdentity, others: RoomPlayer[]): OnlineIdentity {
@@ -85,7 +98,7 @@ export function joinRoom(
     return { room: replacePlayer(room, player), player };
   }
   if (room.status !== 'lobby') throw new Error('La partie a déjà commencé : impossible de la rejoindre.');
-  if (room.players.length >= MAX_PLAYERS) throw new Error(`Le salon est complet (${MAX_PLAYERS} joueurs).`);
+  if (room.players.length >= MAX_PLAYERS) throw new Error(`La partie est complète (${MAX_PLAYERS} joueurs).`);
   const player: RoomPlayer = {
     id: accountId ?? `p${room.nextPlayer}`,
     ...cleanIdentity(identity, room.players),
@@ -115,7 +128,7 @@ export function addLocalPlayer(room: Room, hostId: string, account: OnlineIdenti
   assertHost(room, hostId);
   if (room.status !== 'lobby') throw new Error('La partie a déjà commencé.');
   if (room.players.some((p) => p.id === account.id)) throw new Error(`${account.name} est déjà dans la partie.`);
-  if (room.players.length >= MAX_PLAYERS) throw new Error(`Le salon est complet (${MAX_PLAYERS} joueurs).`);
+  if (room.players.length >= MAX_PLAYERS) throw new Error(`La partie est complète (${MAX_PLAYERS} joueurs).`);
   const player: RoomPlayer = { id: account.id, ...cleanIdentity(account, room.players), connected: false, local: true, token: newToken() };
   return addPlayer(room, player);
 }
@@ -223,7 +236,7 @@ export function applyMessage(
   now: string = new Date().toISOString(),
   rng: Rng = Math.random,
 ): Room {
-  if (!room.players.some((p) => p.id === playerId)) throw new Error('Joueur inconnu dans ce salon.');
+  if (!room.players.some((p) => p.id === playerId)) throw new Error('Joueur inconnu dans cette partie.');
 
   switch (message.type) {
     case 'setup': {
@@ -242,7 +255,7 @@ export function applyMessage(
     case 'removePlayer': {
       assertHost(room, playerId);
       assertLobby(room);
-      if (message.playerId === room.hostId) throw new Error('L’hôte ne peut pas se retirer : il peut quitter le salon.');
+      if (message.playerId === room.hostId) throw new Error('L’hôte ne peut pas se retirer : il peut quitter la partie.');
       return { ...room, players: room.players.filter((p) => p.id !== message.playerId) };
     }
 

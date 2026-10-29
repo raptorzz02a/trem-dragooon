@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createSession } from '../game-session/session';
 import { config } from '../test/helpers';
-import { archiveChange, createRoom } from './room';
+import { archiveChange, createRoom, joinRoom, liveSummary } from './room';
 import {
   canDeleteSaloon,
   canEditSaloon,
@@ -85,5 +85,15 @@ describe('saloons', () => {
     expect(canDeleteSaloon('admin')).toBe(false);
     expect(canDeleteSaloon('owner')).toBe(true);
     expect(canDeleteSaloon('global')).toBe(true);
+  });
+
+  it('la liste « Parties en cours » montre la partie tant qu’elle n’est pas finie', () => {
+    const identity = { name: 'Ju', color: '#ff0000', avatar: { skin: 0, hair: 0, hairColor: 0, facialHair: 0, glasses: 0, hat: 0 } };
+    const empty = createRoom('ABC234', 'same', undefined, 's1');
+    expect(liveSummary(empty, 0)).toBeNull();
+    const { room } = joinRoom(empty, null, identity, () => 't', 'acc-ju');
+    expect(liveSummary(room, 2)).toEqual({ mode: 'x01', place: 'same', status: 'lobby', players: ['Ju'], watchers: 2 });
+    const session = { ...createSession('g1', config('x01'), '2026-10-29T00:00:00Z'), status: 'finished' as const };
+    expect(liveSummary({ ...room, status: 'playing', session }, 0)).toBeNull();
   });
 });

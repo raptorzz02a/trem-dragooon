@@ -31,13 +31,17 @@ import {
   canDeleteSaloon,
   canEditSaloon,
   canManage,
+  LIVE_GAME_TTL_MS,
   type AdminSaloon,
+  type LiveGame,
+  type LiveSummary,
   type MemberAction,
   type Saloon,
   type SaloonActor,
   type SaloonMembers,
   type SaloonRole,
 } from '../src/online/saloons';
+import type { GameSetup } from '../src/game-setup/setup';
 import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
 
 // Base des comptes et des parties en ligne : un seul Durable Object, stocké en SQLite (offre gratuite).
@@ -164,6 +168,17 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
         account_id TEXT NOT NULL,
         banned_at TEXT NOT NULL,
         PRIMARY KEY (saloon_id, account_id)
+      );
+      CREATE TABLE IF NOT EXISTS live_rooms (
+        code TEXT PRIMARY KEY,
+        saloon_id TEXT NOT NULL,
+        watch_key TEXT NOT NULL,
+        summary TEXT NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS saloon_defaults (
+        saloon_id TEXT PRIMARY KEY,
+        setup TEXT NOT NULL
       );
       CREATE TABLE IF NOT EXISTS saloon_failures (
         saloon_id TEXT NOT NULL,
@@ -440,6 +455,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       public: true,
       role: this.isAdmin(accountId) ? 'admin' : 'member',
       members,
+      live: this.playing(PUBLIC_SALOON_ID),
     };
   }
 
@@ -462,6 +478,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       public: false,
       role,
       members: this.memberCount(row.id),
+      live: this.playing(row.id),
       ...(role !== 'member' ? { invite: row.invite } : {}),
     };
   }
@@ -717,7 +734,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
   }
 
   private dropSaloon(id: string): void {
-    for (const table of ['saloon_members', 'saloon_bans', 'saloon_failures']) this.sql.exec(`DELETE FROM ${table} WHERE saloon_id = ?`, id);
+    for (const table of ['saloon_members', 'saloon_bans', 'saloon_failures', 'saloon_defaults', 'live_rooms']) this.sql.exec(`DELETE FROM ${table} WHERE saloon_id = ?`, id);
     this.sql.exec('DELETE FROM saloons WHERE id = ?', id);
   }
 
@@ -733,6 +750,84 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       )
       .toArray()
       .map((r) => ({ id: r.id, name: r.name, color: r.color, icon: r.icon, members: r.members, owner: r.owner, createdAt: r.created_at }));
+  }
+
+  // Parties d'un saloon : liste des parties en cours, spectateurs, joueurs limités aux membres, réglages par défaut.
+
+  /** Ce compte peut-il jouer ou regarder une partie de ce saloon ? */
+  isMember(accountId: string, saloonId: string): boolean {
+    return saloonId === PUBLIC_SALOON_ID || this.roleIn(saloonId, accountId) !== null;
+  }
+
+  /**
+   * Un joueur créé sur l'appareil de l'hôte pendant une partie du saloon en devient membre, sans mot de passe :
+   * l'hôte en est membre. Un banni n'est pas réadmis ainsi.
+   */
+  addFromGame(accountId: string, saloonId: string): void {
+    if (this.isMember(accountId, saloonId) || !this.saloonExists(saloonId)) return;
+    this.notBanned(saloonId, accountId);
+    this.addMember(saloonId, accountId);
+  }
+
+  /** Une partie signale son état (null : elle sort de la liste). */
+  reportRoom(code: string, saloonId: string, watchKey: string, summary: LiveSummary | null): void {
+    if (!summary) {
+      this.sql.exec('DELETE FROM live_rooms WHERE code = ?', code);
+      return;
+    }
+    this.sql.exec('INSERT OR REPLACE INTO live_rooms VALUES (?, ?, ?, ?, ?)', code, saloonId, watchKey, JSON.stringify(summary), Date.now());
+  }
+
+  private liveRows(saloonId: string): { code: string; watch_key: string; summary: string; updated_at: number }[] {
+    this.sql.exec('DELETE FROM live_rooms WHERE updated_at < ?', Date.now() - LIVE_GAME_TTL_MS);
+    return this.sql
+      .exec<{ code: string; watch_key: string; summary: string; updated_at: number }>(
+        'SELECT code, watch_key, summary, updated_at FROM live_rooms WHERE saloon_id = ? ORDER BY updated_at DESC',
+        saloonId,
+      )
+      .toArray();
+  }
+
+  /** Nombre de parties lancées (pas en salle d'attente) dans le saloon : le point vert du sélecteur. */
+  private playing(saloonId: string): number {
+    return this.liveRows(saloonId).filter((r) => (JSON.parse(r.summary) as LiveSummary).status === 'playing').length;
+  }
+
+  async saloonGames(token: string, saloonId: unknown): Promise<LiveGame[]> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    if (!this.isMember(me.id, id)) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
+    return this.liveRows(id).map((r) => ({ ...(JSON.parse(r.summary) as LiveSummary), watchKey: r.watch_key, updatedAt: new Date(r.updated_at).toISOString() }));
+  }
+
+  /** Code de la partie à regarder : seulement pour un membre du saloon. */
+  async watchCode(token: string, saloonId: unknown, watchKey: unknown): Promise<string | null> {
+    const me = await this.sessionRow(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    if (!me || !this.isMember(me.id, id)) return null;
+    const row = this.sql.exec<{ code: string }>('SELECT code FROM live_rooms WHERE saloon_id = ? AND watch_key = ?', id, String(watchKey ?? '')).toArray()[0];
+    return row?.code ?? null;
+  }
+
+  /** Réglages proposés à chaque nouvelle partie du saloon (mode choisi à l'accueil, options, équipes). */
+  saloonDefaults(saloonId: string): unknown {
+    const row = this.sql.exec<{ setup: string }>('SELECT setup FROM saloon_defaults WHERE saloon_id = ?', saloonId).toArray()[0];
+    return row ? JSON.parse(row.setup) : null;
+  }
+
+  /** Les admins du saloon (pour le saloon public : l'administrateur de l'appli) fixent les réglages par défaut. */
+  async setSaloonDefaults(token: string, saloonId: unknown, setup: GameSetup): Promise<void> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    const allowed = id === PUBLIC_SALOON_ID ? this.isAdmin(me.id) : canEditSaloon(this.actor(id, me.id));
+    if (!allowed) throw Object.assign(new Error('Réservé aux admins du saloon.'), { status: 403 });
+    const { teamOf: _teams, ...rest } = setup;
+    this.sql.exec('INSERT OR REPLACE INTO saloon_defaults VALUES (?, ?)', id, JSON.stringify({ ...rest, teamOf: {} }));
+  }
+
+  /** Le compte peut-il régler les parties par défaut de ce saloon ? */
+  canSetDefaults(accountId: string, saloonId: string): boolean {
+    return saloonId === PUBLIC_SALOON_ID ? this.isAdmin(accountId) : canEditSaloon(this.actor(saloonId, accountId));
   }
 
   // Espace administrateur : chaque action vérifie d'abord que le jeton est celui d'un administrateur.

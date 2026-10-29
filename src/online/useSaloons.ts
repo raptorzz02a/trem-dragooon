@@ -5,18 +5,23 @@ import { api } from './useAccount';
 // Saloons du compte connecté et saloon ouvert sur cet appareil (le dernier utilisé est rouvert à la visite suivante).
 
 const CURRENT_KEY = 'trem-dragooon.saloon';
+/** Saloon fixé sur cet appareil (la borne du bar) : le sélecteur est masqué. */
+const FIXED_KEY = 'trem-dragooon.saloon.fixed';
+/** Les points verts (parties lancées) sont rafraîchis à ce rythme. */
+const REFRESH_MS = 30_000;
 
-function storedCurrent(): string {
+function stored(key: string): string | null {
   try {
-    return localStorage.getItem(CURRENT_KEY) ?? PUBLIC_SALOON_ID;
+    return localStorage.getItem(key);
   } catch {
-    return PUBLIC_SALOON_ID;
+    return null;
   }
 }
 
-function storeCurrent(id: string): void {
+function store(key: string, value: string | null): void {
   try {
-    localStorage.setItem(CURRENT_KEY, id);
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
   } catch {
     // Sans stockage, on rouvre le saloon public à chaque visite.
   }
@@ -36,16 +41,24 @@ export interface SaloonsState {
   leave: (id: string) => Promise<void>;
   /** Relit les saloons du compte (rôle changé, saloon renommé ou supprimé). */
   refresh: () => Promise<unknown>;
+  /** Le saloon ouvert est fixé sur cet appareil. */
+  fixed: boolean;
+  setFixed: (fixed: boolean) => void;
 }
 
 export function useSaloons(accountId: string): SaloonsState {
   const [saloons, setSaloons] = useState<Saloon[]>([PUBLIC]);
-  const [currentId, setCurrentId] = useState(storedCurrent);
+  const [fixedId, setFixedId] = useState(() => stored(FIXED_KEY));
+  const [currentId, setCurrentId] = useState(() => fixedId ?? stored(CURRENT_KEY) ?? PUBLIC_SALOON_ID);
 
-  const select = useCallback((id: string) => {
-    storeCurrent(id);
-    setCurrentId(id);
-  }, []);
+  const select = useCallback(
+    (id: string) => {
+      if (fixedId) return;
+      store(CURRENT_KEY, id);
+      setCurrentId(id);
+    },
+    [fixedId],
+  );
 
   const refresh = useCallback(async () => {
     const r = await api<{ saloons: Saloon[] }>('/api/saloons');
@@ -54,8 +67,13 @@ export function useSaloons(accountId: string): SaloonsState {
   }, []);
 
   useEffect(() => {
-    if (accountId) void refresh().catch(() => undefined);
-    else setSaloons([PUBLIC]);
+    if (!accountId) {
+      setSaloons([PUBLIC]);
+      return;
+    }
+    void refresh().catch(() => undefined);
+    const timer = setInterval(() => void refresh().catch(() => undefined), REFRESH_MS);
+    return () => clearInterval(timer);
   }, [refresh, accountId]);
 
   /** Un saloon qu'on vient de créer ou de rejoindre devient le saloon ouvert. */
@@ -81,6 +99,12 @@ export function useSaloons(accountId: string): SaloonsState {
       return saloon;
     },
     refresh,
+    fixed: fixedId !== null,
+    setFixed: (fixed) => {
+      const id = fixed ? currentId : null;
+      store(FIXED_KEY, id);
+      setFixedId(id);
+    },
     leave: async (id) => {
       await api(`/api/saloons/${encodeURIComponent(id)}/leave`, { method: 'POST' });
       await refresh();

@@ -40,6 +40,10 @@ export interface RoomView {
   players: OnlinePlayer[];
   /** Partie en cours ou terminée (null dans la salle d'attente). */
   session: GameSession | null;
+  /** Saloon où se joue la partie (absent : saloon public). */
+  saloonId?: string;
+  /** Spectateurs qui regardent la partie depuis la liste « Parties en cours ». */
+  watchers: number;
 }
 
 export type ClientMessage =

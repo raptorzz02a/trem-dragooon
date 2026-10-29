@@ -309,3 +309,28 @@
     min-width: 0;
   }
 }
+
+.saloon-icon {
+  position: relative;
+}
+
+/* Point vert : une partie est lancée dans ce saloon. */
+.saloon-live {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3ddc84;
+  border: 3px solid var(--bg-raised);
+}
+
+/* Saloon fixé sur l'appareil : son nom seul, sans menu pour en changer. */
+.saloon-fixed .saloon-header-toggle {
+  display: none;
+}
+
+.saloon-fixed .saloon-header-static {
+  display: flex;
+}

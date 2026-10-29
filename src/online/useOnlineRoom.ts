@@ -112,7 +112,7 @@ export function useOnlineRoom(code: string, identity: OnlineIdentity): OnlineRoo
         if (stopped) return;
         joined = false;
         if (FINAL_CLOSE.has(event.code)) {
-          fail(event.code === 4410 ? 'Ce salon a expiré.' : event.code === 1000 ? 'Tu as quitté le salon.' : 'Aucune partie avec ce code.');
+          fail(event.code === 4410 ? 'Cette partie a expiré.' : event.code === 1000 ? 'Tu as quitté la partie.' : 'Aucune partie avec ce code.');
           return;
         }
         // Coupure réseau : nouvel essai de plus en plus espacé, sans dépasser 10 secondes.
