@@ -6,6 +6,7 @@ import {
   canDeleteSaloon,
   canEditSaloon,
   canManage,
+  cleanMinGames,
   cleanSaloonColor,
   cleanSaloonIcon,
   inviteLink,
@@ -95,5 +96,14 @@ describe('saloons', () => {
     expect(liveSummary(room, 2)).toEqual({ mode: 'x01', place: 'same', status: 'lobby', players: ['Ju'], watchers: 2 });
     const session = { ...createSession('g1', config('x01'), '2026-10-29T00:00:00Z'), status: 'finished' as const };
     expect(liveSummary({ ...room, status: 'playing', session }, 0)).toBeNull();
+  });
+});
+
+describe('classement d’un saloon', () => {
+  it('le minimum de parties est un entier de 1 à 50', () => {
+    expect(cleanMinGames(5)).toBe(5);
+    expect(cleanMinGames(1)).toBe(1);
+    expect(cleanMinGames(50)).toBe(50);
+    for (const bad of [0, 51, 2.5, '5', null, undefined, NaN]) expect(cleanMinGames(bad)).toBeNull();
   });
 });

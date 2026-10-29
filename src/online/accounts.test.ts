@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { abandonSession, createSession, startSession } from '../game-session/session';
 import { config } from '../test/helpers';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
-import { claimRecord, cleanAvatar, cleanColor, detachPlayer, involves, passwordProblem, pseudoKey, pseudoProblem, temporaryPassword } from './accounts';
+import { claimRecord, cleanAvatar, cleanColor, detachPlayer, involves, normalizeRecovery, passwordProblem, pseudoKey, pseudoProblem, recoveryCode, temporaryPassword } from './accounts';
 
 describe('comptes en ligne', () => {
   it('un pseudo est unique sans tenir compte des majuscules ni des espaces', () => {
@@ -71,5 +71,19 @@ describe('espace administrateur', () => {
     expect(password).toHaveLength(8);
     expect(passwordProblem(password)).toBeNull();
     expect(password).not.toMatch(/[01lo]/);
+  });
+});
+
+describe('mot de passe oublié', () => {
+  it('le code de secours fait 16 caractères lisibles, par groupes de 4', () => {
+    let seed = 0.37;
+    const code = recoveryCode(() => (seed = (seed * 9301 + 0.49297) % 1));
+    expect(code).toMatch(/^[A-Z2-9]{4}(-[A-Z2-9]{4}){3}$/);
+    expect(code).not.toMatch(/[01ILO]/);
+  });
+
+  it('le code tapé ignore tirets, espaces et minuscules', () => {
+    expect(normalizeRecovery(' abcd-efgh jkmn-pqrs ')).toBe('ABCDEFGHJKMNPQRS');
+    expect(normalizeRecovery('ABCD-EFGH-JKMN-PQRS')).toBe(normalizeRecovery('abcdefghjkmnpqrs'));
   });
 });

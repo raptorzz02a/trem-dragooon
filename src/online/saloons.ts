@@ -23,6 +23,8 @@ export interface Saloon {
   live?: number;
   /** Jeton du lien d'invitation : seulement pour le propriétaire et les admins du saloon. */
   invite?: string;
+  /** Parties à jouer dans le saloon pour entrer dans son classement. */
+  minGames: number;
 }
 
 export const PUBLIC_SALOON_ID = 'trem-dragooon';
@@ -34,6 +36,16 @@ export const SALOON_PASSWORD_MIN = 4;
 /** Saloons qu'un compte peut créer (il peut en rejoindre autant qu'il veut). */
 export const MAX_OWNED_SALOONS = 3;
 export const MAX_SALOON_MEMBERS = 50;
+/** Bornes du nombre minimum de parties pour être classé, réglé par les admins du saloon. */
+export const MIN_GAMES_MIN = 1;
+export const MIN_GAMES_MAX = 50;
+
+/** Nombre minimum de parties reçu du réseau, ou null s'il n'est pas acceptable. */
+export const cleanMinGames = (value: unknown): number | null =>
+  typeof value === 'number' && Number.isInteger(value) && value >= MIN_GAMES_MIN && value <= MIN_GAMES_MAX ? value : null;
+
+/** Libellé d'une partie dont le saloon n'existe plus. */
+export const DELETED_SALOON_NAME = 'Saloon supprimé';
 
 /** Icônes proposées pour un saloon (la cible est réservée au saloon public). */
 export const SALOON_ICONS = ['🍺', '🐉', '🏆', '🤠', '🔥', '⭐', '🎲', '👑', '🃏', '⚡', '🍀'] as const;

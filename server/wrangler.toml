@@ -32,3 +32,5 @@ new_sqlite_classes = ["AccountsObject"]
 # Pseudo(s) administrateur(s), séparés par des virgules : accès à l'espace administrateur dans l'appli.
 # Le pseudo est attaché au compte qui le porte au moment du déploiement (ou de sa création s'il n'existe pas encore).
 ADMINS = "admin"
+# Pseudo(s) qui administrent aussi le saloon public TREM-DRAGOOON (réglages par défaut, classement), séparés par des virgules.
+PUBLIC_ADMINS = "Ju"

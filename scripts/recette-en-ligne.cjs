@@ -48,6 +48,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.getByLabel('Pseudo').fill(name);
     await p.getByLabel('Mot de passe').fill(PASS);
     await p.locator('.online-login button').click();
+    await p.getByText('J’ai noté mon code').click(); // code de secours montré à la création
     await p.getByText('Enregistrer').click(); // avatar proposé à la création
     await p.locator('.home-account-name').waitFor({ timeout: 10000 });
   };
@@ -152,8 +153,9 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await borne.locator('.home-account-name').waitFor();
 
   // --- Stats : la partie compte pour Ju, Pierre et Jacques ---
-  await borne.getByText('Joueurs et classements').click();
+  await borne.getByText('Classement du saloon').click();
   await borne.locator('.ranking-row', { hasText: PIERRE }).first().click().catch(() => undefined);
+  await borne.locator('.profile-screen').waitFor({ timeout: 10000 }).catch(() => undefined);
   const statsText = await borne.locator('body').innerText();
   check('parties en ligne dans les stats', statsText.includes(PIERRE));
   await shot(borne, '09-stats-borne.png');

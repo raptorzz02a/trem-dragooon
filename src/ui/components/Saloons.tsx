@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import {
   canEditSaloon,
+  cleanMinGames,
   inviteLink,
-  PUBLIC_SALOON_ID,
   MAX_SALOON_MEMBERS,
+  MIN_GAMES_MAX,
+  MIN_GAMES_MIN,
+  PUBLIC_SALOON_ID,
   SALOON_COLORS,
   SALOON_ICONS,
   saloonNameProblem,
   saloonPasswordProblem,
   type Saloon,
 } from '../../online/saloons';
+import { api } from '../../online/useAccount';
 import type { SaloonsState } from '../../online/useSaloons';
 import { ROLE_NAMES, SaloonMembersList, SaloonSettings } from './SaloonManager';
 import './Saloons.css';
@@ -221,6 +225,44 @@ export function SaloonDialog({ state, myId, onClose }: { state: SaloonsState; my
   );
 }
 
+/** Nombre de parties à jouer dans le saloon pour être classé : réglé par les admins du saloon. */
+function RankingSetting({ saloon, onSaved }: { saloon: Saloon; onSaved: () => void }) {
+  const [value, setValue] = useState(String(saloon.minGames));
+  const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  const n = cleanMinGames(Number(value));
+  const save = () => {
+    setMessage(null);
+    api(`/api/saloons/${encodeURIComponent(saloon.id)}/ranking`, { method: 'PUT', body: JSON.stringify({ minGames: n }) })
+      .then(() => {
+        setMessage({ text: 'Enregistré.' });
+        onSaved();
+      })
+      .catch((e: Error) => setMessage({ text: e.message, error: true }));
+  };
+  return (
+    <div className="saloon-ranking">
+      <div className="label">Classement</div>
+      <label className="saloon-ranking-row">
+        Classé à partir de
+        <input
+          aria-label="Parties minimum pour être classé"
+          type="number"
+          inputMode="numeric"
+          min={MIN_GAMES_MIN}
+          max={MIN_GAMES_MAX}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+        parties
+        <button type="button" disabled={n === null || n === saloon.minGames} onClick={save}>
+          Enregistrer
+        </button>
+      </label>
+      {message && <div className={message.error ? 'online-error' : 'saloon-hint'}>{message.text}</div>}
+    </div>
+  );
+}
+
 /** Le saloon ouvert : lien d'invitation, membres, réglages (selon le rôle), et le quitter. */
 export function SaloonInfo({ saloon, state, myId, onClose, welcome }: { saloon: Saloon; state: SaloonsState; myId: string; onClose: () => void; welcome?: boolean }) {
   // Le saloon peut changer pendant que la fenêtre est ouverte (nouveau lien, renommé).
@@ -283,6 +325,7 @@ export function SaloonInfo({ saloon, state, myId, onClose, welcome }: { saloon: 
                 {ROLE_NAMES[current.role]} · {current.members} / {MAX_SALOON_MEMBERS} membres
               </div>
             )}
+            {canEditSaloon(current.role) && <RankingSetting saloon={current} onSaved={() => void state.refresh()} />}
             {link && (
               <div className="saloon-invite">
                 <input aria-label="Lien d'invitation" readOnly value={link} onFocus={(e) => e.target.select()} />

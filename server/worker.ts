@@ -42,6 +42,19 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       const b = await body(request);
       return json(await db.login(String(b.name ?? ''), String(b.password ?? '')));
     }
+    if (path === '/api/account/recover' && method === 'POST') {
+      const b = await body(request);
+      return json(await db.recover(b.name, b.code, b.password));
+    }
+    if (path === '/api/account/password-request' && method === 'POST') {
+      const b = await body(request);
+      await db.requestPassword(b.name);
+      return json({ ok: true });
+    }
+    if (path === '/api/account/recovery' && method === 'POST') {
+      const b = await body(request);
+      return json({ recovery: await db.renewRecovery(bearer(request), b.password) });
+    }
     if (path === '/api/account/logout' && method === 'POST') {
       await db.logout(bearer(request));
       return json({ ok: true });
@@ -65,6 +78,10 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       if (admin[2] === '/reset-stats') return json({ games: await db.adminResetStats(bearer(request), id) });
       if (admin[2] === '/reset-password') return json({ password: await db.adminResetPassword(bearer(request), id) });
     }
+    if (admin?.[2] === '/request' && method === 'DELETE') {
+      await db.adminDismissRequest(bearer(request), decodeURIComponent(admin[1]!));
+      return json({ ok: true });
+    }
     if (admin && !admin[2] && method === 'DELETE') {
       await db.adminDelete(bearer(request), decodeURIComponent(admin[1]!));
       return json({ ok: true });
@@ -74,7 +91,9 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       const b = await body(request, 4_000_000);
       return json({ imported: await db.importGames(bearer(request), b.localId, b.games) });
     }
-    if (path === '/api/community' && method === 'GET') return json(await db.community());
+    if (path === '/api/community' && method === 'GET') return json(await db.community(bearer(request), new URL(request.url).searchParams.get('saloon')));
+    const player = /^\/api\/players\/([^/]+)$/.exec(path);
+    if (player && method === 'GET') return json(await db.playerStats(bearer(request), decodeURIComponent(player[1]!)));
     if (path === '/api/saloons' && method === 'GET') return json({ saloons: await db.saloons(bearer(request)) });
     if (path === '/api/saloons' && method === 'POST') {
       const b = await body(request);
@@ -105,7 +124,12 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       await db.manageMember(bearer(request), decodeURIComponent(members[1]!), decodeURIComponent(members[2]), members[3]);
       return json({ ok: true });
     }
-    const games = /^\/api\/saloons\/([^/]+)\/(games|defaults)$/.exec(path);
+    const games = /^\/api\/saloons\/([^/]+)\/(games|defaults|ranking)$/.exec(path);
+    if (games?.[2] === 'ranking' && method === 'PUT') {
+      const b = await body(request);
+      await db.setMinGames(bearer(request), decodeURIComponent(games[1]!), b.minGames);
+      return json({ ok: true });
+    }
     if (games?.[2] === 'games' && method === 'GET') return json({ games: await db.saloonGames(bearer(request), decodeURIComponent(games[1]!)) });
     if (games?.[2] === 'defaults' && method === 'PUT') {
       const b = await body(request);

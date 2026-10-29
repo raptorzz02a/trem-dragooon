@@ -13,6 +13,7 @@ import {
   type StatsFilter,
 } from '../../profiles/stats';
 import type { GameRecord, Profile as ProfileData } from '../../profiles/types';
+import { DELETED_SALOON_NAME, saloonOf } from '../../online/saloons';
 import { Avatar } from '../components/Avatar';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { dateTime, duration, ND, num, pct } from '../format';
@@ -222,7 +223,16 @@ interface Props {
   /** Fiche d'un autre joueur (en ligne) : ni modification ni suppression. */
   readOnly?: boolean;
   backLabel?: string;
+  /** Fiche en ligne : filtre Saloon, avec les saloons où ces parties ont été jouées (un saloon absent a été supprimé). */
+  saloons?: { id: string; name: string; icon: string }[];
+  /** Saloon choisi à l'ouverture ('all' : tous). */
+  initialSaloon?: string;
+  /** Libellé de « tous les saloons » (la fiche d'un autre ne montre que les saloons partagés). */
+  allSaloonsLabel?: string;
 }
+
+const ALL_SALOONS = 'all';
+const DELETED_SALOONS = 'deleted';
 
 type Tab = 'summary' | 'scores' | 'progress' | 'history';
 
@@ -242,8 +252,39 @@ function download(name: string, content: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function Profile({ profile, profiles, games, settings, onSettings, onSave, onDelete, onBack, readOnly = false, backLabel = '← Joueurs' }: Props) {
+export function Profile({
+  profile,
+  profiles,
+  games: allGames,
+  settings,
+  onSettings,
+  onSave,
+  onDelete,
+  onBack,
+  readOnly = false,
+  backLabel = '← Joueurs',
+  saloons,
+  initialSaloon = ALL_SALOONS,
+  allSaloonsLabel = 'Tous saloons',
+}: Props) {
   const [tab, setTab] = useState<Tab>('summary');
+  // Un saloon où le joueur n'a pas de partie ne sert pas de point de départ.
+  const [saloon, setSaloon] = useState(() => (saloons?.some((x) => x.id === initialSaloon) ? initialSaloon : ALL_SALOONS));
+  const known = useMemo(() => new Set(saloons?.map((x) => x.id)), [saloons]);
+  const hasDeleted = !!saloons && allGames.some((g) => !known.has(saloonOf(g)));
+  const saloonOptions = saloons && [
+    { value: ALL_SALOONS, label: allSaloonsLabel },
+    ...saloons.map((x) => ({ value: x.id, label: `${x.icon} ${x.name}` })),
+    ...(hasDeleted ? [{ value: DELETED_SALOONS, label: DELETED_SALOON_NAME }] : []),
+  ];
+  // Les exports et l'impression suivent le saloon choisi, comme les autres filtres.
+  const games = useMemo(
+    () =>
+      !saloons || saloon === ALL_SALOONS
+        ? allGames
+        : allGames.filter((g) => (saloon === DELETED_SALOONS ? !known.has(saloonOf(g)) : saloonOf(g) === saloon)),
+    [allGames, saloons, saloon, known],
+  );
   const [mode, setMode] = useState<ModeFilter>('all');
   const [format, setFormat] = useState<NonNullable<StatsFilter['format']>>('all');
   const [period, setPeriod] = useState<Period>(ALL_TIME);
@@ -297,7 +338,14 @@ export function Profile({ profile, profiles, games, settings, onSettings, onSave
         <Segmented value={mode} options={MODE_FILTERS} onChange={setMode} />
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
+      {saloonOptions && saloonOptions.length > 2 && (
+        <div className="lib-filters no-print">
+          <span className="label">Saloon</span>
+          <Segmented value={saloon} options={saloonOptions} onChange={setSaloon} />
+        </div>
+      )}
       <div className="print-only">
+        {saloonOptions && `${saloonOptions.find((o) => o.value === saloon)?.label ?? allSaloonsLabel} · `}
         {TABS.find((t) => t.value === tab)!.label} ·{' '}
         {MODE_FILTERS.find((m) => m.value === ((tab === 'scores' || tab === 'progress') && mode === 'all' && scored ? scored : mode))!.label} ·{' '}
         {range.from ? `du ${new Date(range.from).toLocaleDateString('fr-FR')} au ${new Date(range.to!).toLocaleDateString('fr-FR')}` : 'tout l’historique'}

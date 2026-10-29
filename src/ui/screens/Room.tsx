@@ -304,10 +304,11 @@ function AddPlayer({ room, send, error, onClose }: { room: RoomView; send: Send;
   const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
-    loadCommunity()
+    // Seuls les membres du saloon de la partie peuvent y jouer.
+    loadCommunity(room.saloonId ?? PUBLIC_SALOON_ID)
       .then((c) => setAccounts(c.accounts))
       .catch((e: Error) => setLoadError(e.message));
-  }, []);
+  }, [room.saloonId]);
 
   useEffect(() => {
     if (pending && room.players.some((p) => pseudoKey(p.name) === pseudoKey(pending))) onClose();
