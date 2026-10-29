@@ -7,14 +7,17 @@ import {
   importedGameId,
   involves,
   cleanColor,
+  detachPlayer,
   passwordProblem,
+  temporaryPassword,
   pseudoKey,
   pseudoProblem,
+  type AdminAccount,
   type Community,
   type Login,
   type PublicAccount,
 } from '../src/online/accounts';
-import type { GameRecord } from '../src/profiles/types';
+import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
 
 // Base des comptes et des parties en ligne : un seul Durable Object, stocké en SQLite (offre gratuite).
 // Les mots de passe ne sont jamais stockés, seulement leur empreinte PBKDF2 salée ; les jetons de connexion
@@ -25,6 +28,14 @@ const PBKDF2_ITERATIONS = 100_000;
 /** Après tant d'échecs de connexion sur un pseudo, il est bloqué un moment. */
 const MAX_FAILURES = 10;
 const LOCK_MS = 15 * 60 * 1000;
+/** La date de dernière utilisation n'est réécrite qu'au plus une fois par tranche de ce délai. */
+const SEEN_EVERY_MS = 10 * 60 * 1000;
+
+/** Variables du Worker lues par la base des comptes. */
+export interface AccountsEnv {
+  /** Pseudos administrateurs, séparés par des virgules (voir wrangler.toml). */
+  ADMINS?: string;
+}
 
 const hex = (bytes: ArrayBuffer | Uint8Array) =>
   [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -57,6 +68,7 @@ interface AccountRow extends Record<string, SqlStorageValue> {
   color: string;
   avatar: string;
   created_at: string;
+  last_seen_at: string | null;
 }
 
 const publicAccount = (row: AccountRow): PublicAccount => ({
@@ -67,10 +79,10 @@ const publicAccount = (row: AccountRow): PublicAccount => ({
   createdAt: row.created_at,
 });
 
-export class AccountsObject extends DurableObject<object> {
+export class AccountsObject extends DurableObject<AccountsEnv> {
   private sql: SqlStorage;
 
-  constructor(ctx: DurableObjectState, env: object) {
+  constructor(ctx: DurableObjectState, env: AccountsEnv) {
     super(ctx, env);
     this.sql = ctx.storage.sql;
     this.sql.exec(`
@@ -101,7 +113,41 @@ export class AccountsObject extends DurableObject<object> {
         account_id TEXT NOT NULL,
         claimed_at TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS admins (
+        pseudo_key TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL
+      );
     `);
+    const columns = this.sql.exec<{ name: string }>('PRAGMA table_info(accounts)').toArray();
+    if (!columns.some((c) => c.name === 'last_seen_at')) {
+      // Comptes créés avant le suivi : dernière connexion connue, à défaut la création du compte.
+      this.sql.exec('ALTER TABLE accounts ADD COLUMN last_seen_at TEXT');
+      this.sql.exec(`UPDATE accounts SET last_seen_at = COALESCE(
+        (SELECT MAX(created_at) FROM sessions WHERE sessions.account_id = accounts.id), created_at)`);
+    }
+    this.bindAdmins();
+  }
+
+  /**
+   * Un pseudo administrateur (variable ADMINS) est attaché pour de bon au premier compte qui le porte : si ce compte
+   * change de pseudo ensuite, personne d'autre ne devient administrateur en prenant l'ancien.
+   */
+  private bindAdmins(): void {
+    for (const pseudo of (this.env.ADMINS ?? '').split(',').map(pseudoKey).filter(Boolean)) {
+      const row = this.row('name_key', pseudo);
+      if (row) this.sql.exec('INSERT OR IGNORE INTO admins VALUES (?, ?)', pseudo, row.id);
+    }
+  }
+
+  private isAdmin(accountId: string): boolean {
+    this.bindAdmins();
+    return this.sql.exec('SELECT 1 FROM admins WHERE account_id = ?', accountId).toArray().length > 0;
+  }
+
+  /** Note que le compte vient d'être utilisé (connexion, ouverture de l'appli, partie). */
+  private seen(row: AccountRow, at = new Date()): void {
+    const last = row.last_seen_at ? Date.parse(row.last_seen_at) : 0;
+    if (at.getTime() - last >= SEEN_EVERY_MS) this.sql.exec('UPDATE accounts SET last_seen_at = ? WHERE id = ?', at.toISOString(), row.id);
   }
 
   private row(where: string, value: string): AccountRow | null {
@@ -110,7 +156,9 @@ export class AccountsObject extends DurableObject<object> {
 
   private async openSession(accountId: string): Promise<string> {
     const token = randomHex(32);
-    this.sql.exec('INSERT INTO sessions VALUES (?, ?, ?)', await sha256(token), accountId, new Date().toISOString());
+    const now = new Date().toISOString();
+    this.sql.exec('INSERT INTO sessions VALUES (?, ?, ?)', await sha256(token), accountId, now);
+    this.sql.exec('UPDATE accounts SET last_seen_at = ? WHERE id = ?', now, accountId);
     return token;
   }
 
@@ -128,7 +176,7 @@ export class AccountsObject extends DurableObject<object> {
     // Un autre compte a pu prendre le pseudo pendant le calcul de l'empreinte.
     if (this.row('name_key', pseudoKey(name))) throw new Error('Ce pseudo est déjà pris.');
     this.sql.exec(
-      'INSERT INTO accounts (id, name, name_key, color, avatar, salt, password_hash, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO accounts (id, name, name_key, color, avatar, salt, password_hash, created_at, last_seen_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       id,
       name,
       pseudoKey(name),
@@ -136,6 +184,7 @@ export class AccountsObject extends DurableObject<object> {
       JSON.stringify(look),
       salt,
       hash,
+      new Date().toISOString(),
       new Date().toISOString(),
     );
     return { token: await this.openSession(id), account: publicAccount(this.row('id', id)!) };
@@ -164,15 +213,49 @@ export class AccountsObject extends DurableObject<object> {
       throw wrong;
     }
     this.sql.exec('UPDATE accounts SET failures = 0 WHERE id = ?', row.id);
+    this.seen(row);
     return publicAccount(row);
   }
 
   /** Compte correspondant à un jeton de connexion, ou null s'il est inconnu (déconnecté). */
   async me(token: string): Promise<PublicAccount | null> {
+    const row = await this.sessionRow(token);
+    return row ? publicAccount(row) : null;
+  }
+
+  private async sessionRow(token: string): Promise<AccountRow | null> {
     if (typeof token !== 'string' || token.length !== 64) return null;
     const session = this.sql.exec<{ account_id: string }>('SELECT account_id FROM sessions WHERE token_hash = ?', await sha256(token)).toArray()[0];
-    const row = session ? this.row('id', session.account_id) : null;
-    return row ? publicAccount(row) : null;
+    return session ? this.row('id', session.account_id) : null;
+  }
+
+  /** Ouverture de l'appli : le compte du jeton, s'il est administrateur, et la date d'utilisation est notée. */
+  async open(token: string): Promise<{ account: PublicAccount; admin: boolean } | null> {
+    const row = await this.sessionRow(token);
+    if (!row) return null;
+    this.seen(row);
+    return { account: publicAccount(row), admin: this.isAdmin(row.id) };
+  }
+
+  /** Changement de son propre mot de passe : les autres appareils connectés sont déconnectés. */
+  async changePassword(token: string, current: unknown, next: unknown): Promise<string> {
+    const row = await this.sessionRow(token);
+    if (!row) throw new Error('Connecte-toi d’abord.');
+    await this.check(row.name, String(current ?? '')).catch(() => {
+      throw new Error('Mot de passe actuel incorrect.');
+    });
+    await this.setPassword(row.id, String(next ?? ''));
+    return this.openSession(row.id);
+  }
+
+  /** Nouveau mot de passe : toutes les sessions du compte sont fermées et le blocage est levé. */
+  private async setPassword(accountId: string, password: string): Promise<void> {
+    const problem = passwordProblem(password);
+    if (problem) throw new Error(problem);
+    const salt = randomHex(16);
+    const hash = await hashPassword(password, salt);
+    this.sql.exec('UPDATE accounts SET salt = ?, password_hash = ?, failures = 0, locked_until = 0 WHERE id = ?', salt, hash, accountId);
+    this.sql.exec('DELETE FROM sessions WHERE account_id = ?', accountId);
   }
 
   async logout(token: string): Promise<void> {
@@ -203,6 +286,12 @@ export class AccountsObject extends DurableObject<object> {
 
   /** Enregistre (ou remplace) une partie en ligne terminée. */
   async recordGame(record: GameRecord): Promise<void> {
+    // Un compte supprimé pendant la partie n'y figure plus que comme « Joueur supprimé ».
+    for (const p of record.players) {
+      const row = this.row('id', p.id);
+      if (row) this.seen(row, new Date(record.session.endedAt ?? Date.now()));
+      else record = detachPlayer(record, p.id, `supprime-${crypto.randomUUID()}`, DELETED_NAME);
+    }
     this.sql.exec(
       'INSERT OR REPLACE INTO games VALUES (?, ?, ?)',
       record.id,
@@ -259,5 +348,75 @@ export class AccountsObject extends DurableObject<object> {
     const names = new Map(accounts.map((a) => [a.id, a.name]));
     for (const g of games) g.players = g.players.map((p) => ({ ...p, name: names.get(p.id) ?? p.name }));
     return { accounts, games };
+  }
+
+  // Espace administrateur : chaque action vérifie d'abord que le jeton est celui d'un administrateur.
+
+  private async admin(token: string): Promise<AccountRow> {
+    const row = await this.sessionRow(token);
+    if (!row || !this.isAdmin(row.id)) throw Object.assign(new Error('Réservé à l’administrateur.'), { status: 403 });
+    return row;
+  }
+
+  private target(accountId: unknown): AccountRow {
+    const row = typeof accountId === 'string' ? this.row('id', accountId) : null;
+    if (!row) throw new Error('Compte introuvable.');
+    return row;
+  }
+
+  async adminList(token: string): Promise<AdminAccount[]> {
+    await this.admin(token);
+    const counts = new Map<string, number>();
+    for (const { record } of this.sql.exec<{ record: string }>('SELECT record FROM games').toArray()) {
+      for (const p of (JSON.parse(record) as GameRecord).players) counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
+    }
+    const admins = new Set(this.sql.exec<{ account_id: string }>('SELECT account_id FROM admins').toArray().map((r) => r.account_id));
+    return this.sql
+      .exec<AccountRow>('SELECT * FROM accounts ORDER BY name_key')
+      .toArray()
+      .map((r) => {
+        const row = r as AccountRow;
+        return { ...publicAccount(row), lastSeenAt: row.last_seen_at, games: counts.get(row.id) ?? 0, admin: admins.has(row.id) };
+      });
+  }
+
+  /** Remise à zéro des stats : le compte est retiré de toutes ses parties, qui restent valables pour les autres. */
+  async adminResetStats(token: string, accountId: unknown): Promise<number> {
+    await this.admin(token);
+    return this.detachEverywhere(this.target(accountId), false);
+  }
+
+  /** Mot de passe provisoire, renvoyé une seule fois à l'administrateur pour qu'il le transmette au joueur. */
+  async adminResetPassword(token: string, accountId: unknown): Promise<string> {
+    await this.admin(token);
+    const row = this.target(accountId);
+    const password = temporaryPassword(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
+    await this.setPassword(row.id, password);
+    return password;
+  }
+
+  /** Suppression d'un compte : ses parties restent pour les autres joueurs, à son nom « Joueur supprimé ». */
+  async adminDelete(token: string, accountId: unknown): Promise<void> {
+    const me = await this.admin(token);
+    const row = this.target(accountId);
+    if (row.id === me.id) throw new Error('Tu ne peux pas supprimer ton propre compte ici.');
+    this.detachEverywhere(row, true);
+    this.sql.exec('DELETE FROM sessions WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM claims WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM admins WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM accounts WHERE id = ?', row.id);
+  }
+
+  private detachEverywhere(row: AccountRow, deleted: boolean): number {
+    const newId = `${deleted ? 'supprime' : 'remis-a-zero'}-${crypto.randomUUID()}`;
+    let count = 0;
+    for (const g of this.sql.exec<{ id: string; record: string }>('SELECT id, record FROM games').toArray()) {
+      const record = JSON.parse(g.record) as GameRecord;
+      if (!record.players.some((p) => p.id === row.id)) continue;
+      const name = deleted ? DELETED_NAME : (record.players.find((p) => p.id === row.id)?.name ?? row.name);
+      this.sql.exec('UPDATE games SET record = ? WHERE id = ?', JSON.stringify(detachPlayer(record, row.id, newId, name)), g.id);
+      count++;
+    }
+    return count;
   }
 }

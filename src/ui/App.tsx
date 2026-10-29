@@ -6,7 +6,9 @@ import { useAccount } from '../online/useAccount';
 import { createOnlineRoom, currentOnlineRoom, setCurrentOnlineRoom } from '../online/useOnlineRoom';
 import type { Profile } from '../profiles/types';
 import { loadSettings, saveSettings, type AppSettings } from '../settings/settings';
+import { PasswordDialog } from './components/PasswordDialog';
 import { ProfileEditor } from './components/ProfileEditor';
+import { Admin } from './screens/Admin';
 import { Community } from './screens/Community';
 import { Home } from './screens/Home';
 import { ImportLocal, localData } from './screens/ImportLocal';
@@ -15,7 +17,7 @@ import { Welcome } from './screens/Welcome';
 
 // Tout se joue avec des comptes en ligne : sur la même cible (un appareil saisit pour tous) ou à distance.
 
-type Screen = 'home' | 'room' | 'players' | 'import';
+type Screen = 'home' | 'room' | 'players' | 'import' | 'admin';
 
 /** Code reçu par un lien de partage (?salon=ABC234), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
@@ -31,6 +33,7 @@ export function App() {
   const [screen, setScreen] = useState<Screen>(room ? 'room' : 'home');
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
   const [hasLocalStats, setHasLocalStats] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const updateSettings = (patch: Partial<AppSettings>) =>
@@ -88,6 +91,8 @@ export function App() {
 
   if (screen === 'import') return <ImportLocal onBack={home} />;
 
+  if (screen === 'admin' && accountState.admin) return <Admin myId={account.id} onBack={home} />;
+
   const current = currentOnlineRoom();
   return (
     <>
@@ -102,11 +107,14 @@ export function App() {
           setEditError(null);
           setEditing(true);
         }}
+        onPassword={() => setChangingPassword(true)}
         onLogout={accountState.logout}
+        onAdmin={accountState.admin ? () => setScreen('admin') : undefined}
         onImport={hasLocalStats ? () => setScreen('import') : undefined}
       />
       {editError && <div className="online-banner online-banner-error">{editError}</div>}
       {editor}
+      {changingPassword && <PasswordDialog onSave={accountState.changePassword} onClose={() => setChangingPassword(false)} />}
     </>
   );
 }

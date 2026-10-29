@@ -16,7 +16,10 @@ interface Props {
   onJoin: (code: string) => void;
   onPlayers: () => void;
   onEditAccount: () => void;
+  onPassword: () => void;
   onLogout: () => void;
+  /** Présent si le compte connecté est administrateur. */
+  onAdmin?: () => void;
   /** Présent si cet appareil a des stats d'avant le passage en ligne à reprendre. */
   onImport?: () => void;
 }
@@ -76,6 +79,7 @@ export function Home(props: Props) {
           <Avatar avatar={account.avatar} color={account.color} size={48} />
           <span className="home-account-name">{account.name}</span>
           <button onClick={props.onEditAccount}>Modifier</button>
+          <button onClick={props.onPassword}>Mot de passe</button>
           <button onClick={props.onLogout}>Déconnexion</button>
         </div>
       </header>
@@ -128,6 +132,7 @@ export function Home(props: Props) {
         </form>
         <button onClick={props.onPlayers}>Joueurs et classements</button>
         {props.onImport && <button onClick={props.onImport}>Récupérer les stats de la borne</button>}
+        {props.onAdmin && <button onClick={props.onAdmin}>Administration</button>}
       </div>
     </div>
   );

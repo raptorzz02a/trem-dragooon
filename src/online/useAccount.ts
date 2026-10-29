@@ -52,30 +52,39 @@ export const loadCommunity = () => api<Community>('/api/community');
 
 export interface AccountState {
   account: PublicAccount | null;
+  /** Le compte connecté a accès à l'espace administrateur. */
+  admin: boolean;
   signup: (name: string, password: string, color: string, avatar: AvatarConfig) => Promise<void>;
   login: (name: string, password: string) => Promise<void>;
   logout: () => void;
   update: (changes: Pick<PublicAccount, 'name' | 'color' | 'avatar'>) => Promise<void>;
+  changePassword: (current: string, next: string) => Promise<void>;
 }
 
 export function useAccount(): AccountState {
   const [account, setAccount] = useState<PublicAccount | null>(cachedAccount);
+  const [admin, setAdmin] = useState(false);
 
   const remember = useCallback((token: string | null, next: PublicAccount | null) => {
     write(TOKEN_KEY, token);
     write(ACCOUNT_KEY, next ? JSON.stringify(next) : null);
     setAccount(next);
+    if (!next) setAdmin(false);
   }, []);
 
   // Le compte gardé en mémoire est rafraîchi (pseudo ou avatar changés ailleurs, session révoquée).
   useEffect(() => {
-    if (!accountToken()) return;
-    api<{ account: PublicAccount }>('/api/account')
-      .then((r) => remember(accountToken(), r.account))
+    if (!account) return;
+    api<{ account: PublicAccount; admin: boolean }>('/api/account')
+      .then((r) => {
+        remember(accountToken(), r.account);
+        setAdmin(r.admin);
+      })
       .catch((e: { status?: number }) => {
         if (e.status === 401) remember(null, null);
       });
-  }, [remember]);
+    // Relu à chaque connexion (account?.id), pour savoir si le nouveau compte est administrateur.
+  }, [remember, account?.id]);
 
   const signup = async (name: string, password: string, color: string, avatar: AvatarConfig) => {
     const r = await api<Login>('/api/account/signup', { method: 'POST', body: JSON.stringify({ name, password, color, avatar }) });
@@ -94,5 +103,11 @@ export function useAccount(): AccountState {
     remember(accountToken(), r.account);
   };
 
-  return { account, signup, login, logout, update };
+  const changePassword = async (current: string, next: string) => {
+    // Les autres appareils sont déconnectés ; celui-ci reçoit un nouveau jeton.
+    const r = await api<{ token: string }>('/api/account/password', { method: 'POST', body: JSON.stringify({ current, next }) });
+    remember(r.token, account);
+  };
+
+  return { account, admin, signup, login, logout, update, changePassword };
 }

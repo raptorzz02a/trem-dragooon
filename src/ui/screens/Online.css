@@ -274,3 +274,73 @@
     font-size: 7.4vw !important;
   }
 }
+
+.password-dialog input {
+  min-height: var(--touch);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 22px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: text;
+}
+
+/* Espace administrateur */
+
+.admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.admin-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.admin-who {
+  flex: 1 1 260px;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.admin-name {
+  font-size: 22px;
+}
+
+.admin-badge {
+  margin-left: 10px;
+  font-size: 14px;
+  color: var(--gold-bright);
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+  padding: 1px 6px;
+}
+
+.admin-dates {
+  font-size: 15px;
+  opacity: 0.75;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.admin-actions button {
+  padding: 0 14px;
+  font-size: 17px;
+}
+
+.admin-result {
+  white-space: pre-line;
+  font-size: 20px;
+}
