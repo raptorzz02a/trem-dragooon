@@ -11,5 +11,5 @@
     "noEmit": true,
     "types": ["@cloudflare/workers-types"]
   },
-  "include": ["worker.ts", "../src/online/protocol.ts", "../src/online/room.ts"]
+  "include": ["worker.ts", "accounts.ts", "../src/online/accounts.ts", "../src/online/protocol.ts", "../src/online/room.ts"]
 }

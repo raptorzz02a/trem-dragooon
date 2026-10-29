@@ -193,7 +193,63 @@
   .online-code {
     font-size: 48px;
   }
+  .online-join input {
+    font-size: 22px;
+    letter-spacing: 0.12em;
+  }
   .online-top h1 {
     font-size: 24px;
   }
+}
+
+/* Compte en ligne. */
+.online-me {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.online-me-name {
+  flex: 1;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gold-bright);
+}
+
+.online-me button {
+  padding: 0 18px;
+}
+
+.online-login {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.online-login input {
+  flex: 1 1 200px;
+  min-width: 0;
+  min-height: var(--touch);
+  padding: 0 16px;
+  font: inherit;
+  font-size: 22px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: text;
+}
+
+.online-login button {
+  flex: 1 1 200px;
+  font-size: 22px;
+}
+
+.online-community {
+  min-height: 64px;
+  font-size: 22px;
+  background: var(--bg-raised);
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
 }

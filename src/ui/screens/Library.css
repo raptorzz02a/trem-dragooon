@@ -606,3 +606,92 @@ button.small {
   font-size: 16px;
   color: var(--text-dim);
 }
+
+/* Téléphone (stats des joueurs en ligne) : une colonne, filtres qui défilent, tableau resserré. */
+@media (max-width: 700px) {
+  .screen.library {
+    padding: 14px 12px;
+    overflow-y: auto;
+  }
+  .lib-header {
+    gap: 12px;
+  }
+  .lib-header h2,
+  .profile-screen .profile-head h2 {
+    font-size: 22px;
+  }
+  .lib-header button {
+    padding: 0 14px;
+  }
+  .lib-filters,
+  .profile-screen .lib-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    flex: none;
+    justify-content: flex-start;
+    gap: 10px;
+    padding-bottom: 4px;
+  }
+  .lib-filters .segmented button,
+  .profile-screen .lib-filters .segmented button {
+    min-height: 44px;
+    font-size: 15px;
+    padding: 0 10px;
+  }
+  .lib-filters .segmented + .segmented {
+    margin-left: 0;
+  }
+  .lib-filters > :not(.segmented):not(.period-filter) {
+    flex: none;
+    font-size: 13px;
+  }
+  .ranking-table {
+    overflow: visible;
+  }
+  /* Rang, avatar, nom, % de victoires et valeur du classement : les colonnes Parties et Victoires disparaissent. */
+  .ranking-row {
+    grid-template-columns: 26px 40px 1fr 64px 80px;
+    gap: 8px;
+    padding: 6px 8px;
+    font-size: 16px;
+    min-height: 56px;
+  }
+  .ranking-row > :nth-child(4),
+  .ranking-row > :nth-child(5) {
+    display: none;
+  }
+  .ranking-row .avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .ranking-row.head {
+    font-size: 11px;
+  }
+  .ranking-pos {
+    font-size: 18px;
+  }
+  .profile-head {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .profile-screen .profile-head button {
+    min-height: 44px;
+    font-size: 15px;
+  }
+  .profile-content {
+    overflow: visible;
+    flex: none;
+  }
+  .profile-body,
+  .scores-tab,
+  .record-cards,
+  .tiles-3 {
+    grid-template-columns: 1fr;
+  }
+  .tiles {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .stat-card dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

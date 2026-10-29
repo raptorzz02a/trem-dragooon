@@ -1,5 +1,6 @@
 import { DEFAULT_OPTIONS, MAX_PLAYERS } from '../game-engine/engine';
 import type { GameConfig, X01Options } from '../game-engine/types';
+import type { GameRecord } from '../profiles/types';
 import {
   createSession,
   endTurn,
@@ -58,24 +59,29 @@ function cleanIdentity(identity: OnlineIdentity, others: RoomPlayer[]): OnlineId
 }
 
 /**
- * Arrivée d'un joueur. Avec un token connu, il reprend sa place (après une coupure) ;
- * sinon il entre comme nouveau joueur, ce qui n'est possible que dans la salle d'attente.
+ * Arrivée d'un joueur. Avec un token connu, ou avec un compte déjà présent dans le salon (autre appareil),
+ * il reprend sa place ; sinon il entre comme nouveau joueur, ce qui n'est possible que dans la salle d'attente.
+ * Avec un compte, l'identifiant du joueur est celui du compte : les parties enregistrées lui sont rattachées.
  */
 export function joinRoom(
   room: Room,
   token: string | null,
   identity: OnlineIdentity,
   newToken: () => string,
+  accountId?: string,
 ): { room: Room; player: RoomPlayer } {
-  const known = token ? room.players.find((p) => p.token === token) : undefined;
+  const known =
+    (token ? room.players.find((p) => p.token === token) : undefined) ??
+    (accountId ? room.players.find((p) => p.id === accountId) : undefined);
   if (known) {
-    const player = { ...known, connected: true };
+    // Avec un compte, son pseudo et son avatar actuels remplacent ceux du salon.
+    const player = { ...known, ...(accountId === known.id ? cleanIdentity(identity, room.players.filter((p) => p.id !== known.id)) : {}), connected: true };
     return { room: replacePlayer(room, player), player };
   }
   if (room.status !== 'lobby') throw new Error('La partie a déjà commencé : impossible de la rejoindre.');
   if (room.players.length >= MAX_PLAYERS) throw new Error(`Le salon est complet (${MAX_PLAYERS} joueurs).`);
   const player: RoomPlayer = {
-    id: `p${room.nextPlayer}`,
+    id: accountId ?? `p${room.nextPlayer}`,
     ...cleanIdentity(identity, room.players),
     connected: true,
     token: newToken(),
@@ -93,6 +99,23 @@ export function joinRoom(
 
 function replacePlayer(room: Room, player: RoomPlayer): Room {
   return { ...room, players: room.players.map((p) => (p.id === player.id ? player : p)) };
+}
+
+/**
+ * Ce que l'arrivée de next change aux parties enregistrées : une partie qui vient de se terminer est à enregistrer,
+ * une partie terminée rouverte par une annulation est à oublier.
+ */
+export function archiveChange(before: Room, next: Room): { record: GameRecord } | { forget: string } | null {
+  const was = before.session;
+  const now = next.session;
+  const sameGame = was && now && was.id === now.id;
+  if (now?.status === 'finished' && !(sameGame && was.status === 'finished')) {
+    const ids = new Set(now.config.sides.flatMap((s) => s.playerIds));
+    const players = next.players.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name }));
+    return { record: { id: now.id, session: now, players } };
+  }
+  if (sameGame && was.status === 'finished' && now.status !== 'finished') return { forget: now.id };
+  return null;
 }
 
 /** Si l'hôte n'est plus là, le premier joueur connecté prend la main. */

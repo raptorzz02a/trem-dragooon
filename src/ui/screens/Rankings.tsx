@@ -28,9 +28,12 @@ interface Props {
   games: GameRecord[];
   onOpen: (id: string) => void;
   onBack: () => void;
+  /** Titre et bouton retour (classements des joueurs en ligne). */
+  title?: string;
+  backLabel?: string;
 }
 
-export function Rankings({ profiles, games, onOpen, onBack }: Props) {
+export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements', backLabel = '← Accueil' }: Props) {
   const [mode, setMode] = useState<GameMode | 'all'>('all');
   const [period, setPeriod] = useState<Period>(ALL_TIME);
   const [format, setFormat] = useState<NonNullable<StatsFilter['format']>>('all');
@@ -79,8 +82,8 @@ export function Rankings({ profiles, games, onOpen, onBack }: Props) {
   return (
     <div className="screen library rankings-screen">
       <header className="lib-header">
-        <button onClick={onBack}>← Accueil</button>
-        <h2>Classements</h2>
+        <button onClick={onBack}>{backLabel}</button>
+        <h2>{title}</h2>
       </header>
       <div className="lib-filters">
         <Segmented value={mode} options={MODE_FILTERS} onChange={setMode} />

@@ -216,6 +216,9 @@ interface Props {
   onSave: (profile: ProfileData) => void;
   onDelete: (id: string) => void;
   onBack: () => void;
+  /** Fiche d'un autre joueur (en ligne) : ni modification ni suppression. */
+  readOnly?: boolean;
+  backLabel?: string;
 }
 
 type Tab = 'summary' | 'scores' | 'progress' | 'history';
@@ -236,7 +239,7 @@ function download(name: string, content: string, type: string) {
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function Profile({ profile, profiles, games, settings, onSettings, onSave, onDelete, onBack }: Props) {
+export function Profile({ profile, profiles, games, settings, onSettings, onSave, onDelete, onBack, readOnly = false, backLabel = '← Joueurs' }: Props) {
   const [tab, setTab] = useState<Tab>('summary');
   const [mode, setMode] = useState<ModeFilter>('all');
   const [format, setFormat] = useState<NonNullable<StatsFilter['format']>>('all');
@@ -262,7 +265,7 @@ export function Profile({ profile, profiles, games, settings, onSettings, onSave
   return (
     <div className="screen library profile-screen">
       <header className="profile-head">
-        <button onClick={onBack}>← Joueurs</button>
+        <button onClick={onBack}>{backLabel}</button>
         <Avatar avatar={profile.avatar} color={profile.color} size={60} />
         <h2>{profile.name}</h2>
         <button className="no-print" onClick={() => download(`${profile.name}-volees.csv`, playerCsv(list), 'text/csv;charset=utf-8')}>
@@ -271,12 +274,16 @@ export function Profile({ profile, profiles, games, settings, onSettings, onSave
         <button className="no-print" onClick={() => window.print()}>
           Imprimer / PDF
         </button>
-        <button className="no-print" onClick={() => setEditing(true)}>
-          Modifier
-        </button>
-        <button className="btn-danger no-print" onClick={() => setConfirmDelete(true)}>
-          Supprimer
-        </button>
+        {!readOnly && (
+          <>
+            <button className="no-print" onClick={() => setEditing(true)}>
+              Modifier
+            </button>
+            <button className="btn-danger no-print" onClick={() => setConfirmDelete(true)}>
+              Supprimer
+            </button>
+          </>
+        )}
       </header>
 
       <div className="lib-filters no-print">
