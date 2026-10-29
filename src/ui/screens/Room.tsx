@@ -93,11 +93,11 @@ export function RoomScreen(props: {
           onUndo={() => send({ type: 'undo' })}
           quitMessage={
             host
-              ? 'Arrêter la partie ? Elle sera enregistrée comme abandonnée, sans victoire ni défaite.'
+              ? 'Arrêter la partie ? Elle sera supprimée pour tout le monde et ne comptera pas dans les stats.'
               : `Revenir à l’accueil ? Tu pourras reprendre la partie avec le code ${room.code}.`
           }
           quitLabel={host ? 'Arrêter la partie' : 'Accueil'}
-          onQuit={host ? () => send({ type: 'abandon' }) : props.onHome}
+          onQuit={host ? quit : props.onHome}
           onHome={quit}
           onRematch={host ? restart : undefined}
           onEditPlayers={host ? () => send({ type: 'backToLobby' }) : undefined}

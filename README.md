@@ -38,7 +38,7 @@ npm run typecheck # vérification TypeScript
 Le moteur ne stocke que la configuration et la liste des lancers ; tout le reste (scores, vainqueur, classement)
 est recalculé en rejouant cette liste. Annuler ou corriger revient à modifier la liste.
 
-Chaque partie terminée ou abandonnée est archivée telle quelle sur le serveur, pour tous ses joueurs. Les
+Chaque partie terminée est archivée (une partie arrêtée par l'hôte est supprimée, sans archive) telle quelle sur le serveur, pour tous ses joueurs. Les
 statistiques et classements sont recalculés à partir de ces archives : seules les parties terminées hors
 entraînement comptent dans les victoires et les classements (5 parties minimum pour être classé).
 

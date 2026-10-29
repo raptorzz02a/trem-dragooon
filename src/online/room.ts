@@ -66,7 +66,9 @@ export function liveSummary(room: Room, watchers: number): LiveSummary | null {
   const players = room.players.filter((p) => !p.spectator).map((p) => p.name);
   if (room.players.length === 0) return null;
   if (room.status === 'playing' && room.session && room.session.status !== 'in_progress' && room.session.status !== 'ready') return null;
-  return { mode: room.setup.mode, place: room.place, status: room.status === 'playing' ? 'playing' : 'lobby', players, watchers };
+  // Les comptes de la partie (hôte spectateur compris) la voient avec son code, pour la reprendre depuis n'importe quel appareil.
+  const playerIds = room.players.map((p) => p.id);
+  return { mode: room.setup.mode, place: room.place, status: room.status === 'playing' ? 'playing' : 'lobby', players, playerIds, watchers };
 }
 
 function cleanIdentity(identity: OnlineIdentity, others: RoomPlayer[]): OnlineIdentity {
@@ -148,10 +150,7 @@ export function archiveChange(before: Room, next: Room): { record: GameRecord } 
   if (now?.status === 'finished' && !(sameGame && was.status === 'finished')) {
     return { record: record(next, now) };
   }
-  // Une partie arrêtée en cours de route compte dans l'historique, ni en victoire ni en défaite.
-  if (now?.status === 'abandoned' && !(sameGame && was.status === 'abandoned') && now.events.length > 0) {
-    return { record: record(next, now) };
-  }
+  // Une partie arrêtée en cours de route est supprimée (voir closesRoom) : elle ne compte pas dans les stats.
   if (sameGame && was.status === 'finished' && now.status !== 'finished') return { forget: now.id };
   return null;
 }
@@ -164,6 +163,14 @@ function record(room: Room, session: GameSession): GameRecord {
 function playersOf(room: Room, session: GameSession) {
   const ids = new Set(session.config.sides.flatMap((s) => s.playerIds));
   return room.players.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name }));
+}
+
+/**
+ * L'hôte qui quitte (bouton Quitter, Fermer ou Arrêter la partie) supprime la partie pour tout le monde :
+ * rien n'est enregistré, et elle sort de la liste « Parties en cours ». Une partie déjà terminée reste enregistrée.
+ */
+export function closesRoom(room: Room, playerId: string, message: ClientMessage): boolean {
+  return (message.type === 'leave' || message.type === 'abandon') && room.hostId === playerId;
 }
 
 /** Si l'hôte n'est plus là, le premier joueur connecté prend la main. */

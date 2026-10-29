@@ -100,8 +100,8 @@ ne peut être saisie par erreur pour le mauvais joueur.
 
 ![Joueur suivant](images/transition.png)
 
-**Quitter** (en haut à droite) demande confirmation. Une partie quittée est enregistrée comme abandonnée :
-elle apparaît dans l'historique, mais ne compte ni en victoire ni en défaite.
+**Quitter** (en haut à droite) demande confirmation. Une partie arrêtée par l'hôte est supprimée pour tout
+le monde : elle ne compte pas dans les stats.
 
 À la fin de la partie, l'écran de résultat donne le vainqueur et le classement.
 

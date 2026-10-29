@@ -93,7 +93,7 @@ describe('saloons', () => {
     const empty = createRoom('ABC234', 'same', undefined, 's1');
     expect(liveSummary(empty, 0)).toBeNull();
     const { room } = joinRoom(empty, null, identity, () => 't', 'acc-ju');
-    expect(liveSummary(room, 2)).toEqual({ mode: 'x01', place: 'same', status: 'lobby', players: ['Ju'], watchers: 2 });
+    expect(liveSummary(room, 2)).toEqual({ mode: 'x01', place: 'same', status: 'lobby', players: ['Ju'], playerIds: ['acc-ju'], watchers: 2 });
     const session = { ...createSession('g1', config('x01'), '2026-10-29T00:00:00Z'), status: 'finished' as const };
     expect(liveSummary({ ...room, status: 'playing', session }, 0)).toBeNull();
   });
