@@ -51,12 +51,13 @@ automatisé ; l'identifiant du cahier des charges (A01, B03…) figure dans le n
 - La progression d'une équipe est commune à ses membres.
 - On termine la manche en cours, puis le côté qui a fini avec le moins de fléchettes gagne (ex aequo possibles).
 
-## Shanghai
+## Chiffre aléatoire
 
-- 7, 15 ou 20 manches (20 par défaut). Le numéro cible est celui de la manche.
-- Seul le numéro cible rapporte : simple, double ou triple de sa valeur.
-- Règle du Shanghai (option, activée par défaut) : simple, double et triple du numéro cible dans la même volée
-  = victoire immédiate, même devant un adversaire qui a plus de points. L'écran peut afficher ce qu'il reste à
-  toucher.
+- 10, 15 ou 20 tours (20 par défaut).
+- À chaque tour, un numéro à viser est tiré au sort parmi 1 à 20 et le Bull, jamais le même deux tours de
+  suite. Le tirage est fait au lancement de la partie, si bien que tous les joueurs visent le même numéro au
+  même tour et qu'une correction rejoue la partie à l'identique.
+- Seul le numéro tiré rapporte : simple, double ou triple de sa valeur (25 ou 50 pour le Bull).
+- La cible est dessinée comme à l'Horloge, avec le numéro à viser en surbrillance.
 - En équipe, le total est commun à l'équipe.
 - Après la dernière manche, le plus haut score gagne (ex aequo possibles).

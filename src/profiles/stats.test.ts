@@ -9,7 +9,7 @@ import {
   favouriteHits,
   playerGames,
   rankings,
-  shanghaiStats,
+  randomStats,
   summary,
   x01Stats,
 } from './stats';
@@ -99,10 +99,18 @@ describe('Statistiques', () => {
     expect(s.best).toEqual([{ variant: '1→20 · toutes zones · Bull non', darts: 20 }]);
   });
 
-  it('Shanghai : meilleur score et Shanghai réussi', () => {
-    const rec = record(config('shanghai', { rounds: 7 }, players(1)), 'S1 D1 T1');
-    const s = shanghaiStats(playerGames([rec], 'p1'));
-    expect(s).toMatchObject({ games: 1, bestScore: 6, bestVolley: 6, shanghais: 1 });
+  it('Chiffre aléatoire : meilleur score, réussite sur le numéro et points sur le Bull', () => {
+    const targets = [1, 25, ...Array(8).fill(3)];
+    const rec = record(config('random', { rounds: 10, targets }, players(1)), `S1 D1 T1 25 50 0 ${Array(8).fill('/').join(' ')}`);
+    const s = randomStats(playerGames([rec], 'p1'));
+    expect(s).toMatchObject({ games: 1, bestScore: 81, bestVolley: 75, bullRounds: 1, bullPoints: 75 });
+    expect(s.hitRate).toBeCloseTo((100 * 5) / 6);
+  });
+
+  it('les parties de Shanghai (jeu retiré) ne sont plus comptées', () => {
+    const rec = record(config('x01', {}, players(1)), 'T20');
+    const old = { ...rec, session: { ...rec.session, config: { ...rec.session.config, mode: 'shanghai' } } } as unknown as typeof rec;
+    expect(playerGames([old], 'p1')).toEqual([]);
   });
 
   it('numéros favoris en triple et en simple', () => {
@@ -153,14 +161,14 @@ describe('G. Données et statistiques', () => {
   });
 
   it('G09 : le classement d’un mode ignore les parties des autres modes', () => {
-    const shanghai = record(config('shanghai', { rounds: 7 }), 'S1 D1 T1');
-    const recs = [record(x01(), x01Win), shanghai];
+    const random = record(config('random', { rounds: 10, targets: Array(10).fill(1) }), `S1 D1 T1 ${Array(19).fill('/').join(' ')}`);
+    const recs = [record(x01(), x01Win), random];
     const p = [profile('p1'), profile('p2')];
     expect(rankings(recs, p, { mode: 'x01' }).unranked.map((r) => [r.playerId, r.games, r.wins])).toEqual([
       ['p1', 1, 1],
       ['p2', 1, 0],
     ]);
-    expect(rankings(recs, p, { mode: 'shanghai' }).unranked.map((r) => [r.playerId, r.games, r.wins])).toEqual([
+    expect(rankings(recs, p, { mode: 'random' }).unranked.map((r) => [r.playerId, r.games, r.wins])).toEqual([
       ['p1', 1, 1],
       ['p2', 1, 0],
     ]);

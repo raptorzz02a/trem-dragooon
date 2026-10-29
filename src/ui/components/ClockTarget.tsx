@@ -27,7 +27,7 @@ function wedge(center: number): string {
 
 /** Cible dessinée : numéro à viser en or, numéros déjà faits en vert, Bull allumé quand c'est son tour. */
 export function ClockTarget({ steps, progress }: Props) {
-  const stateOf = (index: number) => (index < progress ? 'done' : index === progress ? 'current' : 'todo');
+  const stateOf = (index: number) => (index < 0 ? 'todo' : index < progress ? 'done' : index === progress ? 'current' : 'todo');
   const numberState = (n: number) => stateOf(steps.findIndex((s) => 'number' in s && s.number === n));
   const bullIndexes = steps.map((s, i) => ('bull' in s ? i : -1)).filter((i) => i >= 0);
   const bullState =

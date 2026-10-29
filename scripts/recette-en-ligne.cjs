@@ -1,7 +1,7 @@
 // Recette de l'appli en ligne :
 // 1. sur la même cible : la borne (1366x768) ajoute Pierre avec son mot de passe et crée Jacques sur place,
 //    saisit pour tout le monde (Cricket arrêté en cours, puis 301 gagné), et la partie arrive dans les stats ;
-// 2. à distance : Pierre (téléphone) crée un Shanghai, Ju (PC 13 pouces) le rejoint avec le code ;
+// 2. à distance : Pierre (téléphone) crée un Chiffre aléatoire, Ju (PC 13 pouces) le rejoint avec le code ;
 // 3. refus : mauvais mot de passe, code inconnu.
 // Prérequis : npm run online:dev dans un autre terminal (serveur local sur le port 8787), Playwright installé.
 // Usage : node scripts/recette-en-ligne.cjs [dossier-des-captures] [adresse]
@@ -158,11 +158,11 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   check('parties en ligne dans les stats', statsText.includes(PIERRE));
   await shot(borne, '09-stats-borne.png');
 
-  // --- À distance : Pierre crée un Shanghai, Ju le rejoint depuis un PC 13 pouces ---
+  // --- À distance : Pierre crée un Chiffre aléatoire, Ju le rejoint depuis un PC 13 pouces ---
   await phone.getByText('← Accueil').click().catch(() => undefined);
   await phone.goto(URL);
   await phone.getByText('En ligne', { exact: true }).click();
-  await phone.locator('.home-mode', { hasText: 'Shanghai' }).click();
+  await phone.locator('.home-mode', { hasText: 'Chiffre aléatoire' }).click();
   await phone.locator('.lobby-code-value').waitFor({ timeout: 10000 });
   const remote = (await phone.locator('.lobby-code-value').innerText()).trim();
   await laptop.goto(`${URL}?salon=${remote}`);
@@ -177,13 +177,14 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await phone.waitForTimeout(300);
   await phone.getByText('Lancer la partie').click();
   await laptop.locator('.active-name').waitFor();
-  check('à distance, Ju attend son tour', await laptop.locator('.pad-num').first().isDisabled());
-  await tap(phone, 1, 1);
+  check('à distance, Ju attend son tour', await laptop.locator('.clock-hit').first().isDisabled());
+  await phone.locator('.clock-hit').first().click();
+  await phone.waitForTimeout(450);
   await endTurn(phone);
   await skip(laptop);
-  check('puis c’est à Ju de saisir', !(await laptop.locator('.pad-num').first().isDisabled()));
-  await shot(laptop, '12-shanghai-pc13.png');
-  await shot(phone, '13-shanghai-telephone.png');
+  check('puis c’est à Ju de saisir', !(await laptop.locator('.clock-hit').first().isDisabled()));
+  await shot(laptop, '12-aleatoire-pc13.png');
+  await shot(phone, '13-aleatoire-telephone.png');
 
   // --- Refus ---
   await laptop.getByText('Quitter', { exact: true }).click();

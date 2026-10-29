@@ -5,7 +5,7 @@ Application de comptage de points aux fléchettes, en ligne : sur la borne tacti
 
 Adresse : https://trem-dragooon.julien-charrier01.workers.dev · détails dans `docs/en-ligne.md`.
 
-Modes : 301 / 501 / 701, Cricket, Horloge, Shanghai. De 1 à 10 joueurs, en individuel ou en équipes.
+Modes : 301 / 501 / 701, Cricket, Horloge, Chiffre aléatoire. De 1 à 10 joueurs, en individuel ou en équipes.
 
 ## Développement
 

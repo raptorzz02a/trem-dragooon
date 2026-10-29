@@ -1,7 +1,7 @@
 import { assertValidDart } from './darts';
 import { clockRules } from './modes/clock';
 import { cricketRules } from './modes/cricket';
-import { shanghaiRules } from './modes/shanghai';
+import { randomRules } from './modes/random';
 import { x01Rules } from './modes/x01';
 import type { ModeRules } from './rules';
 import type {
@@ -12,8 +12,8 @@ import type {
   GameEvent,
   GameMode,
   GameState,
+  RandomOptions,
   RankEntry,
-  ShanghaiOptions,
   ThrownDart,
   TurnOutcome,
   TurnRecord,
@@ -29,14 +29,14 @@ export const DEFAULT_OPTIONS = {
   x01: { startScore: 501, out: 'double', maxRounds: null } satisfies X01Options,
   cricket: { bull: true, variant: 'standard', maxRounds: 20 } satisfies CricketOptions,
   clock: { order: 'asc', required: 'any', advanceByMultiplier: false, bullFinish: 'any' } satisfies ClockOptions,
-  shanghai: { rounds: 20, shanghaiWins: true } satisfies ShanghaiOptions,
+  random: { rounds: 20, targets: [] } satisfies RandomOptions,
 } as const;
 
 const RULES: Record<GameMode, ModeRules<any>> = {
   x01: x01Rules,
   cricket: cricketRules,
   clock: clockRules,
-  shanghai: shanghaiRules,
+  random: randomRules,
 };
 
 /** Vérifie la composition de la partie. Lève une erreur explicite si elle est invalide. */
@@ -150,7 +150,7 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
   return { config, status: game.status, winners: game.winners, ranking, current, turns, mode: modeState, ignoredEvents };
 }
 
-/** Une victoire immédiate (Shanghai, Cricket) place le gagnant premier même si un autre a plus de points. */
+/** Une victoire immédiate (Cricket) place le gagnant premier même si un autre a plus de points. */
 function putWinnersFirst(ranking: RankEntry[], winners: number[]): RankEntry[] {
   const first = ranking.filter((r) => winners.includes(r.sideIndex)).map((r) => ({ ...r, rank: 1 }));
   const rest = ranking.filter((r) => !winners.includes(r.sideIndex));

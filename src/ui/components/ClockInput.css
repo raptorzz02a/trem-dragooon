@@ -39,3 +39,7 @@
 .clock-miss {
   background: var(--danger-bg);
 }
+
+.clock-input-buttons.by-bull {
+  grid-template-columns: repeat(3, 1fr);
+}

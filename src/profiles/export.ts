@@ -3,7 +3,7 @@ import type { TurnOutcome, X01Options } from '../game-engine/types';
 import { volleyValue } from './scores';
 import { x01VariantLabel, type PlayerGame } from './stats';
 
-const MODE_LABELS = { x01: '301/501/701', cricket: 'Cricket', clock: 'Horloge', shanghai: 'Shanghai' } as const;
+const MODE_LABELS = { x01: '301/501/701', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire' } as const;
 const OUTCOMES: Record<TurnOutcome, string> = { complete: '', ended: 'fin de tour avant 3 fléchettes', bust: 'bust', win: 'victoire', done: 'parcours terminé' };
 
 function cell(value: string | number): string {

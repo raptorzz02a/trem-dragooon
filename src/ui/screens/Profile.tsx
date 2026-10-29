@@ -6,7 +6,7 @@ import {
   cricketStats,
   favouriteHits,
   playerGames,
-  shanghaiStats,
+  randomStats,
   summary,
   x01Stats,
   type PlayerGame,
@@ -17,6 +17,7 @@ import { Avatar } from '../components/Avatar';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { dateTime, duration, ND, num, pct } from '../format';
 import { MODE_VIEWS } from '../modes';
+import { MODES } from '../../game-setup/setup';
 import { playerCsv } from '../../profiles/export';
 import { isScoredMode, type ScoredMode } from '../../profiles/scores';
 import type { AppSettings } from '../../settings/settings';
@@ -32,7 +33,7 @@ export const MODE_FILTERS: { value: ModeFilter; label: string }[] = [
   { value: 'x01', label: '301/501/701' },
   { value: 'cricket', label: 'Cricket' },
   { value: 'clock', label: 'Horloge' },
-  { value: 'shanghai', label: 'Shanghai' },
+  { value: 'random', label: 'Chiffre aléatoire' },
 ];
 
 export const FORMAT_FILTERS: { value: NonNullable<StatsFilter['format']>; label: string }[] = [
@@ -100,7 +101,7 @@ function ThresholdsDialog({ values, onSave, onCancel }: { values: number[]; onSa
 function ModeCards({ games }: { games: PlayerGame[] }) {
   const cricket = cricketStats(games);
   const clock = clockStats(games);
-  const shanghai = shanghaiStats(games);
+  const random = randomStats(games);
   return (
     <>
       {x01Stats(games).map((s) => (
@@ -143,15 +144,16 @@ function ModeCards({ games }: { games: PlayerGame[] }) {
           </dl>
         </section>
       )}
-      {shanghai.games > 0 && (
+      {random.games > 0 && (
         <section className="stat-card">
-          <h3>Shanghai · {shanghai.games} partie{shanghai.games > 1 ? 's' : ''}</h3>
+          <h3>Chiffre aléatoire · {random.games} partie{random.games > 1 ? 's' : ''}</h3>
           <dl>
-            <Stat label="Meilleur score" value={shanghai.bestScore ?? ND} />
-            <Stat label="Score moyen" value={num(shanghai.avgScore, 0)} />
-            <Stat label="Meilleure volée" value={shanghai.bestVolley ?? ND} />
-            <Stat label="Shanghai réussis" value={shanghai.shanghais} />
-            <Stat label="Durée moyenne" value={duration(shanghai.avgDurationMs)} />
+            <Stat label="Meilleur score" value={random.bestScore ?? ND} />
+            <Stat label="Score moyen" value={num(random.avgScore, 0)} />
+            <Stat label="Meilleure volée" value={random.bestVolley ?? ND} />
+            <Stat label="Fléchettes sur le numéro" value={pct(random.hitRate)} />
+            <Stat label="Points sur le Bull" value={random.bullRounds ? random.bullPoints : ND} />
+            <Stat label="Durée moyenne" value={duration(random.avgDurationMs)} />
           </dl>
         </section>
       )}
@@ -164,6 +166,7 @@ function History({ records, playerId, filter }: { records: GameRecord[]; playerI
   const rows = records
     .filter((r) => {
       const c = r.session.config;
+      if (!MODES.includes(c.mode)) return false; // jeu retiré (ancien Shanghai)
       if (!c.sides.some((s) => s.playerIds.includes(playerId))) return false;
       if (r.session.status !== 'finished' && r.session.status !== 'abandoned') return false;
       if (filter.mode && c.mode !== filter.mode) return false;
@@ -253,7 +256,7 @@ export function Profile({ profile, profiles, games, settings, onSettings, onSave
   const s = summary(list);
   const fav = favouriteHits(list);
   // Modes à score joués sur la période, du plus joué au moins joué : le premier sert par défaut aux onglets de score.
-  const played = (['x01', 'cricket', 'shanghai'] as const)
+  const played = (['x01', 'cricket', 'random'] as const)
     .map((m) => ({ m, n: list.filter((g) => g.state.config.mode === m).length }))
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n)
@@ -360,7 +363,7 @@ export function Profile({ profile, profiles, games, settings, onSettings, onSave
                 Non disponible pour l’Horloge : on n’y note que Touché ou Raté, sans score de volée. Les records d’Horloge sont dans le Résumé.
               </div>
             ) : scored === null ? (
-              <div className="lib-empty">Aucune partie de 301/501/701, Cricket ou Shanghai pour ces filtres.</div>
+              <div className="lib-empty">Aucune partie de 301/501/701, Cricket ou Chiffre aléatoire pour ces filtres.</div>
             ) : (
               <>
                 {mode === 'all' && (

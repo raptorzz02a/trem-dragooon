@@ -57,7 +57,7 @@ describe('Avenant statistiques : scores par volée', () => {
   });
 
   it('sans aucune volée, les valeurs sont « non disponibles » (null), pas 0', () => {
-    const p = scoreProfile([], 'shanghai', [60], 20);
+    const p = scoreProfile([], 'random', [60], 20);
     expect([p.average, p.stdDev, p.best]).toEqual([null, null, null]);
     expect(p.thresholds[0]!.share).toBeNull();
   });

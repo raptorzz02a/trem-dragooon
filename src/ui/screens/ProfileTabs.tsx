@@ -21,7 +21,7 @@ import { Segmented } from './Profile';
 const MODE_NAMES: Record<ScoredMode, string> = {
   x01: '301/501/701',
   cricket: 'Cricket',
-  shanghai: 'Shanghai',
+  random: 'Chiffre aléatoire',
 };
 
 function Tile({ value, label, detail }: { value: string; label: string; detail?: string }) {
@@ -98,7 +98,7 @@ export function ScoredModePicker({
   return (
     <Segmented
       value={value}
-      options={(['x01', 'cricket', 'shanghai'] as const)
+      options={(['x01', 'cricket', 'random'] as const)
         .filter((m) => available.includes(m) || m === value)
         .map((m) => ({ value: m, label: MODE_NAMES[m] }))}
       onChange={onChange}

@@ -27,7 +27,7 @@ export interface ModeView {
   volleyTotal(darts: ThrownDart[], ctx: ViewContext): string;
   /** Résultat de la volée terminée, affiché sur l'écran de transition. */
   turnResult(turn: TurnRecord, ctx: ViewContext): { text: string; bad?: boolean };
-  /** Titre de l'écran de fin, si le mode a une victoire particulière (ex. « Shanghai ! »). */
+  /** Titre de l'écran de fin, si le mode a une victoire particulière. */
   winLabel?(ctx: ViewContext): string | null;
   /** Valeur d'une ligne du classement final. */
   rankValue(entry: RankEntry, ctx: ViewContext): string;
