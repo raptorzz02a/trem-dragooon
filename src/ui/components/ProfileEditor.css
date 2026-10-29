@@ -110,3 +110,27 @@
   color: var(--text-dim);
   font-size: 18px;
 }
+
+@media (max-width: 700px) {
+  .dialog.profile-editor {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .pe-left {
+    width: 100%;
+  }
+  .pe-preview .avatar {
+    width: 120px;
+    height: 120px;
+  }
+  .pe-options {
+    flex-wrap: wrap;
+  }
+  .pe-options button {
+    min-width: 52px;
+    min-height: 52px;
+  }
+  .pe-row .label {
+    width: 64px;
+  }
+}

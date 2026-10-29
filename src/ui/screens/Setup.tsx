@@ -80,7 +80,7 @@ export function buildConfig(setup: GameSetup): GameConfig {
 }
 
 /** Rangée de choix exclusifs. */
-function Choice<T extends string | number | boolean>(props: {
+export function Choice<T extends string | number | boolean>(props: {
   label: string;
   value: T;
   options: { value: T; label: ReactNode; disabled?: boolean }[];

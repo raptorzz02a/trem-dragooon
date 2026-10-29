@@ -529,3 +529,127 @@
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
+
+/* En ligne : rappel de qui doit jouer quand ce n'est pas le tour de cet appareil. */
+.game-wait {
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-bright);
+  padding: 10px;
+}
+
+.end-note {
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+/* Téléphone en portrait (mode en ligne) : une seule colonne, joueur actif puis pavé, scores en bas. */
+@media (max-width: 700px) {
+  .game {
+    padding: 8px 10px;
+    gap: 8px;
+    overflow-y: auto;
+  }
+  .game-top {
+    gap: 10px;
+  }
+  .game-title {
+    font-size: 16px;
+  }
+  .game-round {
+    font-size: 14px;
+  }
+  .game-quit {
+    min-height: 40px;
+    min-width: 0;
+    padding: 0 12px;
+    font-size: 14px;
+  }
+  .game-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    flex: none;
+  }
+  .game-left {
+    display: contents;
+  }
+  .active-card {
+    order: 1;
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .game-right {
+    order: 2;
+  }
+  .game-board {
+    order: 3;
+    flex: none;
+  }
+  .active-head {
+    align-items: center;
+    gap: 10px;
+  }
+  .active-head .avatar {
+    width: 48px;
+    height: 48px;
+  }
+  .active-who {
+    flex: 1;
+    min-width: 0;
+  }
+  .active-name {
+    font-size: 24px;
+    max-width: none;
+  }
+  .active-remaining {
+    font-size: 56px;
+  }
+  .active-checkout {
+    font-size: 17px;
+    min-height: 0;
+  }
+  .volley-slot,
+  .volley-total {
+    height: 44px;
+  }
+  .volley-dart {
+    font-size: 18px;
+  }
+  .volley-points {
+    font-size: 13px;
+  }
+  .volley-total {
+    font-size: 20px;
+  }
+  .game-actions button {
+    min-height: 48px;
+    font-size: 15px;
+  }
+  .game-right .pad-multipliers button,
+  .game-right .pad-specials button {
+    min-height: 52px;
+    min-width: 0;
+    font-size: 17px;
+  }
+  .pad-num {
+    min-height: 52px;
+    min-width: 0;
+    font-size: 22px;
+  }
+  .pad {
+    gap: 6px;
+  }
+  .pad-step {
+    display: none;
+  }
+  .transition-card {
+    padding: 24px;
+    margin: auto 0;
+  }
+  .game-wait {
+    font-size: 17px;
+    padding: 6px;
+  }
+}

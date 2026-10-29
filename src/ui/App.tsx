@@ -15,7 +15,10 @@ import { loadSettings } from '../settings/settings';
 import { loadCurrentGame, saveCurrentGame, type SavedGame } from '../storage/currentGame';
 import type { GameConfig } from '../game-engine/types';
 import type { GameMode } from '../game-engine/types';
+import { currentOnlineRoom } from '../online/useOnlineRoom';
+import { normalizeCode } from '../online/protocol';
 import { Game } from './screens/Game';
+import { Online } from './screens/Online';
 import { Home } from './screens/Home';
 import { Players } from './screens/Players';
 import { Profile } from './screens/Profile';
@@ -23,7 +26,14 @@ import { Rankings } from './screens/Rankings';
 import { useLibrary } from './useLibrary';
 import { DEFAULT_SETUP, Setup, type GameSetup } from './screens/Setup';
 
-type Screen = 'home' | 'setup' | 'game' | 'players' | 'profile' | 'rankings';
+type Screen = 'home' | 'setup' | 'game' | 'players' | 'profile' | 'rankings' | 'online';
+
+/** Code reçu par un lien de partage (?salon=ABC234), retiré de l'adresse une fois lu. */
+function sharedCode(): string | null {
+  const code = new URLSearchParams(location.search).get('salon');
+  if (code) history.replaceState(null, '', location.pathname);
+  return code ? normalizeCode(code) : null;
+}
 
 const newGameId = () => `game-${Date.now()}`;
 
@@ -45,7 +55,9 @@ function setupFrom(game: SavedGame, base: GameSetup): GameSetup {
 
 export function App() {
   const [game, setGame] = useState<SavedGame | null>(() => loadCurrentGame());
-  const [screen, setScreen] = useState<Screen>('home');
+  const [shared] = useState(sharedCode);
+  const [screen, setScreen] = useState<Screen>(shared ? 'online' : 'home');
+  const [online, setOnline] = useState<{ code: string | null; resume: boolean }>({ code: shared, resume: false });
   const [setup, setSetup] = useState<GameSetup>(DEFAULT_SETUP);
   const [profileId, setProfileId] = useState<string | null>(null);
   /** Écran à retrouver en quittant une fiche joueur. */
@@ -90,6 +102,18 @@ export function App() {
     commit(null);
     setScreen('home');
   };
+
+  if (screen === 'online' && library.ready) {
+    return (
+      <Online
+        initialCode={online.code}
+        resume={online.resume}
+        profiles={library.profiles}
+        onSaveProfile={library.saveProfile}
+        onHome={() => setScreen('home')}
+      />
+    );
+  }
 
   if (screen === 'setup' && library.ready) {
     return (
@@ -171,9 +195,17 @@ export function App() {
   }
 
   const resumable = game !== null && game.session.status === 'in_progress';
+  const onlineRoom = currentOnlineRoom();
+  const goOnline = (code: string | null, resume: boolean) => {
+    setOnline({ code, resume });
+    setScreen('online');
+  };
   return (
     <Home
       canResume={resumable}
+      onlineRoom={onlineRoom}
+      onOnline={() => goOnline(null, false)}
+      onResumeOnline={() => goOnline(onlineRoom, true)}
       durable={library.durable}
       onPlayers={() => setScreen('players')}
       onRankings={() => setScreen('rankings')}

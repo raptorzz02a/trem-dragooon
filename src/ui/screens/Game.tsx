@@ -23,9 +23,18 @@ interface Props {
   onEndTurn: () => void;
   onUndo: () => void;
   onQuit: () => void;
-  onRematch: () => void;
-  onEditPlayers: () => void;
+  /** Absent : bouton masqué (en ligne, seul l'hôte relance). */
+  onRematch?: () => void;
+  onEditPlayers?: () => void;
+  editPlayersLabel?: string;
   onHome: () => void;
+  /** En ligne : joueur de cet appareil. Il ne saisit que pendant son tour. */
+  myId?: string;
+  /** En ligne : l'arbitre autorise-t-il cet appareil à annuler la dernière fléchette ? */
+  canUndo?: boolean;
+  quitMessage?: string;
+  /** Message affiché à la fin de partie à la place des boutons absents. */
+  endNote?: string;
 }
 
 /** Écran de jeu commun aux quatre modes ; ce qui diffère est fourni par la vue du mode. */
@@ -41,6 +50,8 @@ export function Game(props: Props) {
     return p && !p.deleted ? <Avatar avatar={p.avatar} color={p.color} size={size} /> : null;
   };
   const current = state.current;
+  const myTurn = !props.myId || current?.playerId === props.myId;
+  const canUndo = props.canUndo ?? props.session.events.length > 0;
   const guard = useTapGuard(400);
 
   // Écran de transition : affiché quand le tour avance (pas quand on annule).
@@ -134,10 +145,11 @@ export function Game(props: Props) {
                 </div>
               </div>
               <div className="game-actions">
-                <button disabled={props.session.events.length === 0} onClick={guard(props.onUndo)}>
+                <button disabled={!canUndo} onClick={guard(props.onUndo)}>
                   ↶ Annuler la fléchette
                 </button>
                 <button
+                  disabled={!myTurn}
                   className={confirmEnd ? 'btn-gold' : 'btn-primary'}
                   onClick={guard(() => {
                     if (confirmEnd) props.onEndTurn();
@@ -155,10 +167,11 @@ export function Game(props: Props) {
 
         <section className="game-right">
           {view.input ? (
-            view.input(ctx, props.onDart, !current || transition !== null)
+            view.input(ctx, props.onDart, !current || !myTurn || transition !== null)
           ) : (
-            <ScorePad disabled={!current || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
+            <ScorePad disabled={!current || !myTurn || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
           )}
+          {current && !myTurn && <div className="game-wait">Au tour de {nameOf(current.playerId)}…</div>}
         </section>
       </div>
 
@@ -167,7 +180,7 @@ export function Game(props: Props) {
           <div className="transition-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
             <div className={`transition-result ${result.bad ? 'bust' : ''}`}>{result.text}</div>
             {avatarOf(current.playerId, 130)}
-            <div className="label">À toi de jouer</div>
+            <div className="label">{myTurn ? 'À toi de jouer' : 'Au tour de'}</div>
             <div className="transition-name">{nameOf(current.playerId)}</div>
             {state.config.teamMode && (
               <div className="transition-team" style={{ color: activeSide.color }}>
@@ -177,15 +190,17 @@ export function Game(props: Props) {
             <div className="transition-info">
               3 fléchettes · {hero.label.toLowerCase()} <strong>{hero.value}</strong>
             </div>
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setTransition(null);
-                props.onUndo();
-              }}
-            >
-              ↶ Annuler la dernière fléchette
-            </button>
+            {canUndo && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setTransition(null);
+                  props.onUndo();
+                }}
+              >
+                ↶ Annuler la dernière fléchette
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -204,15 +219,20 @@ export function Game(props: Props) {
                 </li>
               ))}
             </ol>
+            {props.endNote && <div className="end-note">{props.endNote}</div>}
             <div className="dialog-actions">
-              <button onClick={props.onUndo}>↶ Annuler la dernière fléchette</button>
+              {canUndo && <button onClick={props.onUndo}>↶ Annuler la dernière fléchette</button>}
               <button onClick={props.onHome}>Accueil</button>
-              <button className="btn-primary" onClick={props.onEditPlayers}>
-                Modifier les joueurs
-              </button>
-              <button className="btn-gold" onClick={props.onRematch}>
-                Rejouer
-              </button>
+              {props.onEditPlayers && (
+                <button className="btn-primary" onClick={props.onEditPlayers}>
+                  {props.editPlayersLabel ?? 'Modifier les joueurs'}
+                </button>
+              )}
+              {props.onRematch && (
+                <button className="btn-gold" onClick={props.onRematch}>
+                  Rejouer
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -221,7 +241,7 @@ export function Game(props: Props) {
       {confirmQuit && (
         <div className="overlay">
           <div className="dialog">
-            <div>Quitter la partie ? Elle sera enregistrée comme abandonnée.</div>
+            <div>{props.quitMessage ?? 'Quitter la partie ? Elle sera enregistrée comme abandonnée.'}</div>
             <div className="dialog-actions">
               <button onClick={() => setConfirmQuit(false)}>Continuer à jouer</button>
               <button className="btn-danger" onClick={props.onQuit}>
