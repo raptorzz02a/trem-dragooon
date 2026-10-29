@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
 import type { AdminAccount } from '../../online/accounts';
 import { api } from '../../online/useAccount';
+import type { AdminSaloon } from '../../online/saloons';
 import { Avatar } from '../components/Avatar';
+import { SaloonMembersList, SaloonSettings } from '../components/SaloonManager';
+import '../components/Saloons.css';
 import { dateTime, plural } from '../format';
 import './Online.css';
 
@@ -34,6 +37,16 @@ export function Admin({ myId, onBack }: { myId: string; onBack: () => void }) {
   const [pending, setPending] = useState<{ account: AdminAccount; action: Action } | null>(null);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<string | null>(null);
+  const [saloons, setSaloons] = useState<AdminSaloon[] | null>(null);
+  const [saloon, setSaloon] = useState<AdminSaloon | null>(null);
+
+  const loadSaloons = () =>
+    api<{ saloons: AdminSaloon[] }>('/api/admin/saloons')
+      .then((r) => setSaloons(r.saloons))
+      .catch((e: Error) => setError(e.message));
+  useEffect(() => {
+    void loadSaloons();
+  }, []);
 
   const load = () =>
     api<{ accounts: AdminAccount[] }>('/api/admin/accounts')
@@ -115,6 +128,60 @@ export function Admin({ myId, onBack }: { myId: string; onBack: () => void }) {
             ))}
           </div>
         </section>
+      )}
+
+      {saloons && (
+        <section className="online-block">
+          <div className="label">
+            {plural(saloons.length, 'saloon')} privé{saloons.length > 1 ? 's' : ''} (plus le saloon public TREM-DRAGOOON)
+          </div>
+          <div className="admin-list">
+            {saloons.map((s) => (
+              <div key={s.id} className="admin-row">
+                <span className="saloon-icon" style={{ width: 48, height: 48, fontSize: 24, background: s.color }}>
+                  {s.icon}
+                </span>
+                <div className="admin-who">
+                  <span className="admin-name">{s.name}</span>
+                  <span className="admin-dates">
+                    Créé le {dateTime(s.createdAt)} · {plural(s.members, 'membre')} · Propriétaire : {s.owner ?? 'aucun'}
+                  </span>
+                </div>
+                <div className="admin-actions">
+                  <button onClick={() => setSaloon(s)}>Gérer</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {saloon && (
+        <div className="overlay">
+          <div className="dialog saloon-dialog">
+            <h2>
+              {saloon.icon} {saloon.name}
+            </h2>
+            <SaloonMembersList saloonId={saloon.id} actor="global" myId={myId} onChanged={() => void loadSaloons()} />
+            <SaloonSettings
+              key={saloon.id}
+              saloonId={saloon.id}
+              actor="global"
+              initial={saloon}
+              onChanged={() => void loadSaloons()}
+              onDeleted={() => {
+                setSaloon(null);
+                setResult(`Saloon ${saloon.name} supprimé.`);
+                void loadSaloons();
+              }}
+            />
+            <div className="dialog-actions">
+              <button className="btn-gold" onClick={() => setSaloon(null)}>
+                Fermer
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {pending && (

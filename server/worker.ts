@@ -85,6 +85,27 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       const saloon = b.invite !== undefined ? await db.joinByInvite(bearer(request), b.invite) : await db.joinSaloon(bearer(request), b.name, b.password);
       return json({ saloon });
     }
+    const one = /^\/api\/saloons\/([^/]+)$/.exec(path);
+    if (one && one[1] !== 'join') {
+      const id = decodeURIComponent(one[1]!);
+      if (method === 'PUT') {
+        const b = await body(request);
+        await db.updateSaloon(bearer(request), id, b.name, b.password, b.color, b.icon);
+        return json({ ok: true });
+      }
+      if (method === 'DELETE') {
+        const b = await body(request);
+        await db.deleteSaloon(bearer(request), id, b.confirm);
+        return json({ ok: true });
+      }
+    }
+    const members = /^\/api\/saloons\/([^/]+)\/members(?:\/([^/]+)\/([a-z]+))?$/.exec(path);
+    if (members && !members[2] && method === 'GET') return json(await db.saloonMembers(bearer(request), decodeURIComponent(members[1]!)));
+    if (members && members[2] && method === 'POST') {
+      await db.manageMember(bearer(request), decodeURIComponent(members[1]!), decodeURIComponent(members[2]), members[3]);
+      return json({ ok: true });
+    }
+    if (path === '/api/admin/saloons' && method === 'GET') return json({ saloons: await db.adminSaloons(bearer(request)) });
     const saloon = /^\/api\/saloons\/([^/]+)\/(leave|invite)$/.exec(path);
     if (saloon && method === 'POST') {
       const id = decodeURIComponent(saloon[1]!);

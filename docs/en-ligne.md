@@ -66,6 +66,16 @@ L'interface prend la couleur du saloon ouvert.
   rend l'ancien inutilisable.
 - **Quitter le saloon** : ses parties restent. Si le propriétaire s'en va, l'admin le plus ancien (à défaut
   le membre le plus ancien) devient propriétaire ; un saloon vide est effacé.
+- **Rôles** (bouton « membres » puis onglets Membres / Réglages) : le **propriétaire** nomme ou retire les
+  admins, donne la propriété (il reste admin), exclut ou bannit n'importe quel membre et supprime le saloon
+  (en retapant son nom) ; un **admin** exclut ou bannit les simples membres, change le nom, le mot de passe
+  (les membres restent membres), la couleur et l'icône, et lève un bannissement. Un banni ne peut plus
+  revenir, ni par mot de passe ni par lien. Les stats et les mots de passe des comptes restent du ressort de
+  l'administrateur de l'appli.
+- L'administrateur de l'appli voit tous les saloons dans **Administration** et peut tout y faire (membres,
+  réglages, suppression).
+- Plusieurs parties peuvent se jouer en même temps, dans un saloon comme dans des saloons différents :
+  chaque partie a sa salle et son code.
 - Une partie créée appartient au saloon ouvert à ce moment-là (champ `saloonId` des parties enregistrées).
 
 Recette : `node scripts/recette-saloons.cjs` avec `npm run online:dev` lancé à côté.

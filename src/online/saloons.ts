@@ -1,3 +1,5 @@
+import type { AvatarConfig } from '../profiles/types';
+
 // Saloons : les groupes d'amis, sur le modèle Discord. Chaque saloon a ses membres, ses parties et ses
 // classements ; on y entre une fois avec son nom et son mot de passe, ou directement par un lien d'invitation.
 // TREM-DRAGOOON est le saloon public : tout compte en est membre d'office, et son classement sert de classement mondial.
@@ -71,3 +73,55 @@ export const saloonOf = (record: { saloonId?: string }): string => record.saloon
 export const inviteLink = (origin: string, invite: string) => `${origin}/?invitation=${encodeURIComponent(invite)}`;
 
 export const isInviteToken = (value: unknown): value is string => typeof value === 'string' && /^[0-9a-f]{32}$/.test(value);
+
+/** Un membre d'un saloon, vu depuis la liste des membres. */
+export interface SaloonMember {
+  id: string;
+  name: string;
+  color: string;
+  avatar: AvatarConfig;
+  role: SaloonRole;
+  joinedAt: string;
+}
+
+/** Membres d'un saloon, et les comptes bannis (visibles du propriétaire et des admins). */
+export interface SaloonMembers {
+  members: SaloonMember[];
+  banned: { id: string; name: string }[];
+}
+
+/** Qui agit dans un saloon : un membre selon son rôle, ou l'administrateur de l'appli (tous les pouvoirs). */
+export type SaloonActor = SaloonRole | 'global';
+
+export type MemberAction = 'kick' | 'ban' | 'promote' | 'demote' | 'transfer';
+
+/**
+ * Pouvoirs sur un membre : un admin exclut ou bannit les simples membres ; le propriétaire agit aussi sur les admins,
+ * nomme ou retire les admins et transfère la propriété ; l'administrateur de l'appli peut tout faire.
+ */
+export function canManage(actor: SaloonActor, target: SaloonRole, action: MemberAction): boolean {
+  if (actor === 'member') return false;
+  if (action === 'promote') return target === 'member' && (actor === 'owner' || actor === 'global');
+  if (action === 'demote') return target === 'admin' && (actor === 'owner' || actor === 'global');
+  if (action === 'transfer') return target !== 'owner' && (actor === 'owner' || actor === 'global');
+  // Exclure ou bannir : jamais le propriétaire (il transfère d'abord, ou quitte), sauf par l'administrateur de l'appli.
+  if (actor === 'global') return true;
+  if (actor === 'owner') return target !== 'owner';
+  return target === 'member';
+}
+
+/** Changer le nom, le mot de passe, la couleur ou l'icône, lever un bannissement. */
+export const canEditSaloon = (actor: SaloonActor | null): boolean => actor !== null && actor !== 'member';
+
+export const canDeleteSaloon = (actor: SaloonActor | null): boolean => actor === 'owner' || actor === 'global';
+
+/** Un saloon vu depuis l'espace administrateur de l'appli. */
+export interface AdminSaloon {
+  id: string;
+  name: string;
+  color: string;
+  icon: string;
+  members: number;
+  owner: string | null;
+  createdAt: string;
+}
