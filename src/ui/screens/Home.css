@@ -91,6 +91,31 @@
 .home-place {
   align-self: center;
   width: min(100%, 560px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Les deux choix « en ligne » tiennent dans la colonne du bouton « En ligne », juste en dessous. */
+.home-remote {
+  align-self: flex-end;
+  width: calc(50% - 5px);
+  display: flex;
+  gap: 8px;
+}
+
+.home-remote button {
+  flex: 1;
+  min-height: 48px;
+  font-size: 18px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+}
+
+.home-remote button.selected {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+  box-shadow: var(--glow-gold);
 }
 
 .home-modes {
@@ -211,6 +236,11 @@
   }
   .home-menu {
     left: 0;
+  }
+  .home-remote button {
+    min-width: 0;
+    padding: 0 4px;
+    font-size: 16px;
   }
   .home-join {
     align-self: stretch;

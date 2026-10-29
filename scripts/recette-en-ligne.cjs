@@ -35,9 +35,9 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const JACQUES = `Jacques${tag}`;
   const PASS = 'secret123';
 
-  // Rejoindre avec un code : « À distance », puis « Rejoindre ».
+  // Rejoindre avec un code : « En ligne », puis « Rejoindre ».
   const joinWith = async (p, code) => {
-    await p.getByText('À distance', { exact: true }).click();
+    await p.getByText('En ligne', { exact: true }).click();
     await p.locator('.home-remote').getByText('Rejoindre', { exact: true }).click();
     await p.locator('.home-join input').fill(code);
     await p.locator('.home-join button').click();
@@ -161,7 +161,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   // --- À distance : Pierre crée un Shanghai, Ju le rejoint depuis un PC 13 pouces ---
   await phone.getByText('← Accueil').click().catch(() => undefined);
   await phone.goto(URL);
-  await phone.getByText('À distance', { exact: true }).click();
+  await phone.getByText('En ligne', { exact: true }).click();
   await phone.locator('.home-mode', { hasText: 'Shanghai' }).click();
   await phone.locator('.lobby-code-value').waitFor({ timeout: 10000 });
   const remote = (await phone.locator('.lobby-code-value').innerText()).trim();

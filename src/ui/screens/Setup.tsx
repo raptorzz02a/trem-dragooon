@@ -177,7 +177,7 @@ function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Upda
 
 export const PLACE_NAMES: Record<RoomPlace, string> = {
   same: 'Même cible',
-  remote: 'À distance',
+  remote: 'En ligne',
 };
 
 /**
