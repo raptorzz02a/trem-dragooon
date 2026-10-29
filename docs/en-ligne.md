@@ -12,7 +12,7 @@ Adresse : https://trem-dragooon.julien-charrier01.workers.dev (borne, PC ou tél
 
 ## Deux façons de jouer
 
-| | Même cible | À distance |
+| | Même cible | En ligne |
 | --- | --- | --- |
 | Qui saisit | L'appareil qui a créé la partie (la borne) saisit pour tout le monde | Chacun saisit ses fléchettes sur son appareil, à son tour |
 | Ajouter les joueurs | Sur la borne : **＋ Ajouter un joueur**, choisir son pseudo et taper son mot de passe, ou **Nouveau joueur** pour créer un compte sur place | Chacun rejoint avec le code ou le lien partagé |
@@ -25,7 +25,7 @@ la partie sans le déconnecter.
 ## Déroulement
 
 1. Se connecter (ou **Créer un compte**, puis choisir son avatar). Le compte reste connecté sur l'appareil.
-2. Choisir **Même cible** ou **À distance**, puis le jeu : 301 · 501 · 701, Cricket, Horloge ou Shanghai.
+2. Choisir **Même cible** ou **En ligne** (chacun chez soi : **Créer** ou **Rejoindre** avec le code), puis le jeu : 301 · 501 · 701, Cricket, Horloge ou Shanghai.
 3. Dans la salle d'attente, l'hôte règle la partie comme sur l'ancienne borne : score de départ, sortie,
    variantes de chaque jeu, individuel ou équipes (tirage au sort ou à la main), ordre de passage (tiré au
    sort ou ordre de la liste, modifiable avec ▲ ▼). Seul, c'est une partie d'entraînement.

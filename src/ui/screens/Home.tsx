@@ -106,27 +106,30 @@ export function Home(props: Props) {
       )}
 
       <section className="home-new">
-        <div className="home-place segmented">
-          {(['same', 'remote'] as const).map((p) => (
-            <button key={p} className={place === p ? 'selected' : ''} onClick={() => setPlace(p)}>
-              {PLACE_NAMES[p]}
-            </button>
-          ))}
-        </div>
-        {place === 'remote' && (
-          <div className="home-place home-remote segmented">
-            {(
-              [
-                ['create', 'Créer'],
-                ['join', 'Rejoindre'],
-              ] as const
-            ).map(([a, label]) => (
-              <button key={a} className={remoteAction === a ? 'selected' : ''} onClick={() => setRemoteAction(a)}>
-                {label}
+        <div className="home-place">
+          <div className="segmented">
+            {(['same', 'remote'] as const).map((p) => (
+              <button key={p} className={place === p ? 'selected' : ''} onClick={() => setPlace(p)}>
+                {PLACE_NAMES[p]}
               </button>
             ))}
           </div>
-        )}
+          {/* Sous « En ligne », dans sa colonne : créer une partie ou en rejoindre une avec le code. */}
+          {place === 'remote' && (
+            <div className="home-remote">
+              {(
+                [
+                  ['create', 'Créer'],
+                  ['join', 'Rejoindre'],
+                ] as const
+              ).map(([a, label]) => (
+                <button key={a} className={remoteAction === a ? 'selected' : ''} onClick={() => setRemoteAction(a)}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
         {place === 'remote' && remoteAction === 'join' ? (
           <form
             className="home-join"
