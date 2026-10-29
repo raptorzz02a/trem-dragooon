@@ -23,6 +23,10 @@ interface Props {
   onNewGame: (mode: GameMode, place: RoomPlace) => Promise<void>;
   onJoin: (code: string) => void;
   onPlayers: () => void;
+  onMyStats: () => void;
+  /** Créer ou renouveler son code de secours (mot de passe oublié). */
+  onRecovery: () => void;
+  hasRecovery: boolean;
   onEditAccount: () => void;
   onPassword: () => void;
   onLogout: () => void;
@@ -99,7 +103,9 @@ export function Home(props: Props) {
               <div className="home-menu-backdrop" onClick={() => setMenuOpen(false)} />
               <div className="home-menu" role="menu">
                 {menuItem('Modifier', props.onEditAccount)}
+                {menuItem('Mes stats', props.onMyStats)}
                 {menuItem('Mot de passe', props.onPassword)}
+                {menuItem(props.hasRecovery ? 'Code de secours' : 'Créer mon code de secours', props.onRecovery)}
                 {props.onImport && menuItem('Récupérer les stats de la borne', props.onImport)}
                 {menuItem(
                   props.saloons.fixed ? 'Ne plus fixer le saloon sur cet appareil' : 'Fixer ce saloon sur cet appareil (borne)',
@@ -183,7 +189,8 @@ export function Home(props: Props) {
       <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} />
 
       <div className="home-links">
-        <button onClick={props.onPlayers}>Joueurs et classements</button>
+        <button onClick={props.onMyStats}>Mes stats</button>
+        <button onClick={props.onPlayers}>Classement du saloon</button>
       </div>
     </div>
   );

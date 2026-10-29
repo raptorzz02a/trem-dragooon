@@ -374,3 +374,37 @@
   background: transparent;
   border: 1px dashed var(--line);
 }
+
+/* Mot de passe oublié et code de secours. */
+.welcome-link {
+  align-self: center;
+  min-height: 44px;
+  font-size: 17px;
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  text-decoration: underline;
+}
+
+.recovery-code {
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-align: center;
+  padding: 14px;
+  color: var(--gold-bright);
+  background: var(--bg);
+  border: 1px dashed var(--gold);
+  border-radius: var(--radius);
+  user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.admin-requests {
+  border-color: var(--gold);
+}
+
+.recovery-dialog {
+  width: min(560px, 100%);
+}

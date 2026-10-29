@@ -3,13 +3,14 @@ import { DEFAULT_SETUP } from '../game-setup/setup';
 import type { GameMode } from '../game-engine/types';
 import { normalizeCode, type RoomPlace } from '../online/protocol';
 import { api, useAccount } from '../online/useAccount';
-import { isInviteToken, PUBLIC_SALOON_ID } from '../online/saloons';
+import { isInviteToken } from '../online/saloons';
 import { useSaloons } from '../online/useSaloons';
 import { createOnlineRoom, currentOnlineRoom, setCurrentOnlineRoom } from '../online/useOnlineRoom';
 import type { Profile } from '../profiles/types';
 import { loadSettings, saveSettings, type AppSettings } from '../settings/settings';
 import { PasswordDialog } from './components/PasswordDialog';
 import { ProfileEditor } from './components/ProfileEditor';
+import { RecoveryCodeDialog, RenewRecoveryDialog } from './components/Recovery';
 import { SaloonDialog, SaloonInfo } from './components/Saloons';
 import { Admin } from './screens/Admin';
 import { Community } from './screens/Community';
@@ -21,7 +22,7 @@ import { Welcome } from './screens/Welcome';
 
 // Tout se joue avec des comptes en ligne : sur la même cible (un appareil saisit pour tous) ou à distance.
 
-type Screen = 'home' | 'room' | 'players' | 'import' | 'admin' | 'watch';
+type Screen = 'home' | 'room' | 'players' | 'mystats' | 'import' | 'admin' | 'watch';
 
 /** Code reçu par un lien de partage (?partie=ABC234, ou ?salon= pour les anciens liens), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
@@ -103,6 +104,7 @@ export function App() {
   const [editing, setEditing] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [renewingRecovery, setRenewingRecovery] = useState(false);
   const [hasLocalStats, setHasLocalStats] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const updateSettings = (patch: Partial<AppSettings>) =>
@@ -118,6 +120,9 @@ export function App() {
   }, []);
 
   if (!account) return <Welcome state={accountState} onCreated={() => setEditing(true)} />;
+
+  // Code de secours tout juste créé (compte neuf, mot de passe retrouvé, nouveau code) : montré une seule fois.
+  const recovery = accountState.recovery && <RecoveryCodeDialog code={accountState.recovery} onClose={accountState.clearRecovery} />;
 
   const enter = (code: string) => {
     setCurrentOnlineRoom(code);
@@ -144,7 +149,7 @@ export function App() {
       <RoomScreen
         key={room}
         code={room}
-        canSetDefaults={(id) => (id === PUBLIC_SALOON_ID ? accountState.admin : (saloons.saloons.find((s) => s.id === id)?.role ?? 'member') !== 'member')}
+        canSetDefaults={(id) => (saloons.saloons.find((s) => s.id === id)?.role ?? 'member') !== 'member'}
         onSaveDefaults={(id, setup) =>
           api(`/api/saloons/${encodeURIComponent(id)}/defaults`, { method: 'PUT', body: JSON.stringify({ setup }) }).then(() => undefined)
         }
@@ -164,7 +169,19 @@ export function App() {
     return <WatchScreen key={watching.watchKey} {...watching} settings={settings} onBack={home} />;
   }
 
-  if (screen === 'players') return <Community settings={settings} onSettings={updateSettings} onBack={home} />;
+  if (screen === 'players' || screen === 'mystats') {
+    return (
+      <Community
+        key={screen}
+        saloon={saloons.current}
+        myId={account.id}
+        mine={screen === 'mystats'}
+        settings={settings}
+        onSettings={updateSettings}
+        onBack={home}
+      />
+    );
+  }
 
   if (screen === 'import') return <ImportLocal onBack={home} />;
 
@@ -187,6 +204,9 @@ export function App() {
         onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }, saloons.current.id))}
         onJoin={enter}
         onPlayers={() => setScreen('players')}
+        onMyStats={() => setScreen('mystats')}
+        onRecovery={() => setRenewingRecovery(true)}
+        hasRecovery={accountState.hasRecovery}
         onEditAccount={() => {
           setEditError(null);
           setEditing(true);
@@ -206,6 +226,8 @@ export function App() {
       {saloonDialog === 'info' && <SaloonInfo saloon={saloons.current} state={saloons} myId={account.id} onClose={() => setSaloonDialog(null)} />}
       {editor}
       {changingPassword && <PasswordDialog onSave={accountState.changePassword} onClose={() => setChangingPassword(false)} />}
+      {renewingRecovery && <RenewRecoveryDialog state={accountState} onClose={() => setRenewingRecovery(false)} />}
+      {recovery}
     </>
   );
 }

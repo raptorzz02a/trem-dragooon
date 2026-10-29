@@ -41,6 +41,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.getByLabel('Pseudo').fill(name);
     await p.getByLabel('Mot de passe').fill(PASS);
     await p.locator('.online-login button').click();
+    await p.getByText('J’ai noté mon code').click(); // code de secours montré à la création
     await p.getByText('Enregistrer').click();
     await p.locator('.home-account-name').waitFor({ timeout: 10000 });
   };

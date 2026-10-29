@@ -31,9 +31,13 @@ interface Props {
   /** Titre et bouton retour (classements des joueurs en ligne). */
   title?: string;
   backLabel?: string;
+  /** Parties à avoir jouées pour être classé (réglage du saloon). */
+  minGames?: number;
+  /** Ligne sous les filtres (le saloon du classement). */
+  note?: string;
 }
 
-export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements', backLabel = '← Accueil' }: Props) {
+export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements', backLabel = '← Accueil', minGames = MIN_RANKED_GAMES, note }: Props) {
   const [mode, setMode] = useState<GameMode | 'all'>('all');
   const [period, setPeriod] = useState<Period>(ALL_TIME);
   const [format, setFormat] = useState<NonNullable<StatsFilter['format']>>('all');
@@ -43,8 +47,8 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
   const sort: RankingSort = scored ? sortChoice : 'winRate';
   const range = periodRange(period);
   const { ranked, unranked } = useMemo(
-    () => scoreRankings(games, profiles, { mode: mode === 'all' ? undefined : mode, format, ...range }, sort),
-    [games, profiles, mode, range.from, range.to, format, sort],
+    () => scoreRankings(games, profiles, { mode: mode === 'all' ? undefined : mode, format, ...range }, sort, minGames),
+    [games, profiles, mode, range.from, range.to, format, sort, minGames],
   );
   const profileOf = (id: string) => profiles.find((p) => p.id === id)!;
   const unit = mode !== 'all' && isScoredMode(mode) ? VOLLEY_UNIT[mode].many : '';
@@ -117,6 +121,7 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
         </span>
       </div>
 
+      {note && <div className="tile-label rankings-note">{note}</div>}
       {ranked.length + unranked.length === 0 ? (
         <div className="lib-empty">Aucune partie terminée pour ces filtres (l’entraînement ne compte pas).</div>
       ) : (
@@ -133,7 +138,7 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
           {ranked.map((r, i) => row(r, String(i + 1)))}
           {unranked.length > 0 && (
             <>
-              <div className="label ranking-sep">Moins de {MIN_RANKED_GAMES} parties : pas encore classés</div>
+              <div className="label ranking-sep">Moins de {minGames} partie{minGames > 1 ? 's' : ''} : pas encore classés</div>
               {unranked.map((r) => row(r, '–', true))}
             </>
           )}

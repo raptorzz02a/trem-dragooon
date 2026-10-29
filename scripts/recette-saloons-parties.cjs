@@ -1,6 +1,6 @@
 // Recette des parties dans un saloon (avenant multi-groupes, lot 3) :
 // 1. Ju (borne) crée un saloon et y invite Pierre (téléphone) ; Jacques (PC 13 pouces) n'en est pas membre ;
-// 2. Ju lance une partie « Même cible » : Jacques est refusé à l'ajout, Paul créé sur la borne entre dans le saloon ;
+// 2. Ju lance une partie « Même cible » : Jacques n'est pas proposé à l'ajout, Paul créé sur la borne entre dans le saloon ;
 // 3. Ju garde ses réglages (701) par défaut pour le saloon ;
 // 4. Pierre voit la partie dans « Parties en cours » (point vert), la regarde en spectateur, Ju voit l'œil ;
 // 5. Jacques est refusé même avec le code ; une nouvelle partie de Pierre reprend le 701 ;
@@ -40,6 +40,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.getByLabel('Pseudo').fill(name);
     await p.getByLabel('Mot de passe').fill(PASS);
     await p.locator('.online-login button').click();
+    await p.getByText('J’ai noté mon code').click(); // code de secours montré à la création
     await p.getByText('Enregistrer').click();
     await p.locator('.home-account-name').waitFor({ timeout: 10000 });
   };
@@ -67,13 +68,11 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await borne.locator('.lobby-code-value').waitFor({ timeout: 10000 });
   const code = (await borne.locator('.lobby-code-value').innerText()).trim();
   await borne.getByText('＋ Ajouter un joueur').click();
+  // La liste ne propose que les membres du saloon (le serveur refuse de toute façon un non-membre).
+  await borne.locator('.picker-tile', { hasText: PIERRE }).waitFor({ timeout: 10000 });
   await borne.getByLabel('Chercher un pseudo').fill(JACQUES);
-  await borne.locator('.picker-tile', { hasText: JACQUES }).click();
-  await borne.getByLabel('Mot de passe').fill(PASS);
-  await borne.getByText('Ajouter à la partie').click();
-  await borne.locator('.add-player .online-error').waitFor({ timeout: 10000 });
-  check('non-membre refusé à l’ajout', /pas membre/.test(await borne.locator('.add-player .online-error').innerText()));
-  await borne.locator('.add-player').getByText('Retour', { exact: true }).click();
+  await borne.waitForTimeout(300);
+  check('non-membre absent de la liste d’ajout', (await borne.locator('.picker-tile', { hasText: JACQUES }).count()) === 0);
   await borne.getByLabel('Chercher un pseudo').fill(PAUL);
   await borne.getByText('Nouveau joueur').click();
   await borne.getByText('Enregistrer').click();

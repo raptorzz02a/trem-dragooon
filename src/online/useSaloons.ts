@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { MIN_RANKED_GAMES } from '../profiles/stats';
 import { PUBLIC_SALOON_ID, PUBLIC_SALOON_NAME, type Saloon } from './saloons';
 import { api } from './useAccount';
 
@@ -28,7 +29,7 @@ function store(key: string, value: string | null): void {
 }
 
 /** Le saloon public, tel qu'affiché avant la première réponse du serveur. */
-const PUBLIC: Saloon = { id: PUBLIC_SALOON_ID, name: PUBLIC_SALOON_NAME, color: '', icon: '🎯', public: true, role: 'member', members: 0 };
+const PUBLIC: Saloon = { id: PUBLIC_SALOON_ID, name: PUBLIC_SALOON_NAME, color: '', icon: '🎯', public: true, role: 'member', members: 0, minGames: MIN_RANKED_GAMES };
 
 export interface SaloonsState {
   saloons: Saloon[];

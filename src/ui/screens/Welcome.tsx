@@ -3,6 +3,7 @@ import { passwordProblem, pseudoProblem, PSEUDO_MAX } from '../../online/account
 import type { AccountState } from '../../online/useAccount';
 import { Logo } from '../components/Logo';
 import { newProfile } from '../components/ProfileEditor';
+import { ForgotPassword } from '../components/Recovery';
 import { Choice } from './Setup';
 import './Online.css';
 
@@ -13,6 +14,7 @@ export function Welcome({ state, onCreated }: { state: AccountState; onCreated: 
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
 
   const problem = tab === 'signup' ? (pseudoProblem(name) ?? passwordProblem(password)) : null;
   const submit = async () => {
@@ -38,54 +40,68 @@ export function Welcome({ state, onCreated }: { state: AccountState; onCreated: 
         <Logo size={64} />
       </div>
       <section className="online-block welcome-block">
-        <Choice
-          label=""
-          value={tab}
-          options={[
-            { value: 'login' as const, label: 'Se connecter' },
-            { value: 'signup' as const, label: 'Créer un compte' },
-          ]}
-          onChange={(t) => {
-            setTab(t);
-            setError(null);
-          }}
-        />
-        <form
-          className="online-login"
-          onSubmit={(e) => {
-            e.preventDefault();
-            if (!busy && !problem) void submit();
-          }}
-        >
-          <input
-            aria-label="Pseudo"
-            placeholder="Pseudo"
-            value={name}
-            maxLength={PSEUDO_MAX}
-            autoComplete="username"
-            autoCapitalize="none"
-            onChange={(e) => setName(e.target.value)}
-          />
-          <input
-            aria-label="Mot de passe"
-            placeholder="Mot de passe"
-            type="password"
-            value={password}
-            autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-          <button type="submit" className="btn-gold" disabled={busy || !name.trim() || !password || problem !== null}>
-            {tab === 'login' ? 'Se connecter' : 'Créer mon compte'}
-          </button>
-        </form>
-        <div className="online-hint">
-          {tab === 'signup'
-            ? problem && (name || password)
-              ? problem
-              : 'Un pseudo et un mot de passe suffisent. Tu choisiras ton avatar ensuite.'
-            : 'Ton compte garde tes stats, que tu joues sur la borne ou à distance.'}
-        </div>
-        {error && <div className="online-error">{error}</div>}
+        {forgot ? (
+          <>
+            <h2>Mot de passe oublié</h2>
+            <ForgotPassword state={state} initialName={name} onBack={() => setForgot(false)} />
+          </>
+        ) : (
+          <>
+            <Choice
+              label=""
+              value={tab}
+              options={[
+                { value: 'login' as const, label: 'Se connecter' },
+                { value: 'signup' as const, label: 'Créer un compte' },
+              ]}
+              onChange={(t) => {
+                setTab(t);
+                setError(null);
+              }}
+            />
+            <form
+              className="online-login"
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (!busy && !problem) void submit();
+              }}
+            >
+              <input
+                aria-label="Pseudo"
+                placeholder="Pseudo"
+                value={name}
+                maxLength={PSEUDO_MAX}
+                autoComplete="username"
+                autoCapitalize="none"
+                onChange={(e) => setName(e.target.value)}
+              />
+              <input
+                aria-label="Mot de passe"
+                placeholder="Mot de passe"
+                type="password"
+                value={password}
+                autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              <button type="submit" className="btn-gold" disabled={busy || !name.trim() || !password || problem !== null}>
+                {tab === 'login' ? 'Se connecter' : 'Créer mon compte'}
+              </button>
+            </form>
+            <div className="online-hint">
+              {tab === 'signup'
+                ? problem && (name || password)
+                  ? problem
+                  : 'Un pseudo et un mot de passe suffisent. Tu choisiras ton avatar ensuite.'
+                : 'Ton compte garde tes stats, que tu joues sur la borne ou à distance.'}
+            </div>
+            {tab === 'login' && (
+              <button type="button" className="welcome-link" onClick={() => setForgot(true)}>
+                Mot de passe oublié ?
+              </button>
+            )}
+            {error && <div className="online-error">{error}</div>}
+          </>
+        )}
       </section>
     </div>
   );

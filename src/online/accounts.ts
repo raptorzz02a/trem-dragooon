@@ -16,12 +16,28 @@ export interface PublicAccount {
 export interface Login {
   token: string;
   account: PublicAccount;
+  /** Code de secours, donné une seule fois : à la création du compte et après s'en être servi. */
+  recovery?: string;
 }
 
-/** Joueurs en ligne et parties en ligne terminées, pour les classements et les fiches. */
+/** Classement d'un saloon : ses membres actuels et les parties jouées dans le saloon. */
 export interface Community {
   accounts: PublicAccount[];
   games: GameRecord[];
+  /** Parties qu'il faut avoir jouées dans le saloon pour y être classé. */
+  minGames: number;
+}
+
+/** Fiche d'un joueur : ses parties que celui qui regarde a le droit de voir, et les saloons où elles ont été jouées. */
+export interface PlayerStats {
+  account: PublicAccount;
+  /** Les joueurs de ces parties, pour afficher les adversaires. */
+  accounts: PublicAccount[];
+  games: GameRecord[];
+  /** Saloons encore existants de ces parties (un saloon absent a été supprimé). */
+  saloons: { id: string; name: string; icon: string }[];
+  /** Sa propre fiche : toutes ses parties. Sinon, seulement celles des saloons partagés. */
+  own: boolean;
 }
 
 export const PSEUDO_MIN = 2;
@@ -98,6 +114,8 @@ export interface AdminAccount extends PublicAccount {
   /** Parties en ligne terminées qui comptent pour ce compte. */
   games: number;
   admin: boolean;
+  /** Le joueur a demandé un nouveau mot de passe depuis la page de connexion (date de la demande). */
+  passwordRequest: string | null;
 }
 
 /**
@@ -121,4 +139,23 @@ export function temporaryPassword(random: () => number): string {
   let out = '';
   for (let i = 0; i < 8; i++) out += alphabet[Math.floor(random() * alphabet.length)];
   return out;
+}
+
+/** Caractères des codes de secours : majuscules et chiffres sans ceux qu'on confond (0/O, 1/I/L). */
+const RECOVERY_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export const RECOVERY_LENGTH = 16;
+
+/**
+ * Code de secours d'un compte, à noter : il permet de choisir un nouveau mot de passe depuis la page de connexion.
+ * 16 caractères par groupes de 4 (ABCD-EFGH-JKMN-PQRS).
+ */
+export function recoveryCode(random: () => number): string {
+  let out = '';
+  for (let i = 0; i < RECOVERY_LENGTH; i++) out += RECOVERY_ALPHABET[Math.floor(random() * RECOVERY_ALPHABET.length)];
+  return out.match(/.{4}/g)!.join('-');
+}
+
+/** Code tapé par le joueur : tirets, espaces et minuscules ne comptent pas. */
+export function normalizeRecovery(code: string): string {
+  return code.toUpperCase().replace(/[^0-9A-Z]/g, '');
 }

@@ -41,14 +41,35 @@ partie**. Si l'hôte part, le joueur suivant devient hôte. Une partie sans acti
 ## Comptes et statistiques
 
 Pseudo unique (sans tenir compte des majuscules), mot de passe d'au moins 6 caractères. Chaque partie
-terminée ou arrêtée est enregistrée pour tous ses joueurs, quel que soit l'appareil. **Joueurs et
-classements** montre les classements et les fiches de tout le monde.
+terminée ou arrêtée est enregistrée pour tous ses joueurs, quel que soit l'appareil, dans le saloon où
+elle a été jouée.
+
+- **Classement du saloon** (accueil) : les membres du saloon ouvert et ses parties. Le classement du saloon
+  public sert de classement mondial (tous les comptes, parties du saloon public). On est classé à partir de
+  5 parties dans le saloon ; le propriétaire et les admins changent ce nombre (1 à 50) dans la fenêtre du
+  saloon, onglet Saloon (pour le saloon public : l'administrateur et les pseudos de `PUBLIC_ADMINS`).
+- **Mes stats** (accueil ou menu du joueur) : sa fiche, toutes ses parties, avec un filtre **Saloon** (Tous
+  saloons, chaque saloon, « Saloon supprimé » pour les saloons qui n'existent plus).
+- **Fiche d'un autre joueur** (depuis un classement) : seulement ses parties dans les saloons dont on est
+  membre tous les deux ; elle s'ouvre sur le saloon ouvert, « Saloons en commun » les montre tous.
+- Les exports CSV et l'impression suivent les filtres affichés, saloon compris.
 
 Sécurité : seule une empreinte du mot de passe est stockée (PBKDF2-SHA256, 100 000 tours, sel par compte).
-Après 10 essais ratés, le pseudo est bloqué 15 minutes, y compris quand on l'ajoute sur la borne. Pas
-d'e-mail, donc pas de « mot de passe oublié » : c'est l'administrateur qui donne un mot de passe provisoire
-(voir ci-dessous). Chacun change son mot de passe depuis l'accueil (**Mot de passe**) ; ses autres appareils
-sont alors déconnectés.
+Après 10 essais ratés, le pseudo est bloqué 15 minutes, y compris quand on l'ajoute sur la borne. Chacun
+change son mot de passe depuis le menu du joueur (**Mot de passe**) ; ses autres appareils sont alors
+déconnectés.
+
+**Mot de passe oublié** (pas d'e-mail) :
+
+- un **code de secours** (16 caractères, `ABCD-EFGH-JKMN-PQRS`) est montré une seule fois à la création du
+  compte. Sur la page de connexion, « Mot de passe oublié ? » : pseudo + code + nouveau mot de passe. Le
+  code ne sert qu'une fois : un nouveau est montré aussitôt. Les essais ratés comptent pour le blocage du
+  pseudo. Seule l'empreinte du code est stockée ;
+- menu du joueur, **Code de secours** : en créer un nouveau (il faut son mot de passe), l'ancien ne marche
+  plus. Les comptes d'avant les codes, et ceux créés sur l'appareil de l'hôte pendant une partie, le créent
+  ainsi ;
+- sans code : **Demander à un admin** ; la demande apparaît en haut de **Administration**, où
+  l'administrateur crée un mot de passe provisoire (ou ignore la demande).
 
 ## Saloons (groupes d'amis)
 
@@ -82,22 +103,32 @@ L'interface prend la couleur du saloon ouvert.
   joueurs voient l'œil et le nombre de spectateurs. Pour jouer, il faut toujours le code. Un point vert
   sur l'icône du saloon signale une partie lancée.
 - **Réglages par défaut** : dans la salle d'attente, l'hôte admin du saloon (pour le saloon public :
-  l'administrateur de l'appli) peut garder les réglages pour les prochaines parties du saloon ; le mode
+  l'administrateur de l'appli et les pseudos de `PUBLIC_ADMINS`) peut garder les réglages pour les prochaines parties du saloon ; le mode
   reste celui choisi à l'accueil.
 - **Borne** : menu du joueur, « Fixer ce saloon sur cet appareil » : la borne s'ouvre toujours sur ce
   saloon, sans sélecteur (réglage de l'appareil, à défaire par le même menu).
 - Les liens de partage d'une partie sont maintenant `?partie=CODE` (les anciens `?salon=CODE` marchent encore).
 - Une partie créée appartient au saloon ouvert à ce moment-là (champ `saloonId` des parties enregistrées).
 
+- **Ajouter un joueur** à une partie ne propose que les membres du saloon de la partie.
+
 Recettes : `node scripts/recette-saloons.cjs` et `node scripts/recette-saloons-parties.cjs`, avec
-`npm run online:dev` lancé à côté.
+`npm run online:dev` lancé à côté. Pour les stats et le mot de passe oublié (il faut un serveur neuf, où le
+compte `admin` est libre) : `npm run build`, puis
+`npx wrangler dev -c server/wrangler.toml --persist-to <dossier vide> --var PUBLIC_ADMINS:Juabcd` et
+`TAG=abcd node scripts/recette-saloons-stats.cjs`.
 
 ## Espace administrateur
 
 Le bouton **Administration** (accueil) n'apparaît que pour les pseudos listés dans `ADMINS`
 (`server/wrangler.toml`, séparés par des virgules). Un pseudo administrateur est attaché pour de bon au
 compte qui le porte : changer de pseudo ensuite ne donne pas l'accès à celui qui reprendrait l'ancien.
-Retirer un pseudo de `ADMINS` (puis remettre en ligne) retire l'accès à son compte.
+Retirer un pseudo de `ADMINS` (puis remettre en ligne) retire l'accès à son compte. `PUBLIC_ADMINS`
+(même format, `Ju` par défaut) donne en plus le rôle d'admin du saloon public : réglages par défaut de ses
+parties et minimum de parties de son classement.
+
+- **Demandes de mot de passe** (en haut, s'il y en a) : les joueurs qui ont cliqué « Demander à un admin ».
+  Vérifier que c'est bien le joueur, puis **Mot de passe provisoire** (la demande disparaît) ou **Ignorer** ;
 
 - liste de tous les comptes : date de création, date de dernière utilisation (connexion, ouverture de
   l'appli ou partie terminée, à 10 minutes près ; pour les comptes d'avant le suivi, dernière connexion

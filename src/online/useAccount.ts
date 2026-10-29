@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AvatarConfig } from '../profiles/types';
 import { apiUrl } from './api';
-import type { Community, Login, PublicAccount } from './accounts';
+import type { Community, Login, PlayerStats, PublicAccount } from './accounts';
 
 // Compte du mode en ligne sur cet appareil : le jeton de connexion est gardé dans le navigateur.
 
@@ -48,7 +48,11 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data;
 }
 
-export const loadCommunity = () => api<Community>('/api/community');
+/** Classement d'un saloon : ses membres et ses parties. */
+export const loadCommunity = (saloonId: string) => api<Community>(`/api/community?saloon=${encodeURIComponent(saloonId)}`);
+
+/** Fiche d'un joueur, limitée aux saloons partagés (la sienne : tout). */
+export const loadPlayer = (accountId: string) => api<PlayerStats>(`/api/players/${encodeURIComponent(accountId)}`);
 
 export interface AccountState {
   account: PublicAccount | null;
@@ -59,11 +63,23 @@ export interface AccountState {
   logout: () => void;
   update: (changes: Pick<PublicAccount, 'name' | 'color' | 'avatar'>) => Promise<void>;
   changePassword: (current: string, next: string) => Promise<void>;
+  /** Le compte a un code de secours (les comptes d'avant les codes n'en ont pas tant qu'ils n'en créent pas). */
+  hasRecovery: boolean;
+  /** Code de secours à montrer une fois au joueur, puis oublié. */
+  recovery: string | null;
+  clearRecovery: () => void;
+  renewRecovery: (password: string) => Promise<void>;
+  /** Mot de passe oublié : nouveau mot de passe avec le code de secours. */
+  recover: (name: string, code: string, password: string) => Promise<void>;
+  /** Sans code de secours : la demande part à l'administrateur. */
+  requestPassword: (name: string) => Promise<void>;
 }
 
 export function useAccount(): AccountState {
   const [account, setAccount] = useState<PublicAccount | null>(cachedAccount);
   const [admin, setAdmin] = useState(false);
+  const [hasRecovery, setHasRecovery] = useState(true);
+  const [recovery, setRecovery] = useState<string | null>(null);
 
   const remember = useCallback((token: string | null, next: PublicAccount | null) => {
     write(TOKEN_KEY, token);
@@ -75,10 +91,11 @@ export function useAccount(): AccountState {
   // Le compte gardé en mémoire est rafraîchi (pseudo ou avatar changés ailleurs, session révoquée).
   useEffect(() => {
     if (!account) return;
-    api<{ account: PublicAccount; admin: boolean }>('/api/account')
+    api<{ account: PublicAccount; admin: boolean; recovery: boolean }>('/api/account')
       .then((r) => {
         remember(accountToken(), r.account);
         setAdmin(r.admin);
+        setHasRecovery(r.recovery);
       })
       .catch((e: { status?: number }) => {
         if (e.status === 401) remember(null, null);
@@ -88,6 +105,7 @@ export function useAccount(): AccountState {
 
   const signup = async (name: string, password: string, color: string, avatar: AvatarConfig) => {
     const r = await api<Login>('/api/account/signup', { method: 'POST', body: JSON.stringify({ name, password, color, avatar }) });
+    setRecovery(r.recovery ?? null);
     remember(r.token, r.account);
   };
   const login = async (name: string, password: string) => {
@@ -109,5 +127,33 @@ export function useAccount(): AccountState {
     remember(r.token, account);
   };
 
-  return { account, admin, signup, login, logout, update, changePassword };
+  const renewRecovery = async (password: string) => {
+    const r = await api<{ recovery: string }>('/api/account/recovery', { method: 'POST', body: JSON.stringify({ password }) });
+    setHasRecovery(true);
+    setRecovery(r.recovery);
+  };
+  const recover = async (name: string, code: string, password: string) => {
+    const r = await api<Login>('/api/account/recover', { method: 'POST', body: JSON.stringify({ name, code, password }) });
+    setRecovery(r.recovery ?? null);
+    remember(r.token, r.account);
+  };
+  const requestPassword = async (name: string) => {
+    await api('/api/account/password-request', { method: 'POST', body: JSON.stringify({ name }) });
+  };
+
+  return {
+    account,
+    admin,
+    signup,
+    login,
+    logout,
+    update,
+    changePassword,
+    hasRecovery,
+    recovery,
+    clearRecovery: () => setRecovery(null),
+    renewRecovery,
+    recover,
+    requestPassword,
+  };
 }

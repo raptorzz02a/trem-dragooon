@@ -5,6 +5,8 @@ import {
   cleanAvatar,
   IMPORT_BATCH,
   importedGameId,
+  normalizeRecovery,
+  recoveryCode,
   involves,
   cleanColor,
   detachPlayer,
@@ -15,6 +17,7 @@ import {
   type AdminAccount,
   type Community,
   type Login,
+  type PlayerStats,
   type PublicAccount,
 } from '../src/online/accounts';
 import {
@@ -28,9 +31,11 @@ import {
   saloonKey,
   saloonNameProblem,
   saloonPasswordProblem,
+  saloonOf,
   canDeleteSaloon,
   canEditSaloon,
   canManage,
+  cleanMinGames,
   LIVE_GAME_TTL_MS,
   type AdminSaloon,
   type LiveGame,
@@ -42,6 +47,7 @@ import {
   type SaloonRole,
 } from '../src/online/saloons';
 import type { GameSetup } from '../src/game-setup/setup';
+import { MIN_RANKED_GAMES } from '../src/profiles/stats';
 import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
 
 // Base des comptes et des parties en ligne : un seul Durable Object, stocké en SQLite (offre gratuite).
@@ -62,7 +68,12 @@ const SEEN_EVERY_MS = 10 * 60 * 1000;
 export interface AccountsEnv {
   /** Pseudos administrateurs, séparés par des virgules (voir wrangler.toml). */
   ADMINS?: string;
+  /** Pseudos qui administrent aussi le saloon public, en plus des administrateurs. */
+  PUBLIC_ADMINS?: string;
 }
+
+/** Pseudos d'une variable du Worker, séparés par des virgules. */
+const pseudoList = (variable: string | undefined) => (variable ?? '').split(',').map(pseudoKey).filter(Boolean);
 
 const hex = (bytes: ArrayBuffer | Uint8Array) =>
   [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -96,6 +107,7 @@ interface AccountRow extends Record<string, SqlStorageValue> {
   avatar: string;
   created_at: string;
   last_seen_at: string | null;
+  recovery_hash: string | null;
 }
 
 const publicAccount = (row: AccountRow): PublicAccount => ({
@@ -180,6 +192,18 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
         saloon_id TEXT PRIMARY KEY,
         setup TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS public_admins (
+        pseudo_key TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS saloon_settings (
+        saloon_id TEXT PRIMARY KEY,
+        min_games INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS password_requests (
+        account_id TEXT PRIMARY KEY,
+        created_at TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS saloon_failures (
         saloon_id TEXT NOT NULL,
         account_id TEXT NOT NULL,
@@ -195,46 +219,64 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       this.sql.exec(`UPDATE accounts SET last_seen_at = COALESCE(
         (SELECT MAX(created_at) FROM sessions WHERE sessions.account_id = accounts.id), created_at)`);
     }
-    this.bindAdmins();
+    if (!columns.some((c) => c.name === 'recovery_hash')) {
+      // Comptes créés avant les codes de secours : ils en créent un depuis le menu du compte.
+      this.sql.exec('ALTER TABLE accounts ADD COLUMN recovery_hash TEXT');
+    }
+    this.bindAdmins('admins', this.env.ADMINS);
+    this.bindAdmins('public_admins', this.env.PUBLIC_ADMINS);
   }
 
   /**
-   * Un pseudo administrateur (variable ADMINS) est attaché pour de bon au premier compte qui le porte : si ce compte
-   * change de pseudo ensuite, personne d'autre ne devient administrateur en prenant l'ancien.
-   * Retirer un pseudo de la variable retire l'accès à son compte.
+   * Un pseudo administrateur (variable ADMINS, ou PUBLIC_ADMINS pour le saloon public) est attaché pour de bon au
+   * premier compte qui le porte : si ce compte change de pseudo ensuite, personne d'autre ne devient administrateur
+   * en prenant l'ancien. Retirer un pseudo de la variable retire l'accès à son compte.
    */
-  private bindAdmins(): void {
-    for (const pseudo of this.adminPseudos()) {
+  private bindAdmins(table: 'admins' | 'public_admins', variable: string | undefined): void {
+    for (const pseudo of pseudoList(variable)) {
       const row = this.row('name_key', pseudo);
-      if (row) this.sql.exec('INSERT OR IGNORE INTO admins VALUES (?, ?)', pseudo, row.id);
+      if (row) this.sql.exec(`INSERT OR IGNORE INTO ${table} VALUES (?, ?)`, pseudo, row.id);
     }
   }
 
-  private adminPseudos(): string[] {
-    return (this.env.ADMINS ?? '').split(',').map(pseudoKey).filter(Boolean);
-  }
-
-  /** Comptes administrateurs : attachés à un pseudo encore présent dans la variable ADMINS. */
-  private adminIds(): Set<string> {
-    this.bindAdmins();
-    const current = new Set(this.adminPseudos());
+  /** Comptes attachés à un pseudo encore présent dans la variable. */
+  private boundIds(table: 'admins' | 'public_admins', variable: string | undefined): Set<string> {
+    this.bindAdmins(table, variable);
+    const current = new Set(pseudoList(variable));
     return new Set(
       this.sql
-        .exec<{ pseudo_key: string; account_id: string }>('SELECT pseudo_key, account_id FROM admins')
+        .exec<{ pseudo_key: string; account_id: string }>(`SELECT pseudo_key, account_id FROM ${table}`)
         .toArray()
         .filter((r) => current.has(r.pseudo_key))
         .map((r) => r.account_id),
     );
   }
 
+  /** Comptes administrateurs de l'appli. */
+  private adminIds(): Set<string> {
+    return this.boundIds('admins', this.env.ADMINS);
+  }
+
   private isAdmin(accountId: string): boolean {
     return this.adminIds().has(accountId);
+  }
+
+  /** Admins du saloon public : les administrateurs de l'appli et les pseudos de PUBLIC_ADMINS. */
+  private isPublicAdmin(accountId: string): boolean {
+    return this.isAdmin(accountId) || this.boundIds('public_admins', this.env.PUBLIC_ADMINS).has(accountId);
   }
 
   /** Note que le compte vient d'être utilisé (connexion, ouverture de l'appli, partie). */
   private seen(row: AccountRow, at = new Date()): void {
     const last = row.last_seen_at ? Date.parse(row.last_seen_at) : 0;
     if (at.getTime() - last >= SEEN_EVERY_MS) this.sql.exec('UPDATE accounts SET last_seen_at = ? WHERE id = ?', at.toISOString(), row.id);
+  }
+
+  /** Nouveau code de secours du compte : seule son empreinte est gardée, le code est renvoyé une seule fois. */
+  private async newRecovery(accountId: string): Promise<string> {
+    const code = recoveryCode(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
+    this.sql.exec('UPDATE accounts SET recovery_hash = ? WHERE id = ?', await sha256(normalizeRecovery(code)), accountId);
+    return code;
   }
 
   private row(where: string, value: string): AccountRow | null {
@@ -274,7 +316,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       new Date().toISOString(),
       new Date().toISOString(),
     );
-    return { token: await this.openSession(id), account: publicAccount(this.row('id', id)!) };
+    return { token: await this.openSession(id), account: publicAccount(this.row('id', id)!), recovery: await this.newRecovery(id) };
   }
 
   async login(name: string, password: string): Promise<Login> {
@@ -316,12 +358,55 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     return session ? this.row('id', session.account_id) : null;
   }
 
-  /** Ouverture de l'appli : le compte du jeton, s'il est administrateur, et la date d'utilisation est notée. */
-  async open(token: string): Promise<{ account: PublicAccount; admin: boolean } | null> {
+  /** Ouverture de l'appli : le compte du jeton, s'il est administrateur, s'il a un code de secours ; la date d'utilisation est notée. */
+  async open(token: string): Promise<{ account: PublicAccount; admin: boolean; recovery: boolean } | null> {
     const row = await this.sessionRow(token);
     if (!row) return null;
     this.seen(row);
-    return { account: publicAccount(row), admin: this.isAdmin(row.id) };
+    return { account: publicAccount(row), admin: this.isAdmin(row.id), recovery: !!row.recovery_hash };
+  }
+
+  /** Nouveau code de secours depuis le menu du compte (l'ancien ne marche plus) : il faut le mot de passe. */
+  async renewRecovery(token: string, password: unknown): Promise<string> {
+    const row = await this.sessionRow(token);
+    if (!row) throw new Error('Connecte-toi d’abord.');
+    await this.check(row.name, String(password ?? '')).catch(() => {
+      throw new Error('Mot de passe incorrect.');
+    });
+    return this.newRecovery(row.id);
+  }
+
+  /**
+   * Mot de passe oublié : le code de secours permet d'en choisir un nouveau depuis la page de connexion. Les autres
+   * appareils sont déconnectés et un nouveau code est donné (l'ancien a servi). Les échecs comptent pour le blocage.
+   */
+  async recover(name: unknown, code: unknown, password: unknown): Promise<Login> {
+    const wrong = new Error('Pseudo ou code de secours incorrect.');
+    const row = this.row('name_key', pseudoKey(String(name ?? '')));
+    if (!row) throw wrong;
+    const now = Date.now();
+    if ((row.locked_until as number) > now) throw new Error('Trop d’essais : réessaie dans quelques minutes.');
+    const problem = passwordProblem(String(password ?? ''));
+    if (problem) throw new Error(problem);
+    const hash = await sha256(normalizeRecovery(String(code ?? '')));
+    if (!row.recovery_hash || !sameHash(hash, row.recovery_hash as string)) {
+      const failures = (row.failures as number) + 1;
+      const locked = failures >= MAX_FAILURES;
+      this.sql.exec('UPDATE accounts SET failures = ?, locked_until = ? WHERE id = ?', locked ? 0 : failures, locked ? now + LOCK_MS : 0, row.id);
+      throw wrong;
+    }
+    await this.setPassword(row.id, String(password));
+    this.sql.exec('DELETE FROM password_requests WHERE account_id = ?', row.id);
+    return { token: await this.openSession(row.id), account: publicAccount(row), recovery: await this.newRecovery(row.id) };
+  }
+
+  /**
+   * Sans code de secours : la demande arrive dans l'espace Administration. La réponse est la même que le pseudo
+   * existe ou non ; une seule demande en attente par compte.
+   */
+  async requestPassword(name: unknown): Promise<void> {
+    const row = this.row('name_key', pseudoKey(String(name ?? '')));
+    if (row) this.sql.exec('INSERT OR REPLACE INTO password_requests VALUES (?, ?)', row.id, new Date().toISOString());
   }
 
   /** Changement de son propre mot de passe : les autres appareils connectés sont déconnectés. */
@@ -425,16 +510,74 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     return count;
   }
 
-  async community(): Promise<Community> {
-    const accounts = this.sql.exec<AccountRow>('SELECT * FROM accounts ORDER BY name_key').toArray().map((r) => publicAccount(r as AccountRow));
+  /** Toutes les parties en ligne terminées, les noms affichés suivant les pseudos actuels. */
+  private allGames(): GameRecord[] {
     const games = this.sql
       .exec<{ record: string }>('SELECT record FROM games ORDER BY finished_at')
       .toArray()
       .map((r) => JSON.parse(r.record) as GameRecord);
-    // Les noms affichés suivent les pseudos actuels (un joueur a pu changer de pseudo depuis la partie).
-    const names = new Map(accounts.map((a) => [a.id, a.name]));
+    // Un joueur a pu changer de pseudo depuis la partie.
+    const names = new Map(this.sql.exec<{ id: string; name: string }>('SELECT id, name FROM accounts').toArray().map((a) => [a.id, a.name]));
     for (const g of games) g.players = g.players.map((p) => ({ ...p, name: names.get(p.id) ?? p.name }));
-    return { accounts, games };
+    return games;
+  }
+
+  /**
+   * Classement d'un saloon : ses membres actuels et ses parties. Le saloon public réunit tous les comptes : son
+   * classement sert de classement mondial.
+   */
+  async community(token: string, saloonId: unknown): Promise<Community> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' && saloonId ? saloonId : PUBLIC_SALOON_ID;
+    if (!this.isMember(me.id, id)) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
+    const rows =
+      id === PUBLIC_SALOON_ID
+        ? this.sql.exec<AccountRow>('SELECT * FROM accounts ORDER BY name_key').toArray()
+        : this.sql
+            .exec<AccountRow>('SELECT a.* FROM saloon_members m JOIN accounts a ON a.id = m.account_id WHERE m.saloon_id = ? ORDER BY a.name_key', id)
+            .toArray();
+    return {
+      accounts: rows.map((r) => publicAccount(r as AccountRow)),
+      games: this.allGames().filter((g) => saloonOf(g) === id),
+      minGames: this.minGames(id),
+    };
+  }
+
+  /** Saloons du compte (le public compris). */
+  private saloonIdsOf(accountId: string): Set<string> {
+    const ids = this.sql.exec<{ saloon_id: string }>('SELECT saloon_id FROM saloon_members WHERE account_id = ?', accountId).toArray();
+    return new Set([PUBLIC_SALOON_ID, ...ids.map((r) => r.saloon_id)]);
+  }
+
+  /**
+   * Fiche d'un joueur. La sienne : toutes ses parties, tous saloons confondus (même ceux qu'il a quittés). Celle
+   * d'un autre : seulement ses parties dans les saloons dont les deux sont membres.
+   */
+  async playerStats(token: string, accountId: unknown): Promise<PlayerStats> {
+    const me = await this.member(token);
+    const target = this.target(accountId);
+    const own = target.id === me.id;
+    let shared: Set<string> | null = null;
+    if (!own) {
+      const mine = this.saloonIdsOf(me.id);
+      shared = new Set([...this.saloonIdsOf(target.id)].filter((id) => mine.has(id)));
+    }
+    const games = this.allGames().filter((g) => g.players.some((p) => p.id === target.id) && (!shared || shared.has(saloonOf(g))));
+    const ids = new Set(games.flatMap((g) => g.players.map((p) => p.id)));
+    const accounts = this.sql
+      .exec<AccountRow>('SELECT * FROM accounts')
+      .toArray()
+      .filter((r) => ids.has(r.id as string))
+      .map((r) => publicAccount(r as AccountRow));
+    const saloonIds = new Set(games.map(saloonOf));
+    const saloons = [
+      ...(saloonIds.has(PUBLIC_SALOON_ID) || own ? [{ id: PUBLIC_SALOON_ID, name: PUBLIC_SALOON_NAME, icon: '🎯' }] : []),
+      ...this.sql
+        .exec<{ id: string; name: string; icon: string }>('SELECT id, name, icon FROM saloons ORDER BY name_key')
+        .toArray()
+        .filter((s) => saloonIds.has(s.id)),
+    ];
+    return { account: publicAccount(target), accounts, games, saloons, own };
   }
 
   // Saloons : les groupes d'amis. Le saloon public n'a pas de ligne en base, tout compte en est membre.
@@ -453,9 +596,10 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       color: '',
       icon: '🎯',
       public: true,
-      role: this.isAdmin(accountId) ? 'admin' : 'member',
+      role: this.isPublicAdmin(accountId) ? 'admin' : 'member',
       members,
       live: this.playing(PUBLIC_SALOON_ID),
+      minGames: this.minGames(PUBLIC_SALOON_ID),
     };
   }
 
@@ -479,6 +623,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       role,
       members: this.memberCount(row.id),
       live: this.playing(row.id),
+      minGames: this.minGames(row.id),
       ...(role !== 'member' ? { invite: row.invite } : {}),
     };
   }
@@ -734,7 +879,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
   }
 
   private dropSaloon(id: string): void {
-    for (const table of ['saloon_members', 'saloon_bans', 'saloon_failures', 'saloon_defaults', 'live_rooms']) this.sql.exec(`DELETE FROM ${table} WHERE saloon_id = ?`, id);
+    for (const table of ['saloon_members', 'saloon_bans', 'saloon_failures', 'saloon_defaults', 'saloon_settings', 'live_rooms']) this.sql.exec(`DELETE FROM ${table} WHERE saloon_id = ?`, id);
     this.sql.exec('DELETE FROM saloons WHERE id = ?', id);
   }
 
@@ -819,15 +964,28 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
   async setSaloonDefaults(token: string, saloonId: unknown, setup: GameSetup): Promise<void> {
     const me = await this.member(token);
     const id = typeof saloonId === 'string' ? saloonId : '';
-    const allowed = id === PUBLIC_SALOON_ID ? this.isAdmin(me.id) : canEditSaloon(this.actor(id, me.id));
-    if (!allowed) throw Object.assign(new Error('Réservé aux admins du saloon.'), { status: 403 });
+    if (!this.canSetDefaults(me.id, id)) throw Object.assign(new Error('Réservé aux admins du saloon.'), { status: 403 });
     const { teamOf: _teams, ...rest } = setup;
     this.sql.exec('INSERT OR REPLACE INTO saloon_defaults VALUES (?, ?)', id, JSON.stringify({ ...rest, teamOf: {} }));
   }
 
-  /** Le compte peut-il régler les parties par défaut de ce saloon ? */
+  /** Le compte peut-il régler les parties par défaut et le classement de ce saloon ? */
   canSetDefaults(accountId: string, saloonId: string): boolean {
-    return saloonId === PUBLIC_SALOON_ID ? this.isAdmin(accountId) : canEditSaloon(this.actor(saloonId, accountId));
+    return saloonId === PUBLIC_SALOON_ID ? this.isPublicAdmin(accountId) : canEditSaloon(this.actor(saloonId, accountId));
+  }
+
+  /** Parties à jouer dans le saloon pour entrer dans son classement. */
+  private minGames(saloonId: string): number {
+    return this.sql.exec<{ min_games: number }>('SELECT min_games FROM saloon_settings WHERE saloon_id = ?', saloonId).toArray()[0]?.min_games ?? MIN_RANKED_GAMES;
+  }
+
+  async setMinGames(token: string, saloonId: unknown, value: unknown): Promise<void> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    if (!this.canSetDefaults(me.id, id)) throw Object.assign(new Error('Réservé aux admins du saloon.'), { status: 403 });
+    const n = cleanMinGames(value);
+    if (n === null) throw new Error('Nombre de parties invalide.');
+    this.sql.exec('INSERT OR REPLACE INTO saloon_settings VALUES (?, ?)', id, n);
   }
 
   // Espace administrateur : chaque action vérifie d'abord que le jeton est celui d'un administrateur.
@@ -851,12 +1009,21 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       for (const p of (JSON.parse(record) as GameRecord).players) counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
     }
     const admins = this.adminIds();
+    const requests = new Map(
+      this.sql.exec<{ account_id: string; created_at: string }>('SELECT * FROM password_requests').toArray().map((r) => [r.account_id, r.created_at]),
+    );
     return this.sql
       .exec<AccountRow>('SELECT * FROM accounts ORDER BY name_key')
       .toArray()
       .map((r) => {
         const row = r as AccountRow;
-        return { ...publicAccount(row), lastSeenAt: row.last_seen_at, games: counts.get(row.id) ?? 0, admin: admins.has(row.id) };
+        return {
+          ...publicAccount(row),
+          lastSeenAt: row.last_seen_at,
+          games: counts.get(row.id) ?? 0,
+          admin: admins.has(row.id),
+          passwordRequest: requests.get(row.id) ?? null,
+        };
       });
   }
 
@@ -872,7 +1039,14 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     const row = this.target(accountId);
     const password = temporaryPassword(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
     await this.setPassword(row.id, password);
+    this.sql.exec('DELETE FROM password_requests WHERE account_id = ?', row.id);
     return password;
+  }
+
+  /** Demande de mot de passe écartée sans rien changer au compte. */
+  async adminDismissRequest(token: string, accountId: unknown): Promise<void> {
+    await this.admin(token);
+    this.sql.exec('DELETE FROM password_requests WHERE account_id = ?', this.target(accountId).id);
   }
 
   /** Suppression d'un compte : ses parties restent pour les autres joueurs, à son nom « Joueur supprimé ». */
@@ -889,6 +1063,8 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     }
     this.sql.exec('DELETE FROM saloon_failures WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM saloon_bans WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM password_requests WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM public_admins WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM accounts WHERE id = ?', row.id);
   }
 

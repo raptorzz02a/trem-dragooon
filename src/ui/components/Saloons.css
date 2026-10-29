@@ -334,3 +334,29 @@
 .saloon-fixed .saloon-header-static {
   display: flex;
 }
+
+.saloon-ranking {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.saloon-ranking-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.saloon-ranking-row input {
+  width: 90px;
+  font: inherit;
+  min-height: 52px;
+  padding: 0 12px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: text;
+}

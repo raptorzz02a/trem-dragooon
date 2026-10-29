@@ -99,6 +99,40 @@ export function Admin({ myId, onBack }: { myId: string; onBack: () => void }) {
       {error && !pending && <div className="online-error">{error}</div>}
       {!accounts && !error && <div className="label">Chargement des comptes…</div>}
 
+      {accounts && accounts.some((a) => a.passwordRequest) && (
+        <section className="online-block admin-requests">
+          <div className="label">Demandes de mot de passe</div>
+          <div className="admin-list">
+            {accounts
+              .filter((a) => a.passwordRequest)
+              .map((a) => (
+                <div key={a.id} className="admin-row">
+                  <Avatar avatar={a.avatar} color={a.color} size={48} />
+                  <div className="admin-who">
+                    <span className="admin-name">{a.name}</span>
+                    <span className="admin-dates">A oublié son mot de passe · demande du {dateTime(a.passwordRequest!)}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button className="btn-gold" onClick={() => setPending({ account: a, action: 'password' })}>
+                      Mot de passe provisoire
+                    </button>
+                    <button
+                      onClick={() =>
+                        void api(`/api/admin/accounts/${encodeURIComponent(a.id)}/request`, { method: 'DELETE' })
+                          .then(load)
+                          .catch((e: Error) => setError(e.message))
+                      }
+                    >
+                      Ignorer
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+          <div className="saloon-hint">Vérifie que c’est bien le joueur (en personne, par message) avant de lui transmettre le mot de passe.</div>
+        </section>
+      )}
+
       {accounts && (
         <section className="online-block">
           <div className="label">{plural(accounts.length, 'compte')}</div>
