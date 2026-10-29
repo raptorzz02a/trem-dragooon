@@ -1,0 +1,199 @@
+.online {
+  overflow-y: auto;
+}
+
+.online-center {
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  font-size: 22px;
+}
+
+.online-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.online-top h1 {
+  margin: 0;
+  font-size: 30px;
+  color: var(--gold-bright);
+}
+
+.online-top button {
+  padding: 0 20px;
+}
+
+.online-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.online-profiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.online-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  font-size: 20px;
+  border: 2px solid transparent;
+}
+
+.online-profile.selected {
+  border-color: var(--gold);
+  box-shadow: var(--glow-gold);
+}
+
+.online-new {
+  padding-left: 16px;
+  color: var(--gold-bright);
+}
+
+.online-plus {
+  font-size: 30px;
+}
+
+.online-create {
+  min-height: 80px;
+  font-size: 26px;
+}
+
+.online-join {
+  display: flex;
+  gap: 10px;
+}
+
+.online-join input {
+  flex: 1;
+  min-width: 0;
+  font-size: 30px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  text-align: center;
+  font-weight: 800;
+}
+
+.online-hint {
+  color: var(--text-dim);
+  font-size: 18px;
+}
+
+.online-error {
+  color: var(--danger);
+  font-size: 20px;
+}
+
+.online-lobby {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.online-code-block {
+  grid-column: 1 / -1;
+  align-items: center;
+}
+
+.online-code {
+  font-size: 64px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: var(--gold-bright);
+  font-variant-numeric: tabular-nums;
+}
+
+.online-code-block button {
+  padding: 0 24px;
+}
+
+.online-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.online-players li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 22px;
+}
+
+.online-players li.offline {
+  opacity: 0.45;
+}
+
+.online-player-name {
+  flex: 1;
+  font-weight: 700;
+}
+
+.online-tag {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.online-rules {
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.online-start {
+  margin-top: 8px;
+  min-height: 76px;
+}
+
+.online-banner {
+  position: fixed;
+  left: 50%;
+  top: 12px;
+  transform: translateX(-50%);
+  z-index: 30;
+  background: var(--bg-raised);
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  padding: 10px 22px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.online-banner-error {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+/* Téléphone en portrait : une colonne. */
+@media (max-width: 700px) {
+  .screen.online {
+    padding: 14px 16px;
+  }
+  .online-lobby {
+    grid-template-columns: 1fr;
+  }
+  .online-code {
+    font-size: 48px;
+  }
+  .online-top h1 {
+    font-size: 24px;
+  }
+}

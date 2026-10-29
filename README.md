@@ -22,11 +22,15 @@ npm run typecheck # vérification TypeScript
 | `src/profiles` | Profils joueurs, statistiques par mode et classements, recalculés à partir des parties archivées. |
 | `src/storage` | Partie en cours (localStorage) ; profils et parties archivées (IndexedDB). |
 | `src/ui` | Écrans (accueil, réglages, jeu, joueurs, profil, classements) ; `src/ui/modes` contient ce qui diffère d'un mode à l'autre à l'écran. |
+| `src/online` | Mode en ligne : salons à code, arbitrage par le serveur, connexion. Voir `docs/en-ligne.md`. |
+| `server` | Serveur Cloudflare (Worker + Durable Objects) qui sert l'appli et les salons en ligne. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
 | `docs/guide-utilisateur.md` | Guide utilisateur (livrable 05). |
 | `docs/technique.md` | Documentation technique : architecture, installation, kiosque, données, mise à jour (livrable 06). |
 | `docs/recette.md` | Procès-verbal de recette (livrable 07). |
 | `scripts/recette-ui.cjs` | Recette automatisée de l'interface dans Chromium. |
+| `docs/en-ligne.md` | Jouer en ligne entre copains : déroulement, essai local, mise en ligne sur Cloudflare. |
+| `scripts/recette-en-ligne.cjs` | Recette automatisée du mode en ligne (une borne + un téléphone). |
 
 Le moteur ne stocke que la configuration et la liste des lancers ; tout le reste (scores, vainqueur, classement)
 est recalculé en rejouant cette liste. Annuler ou corriger revient à modifier la liste.

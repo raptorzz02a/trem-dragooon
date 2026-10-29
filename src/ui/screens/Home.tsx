@@ -8,6 +8,10 @@ interface Props {
   onNewGame: (mode: GameMode) => void;
   onPlayers: () => void;
   onRankings: () => void;
+  onOnline: () => void;
+  /** Salon en ligne quitté sans le fermer (page rechargée, retour à l'accueil) : on peut y revenir. */
+  onlineRoom: string | null;
+  onResumeOnline: () => void;
   /** false : IndexedDB indisponible, les profils et statistiques ne survivront pas à la fermeture. */
   durable: boolean;
 }
@@ -19,7 +23,7 @@ const MODES: { mode: GameMode; title: string; sub: string }[] = [
   { mode: 'shanghai', title: 'Shanghai', sub: 'Un numéro par manche' },
 ];
 
-export function Home({ canResume, onResume, onNewGame, onPlayers, onRankings, durable }: Props) {
+export function Home({ canResume, onResume, onNewGame, onPlayers, onRankings, onOnline, onlineRoom, onResumeOnline, durable }: Props) {
   return (
     <div className="screen home">
       <div className="home-logo">
@@ -28,6 +32,11 @@ export function Home({ canResume, onResume, onNewGame, onPlayers, onRankings, du
       {canResume && (
         <button className="btn-gold home-resume" onClick={onResume}>
           Reprendre la partie en cours
+        </button>
+      )}
+      {onlineRoom && (
+        <button className="btn-gold home-resume" onClick={onResumeOnline}>
+          Revenir dans le salon en ligne {onlineRoom}
         </button>
       )}
       <div className="home-modes">
@@ -41,6 +50,7 @@ export function Home({ canResume, onResume, onNewGame, onPlayers, onRankings, du
       <div className="home-links">
         <button onClick={onPlayers}>Joueurs</button>
         <button onClick={onRankings}>Classements</button>
+        <button onClick={onOnline}>Jouer en ligne</button>
       </div>
       {!durable && (
         <div className="home-warning">
