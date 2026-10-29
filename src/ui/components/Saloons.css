@@ -1,0 +1,220 @@
+/* Saloons : colonne d'icônes à gauche sur PC, menu déroulant sur téléphone. */
+
+.saloon-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 30%;
+  background: var(--bg-key);
+  line-height: 1;
+}
+
+/* Le saloon public garde les couleurs d'origine de l'interface. */
+.saloon-icon-public {
+  background: linear-gradient(135deg, #1e5535, #2f8a55 55%, #ccae5e);
+}
+
+.saloon-rail {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 5;
+  width: 88px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  overflow-y: auto;
+  background: var(--bg-raised);
+  border-right: 1px solid var(--line);
+}
+
+.saloon-rail-item,
+.saloon-rail-add {
+  min-width: 0;
+  min-height: 0;
+  width: 66px;
+  height: 66px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border-radius: 22px;
+  border: 3px solid transparent;
+}
+
+.saloon-rail-item.selected {
+  border-color: var(--gold);
+}
+
+.saloon-rail-add {
+  font-size: 34px;
+  color: var(--gold);
+  background: var(--bg-key);
+}
+
+.saloon-header {
+  position: relative;
+  width: min(100%, 1150px);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.saloon-header-name {
+  font-size: 24px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.saloon-header-static {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.saloon-header-toggle {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 4px 14px 4px 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  min-width: 0;
+}
+
+.saloon-header-caret {
+  color: var(--text-dim);
+}
+
+.saloon-header-info {
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 17px;
+  color: var(--text-dim);
+  background: transparent;
+  border: 1px solid var(--line);
+}
+
+.saloon-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 20;
+  width: min(100%, 360px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.saloon-menu button {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  padding: 0 10px;
+  font-size: 18px;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.saloon-menu button.selected {
+  border-color: var(--gold);
+}
+
+.saloon-menu .saloon-menu-add {
+  color: var(--gold);
+}
+
+.saloon-dialog {
+  width: min(560px, 100%);
+}
+
+.saloon-dialog input {
+  font: inherit;
+  font-size: 20px;
+  min-height: 56px;
+  padding: 0 16px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: text;
+}
+
+.saloon-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.saloon-swatch,
+.saloon-choice-icon {
+  min-width: 0;
+  min-height: 0;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 3px solid transparent;
+}
+
+.saloon-choice-icon {
+  font-size: 26px;
+}
+
+.saloon-swatch.selected,
+.saloon-choice-icon.selected {
+  border-color: var(--text);
+}
+
+.saloon-info-line,
+.saloon-hint {
+  color: var(--text-dim);
+}
+
+.saloon-hint {
+  font-size: 15px;
+}
+
+.saloon-invite {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* PC : la colonne d'icônes laisse la place au contenu. */
+@media (min-width: 901px) {
+  .home.with-rail {
+    padding-left: 116px;
+  }
+}
+
+/* Téléphone et petites fenêtres : menu déroulant à la place de la colonne. */
+@media (max-width: 900px) {
+  .saloon-rail {
+    display: none;
+  }
+  .saloon-header-toggle {
+    display: flex;
+  }
+  .saloon-header-static {
+    display: none;
+  }
+  .saloon-header {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+}

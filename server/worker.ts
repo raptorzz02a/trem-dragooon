@@ -2,6 +2,7 @@ import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
 import { cleanSetup } from '../src/game-setup/setup';
 import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, roomView, setConnected, type Room } from '../src/online/room';
+import { PUBLIC_SALOON_ID } from '../src/online/saloons';
 import { AccountsObject, type AccountsEnv } from './accounts';
 
 export { AccountsObject };
@@ -74,6 +75,25 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       return json({ imported: await db.importGames(bearer(request), b.localId, b.games) });
     }
     if (path === '/api/community' && method === 'GET') return json(await db.community());
+    if (path === '/api/saloons' && method === 'GET') return json({ saloons: await db.saloons(bearer(request)) });
+    if (path === '/api/saloons' && method === 'POST') {
+      const b = await body(request);
+      return json({ saloon: await db.createSaloon(bearer(request), b.name, b.password, b.color, b.icon) });
+    }
+    if (path === '/api/saloons/join' && method === 'POST') {
+      const b = await body(request);
+      const saloon = b.invite !== undefined ? await db.joinByInvite(bearer(request), b.invite) : await db.joinSaloon(bearer(request), b.name, b.password);
+      return json({ saloon });
+    }
+    const saloon = /^\/api\/saloons\/([^/]+)\/(leave|invite)$/.exec(path);
+    if (saloon && method === 'POST') {
+      const id = decodeURIComponent(saloon[1]!);
+      if (saloon[2] === 'leave') {
+        await db.leaveSaloon(bearer(request), id);
+        return json({ ok: true });
+      }
+      return json({ saloon: await db.renewInvite(bearer(request), id) });
+    }
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Requête refusée.' }, 400);
   }
@@ -120,11 +140,14 @@ async function route(request: Request, env: Env): Promise<Response> {
     const b = await body(request).catch(() => ({}) as Record<string, unknown>);
     const place = b.place === 'same' ? 'same' : 'remote';
     const setup = cleanSetup(b.setup);
+    // Une partie se joue dans un saloon dont le créateur est membre ; sans saloon précisé, dans le saloon public.
+    const saloonId = typeof b.saloonId === 'string' && b.saloonId ? b.saloonId : PUBLIC_SALOON_ID;
+    if (!(await accounts(env).inSaloon(bearer(request), saloonId))) return json({ error: 'Tu n’es pas membre de ce saloon.' }, 403);
     // Quelques essais au cas où le code tiré serait déjà pris par un salon actif.
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = randomCode(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
-      if (await stub.init(code, place, setup)) return json({ code });
+      if (await stub.init(code, place, setup, saloonId)) return json({ code });
     }
     return json({ error: 'Impossible de créer un salon, réessaie.' }, 503);
   }
@@ -150,9 +173,9 @@ interface Attachment {
 
 export class RoomObject extends DurableObject<Env> {
   /** Crée le salon ; false si ce code est déjà utilisé. */
-  async init(code: string, place: Room['place'], setup: Room['setup']): Promise<boolean> {
+  async init(code: string, place: Room['place'], setup: Room['setup'], saloonId: string): Promise<boolean> {
     if (await this.load()) return false;
-    await this.save(createRoom(code, place, setup));
+    await this.save(createRoom(code, place, setup, saloonId));
     return true;
   }
 

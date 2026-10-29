@@ -13,6 +13,7 @@ import {
 } from '../game-session/session';
 import type { Rng } from '../teams/teams';
 import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomPlace, RoomView } from './protocol';
+import { PUBLIC_SALOON_ID } from './saloons';
 
 // Règles d'un salon en ligne, sans réseau ni stockage : le serveur les applique, les tests les vérifient.
 // Le serveur est l'arbitre : il refuse une fléchette saisie par un joueur dont ce n'est pas le tour.
@@ -32,12 +33,15 @@ export interface Room {
   session: GameSession | null;
   /** Compteur des identifiants de joueurs (p1, p2…), jamais réutilisés. */
   nextPlayer: number;
+  /** Saloon où se joue la partie (absent : saloon public). */
+  saloonId?: string;
 }
 
 export const MAX_NAME_LENGTH = 20;
 
-export function createRoom(code: string, place: RoomPlace = 'remote', setup: GameSetup = DEFAULT_SETUP): Room {
-  return { code, hostId: '', status: 'lobby', place, setup, players: [], session: null, nextPlayer: 1 };
+export function createRoom(code: string, place: RoomPlace = 'remote', setup: GameSetup = DEFAULT_SETUP, saloonId?: string): Room {
+  const room: Room = { code, hostId: '', status: 'lobby', place, setup, players: [], session: null, nextPlayer: 1 };
+  return saloonId && saloonId !== PUBLIC_SALOON_ID ? { ...room, saloonId } : room;
 }
 
 export function roomView(room: Room): RoomView {
@@ -129,14 +133,19 @@ export function archiveChange(before: Room, next: Room): { record: GameRecord } 
   const now = next.session;
   const sameGame = was && now && was.id === now.id;
   if (now?.status === 'finished' && !(sameGame && was.status === 'finished')) {
-    return { record: { id: now.id, session: now, players: playersOf(next, now) } };
+    return { record: record(next, now) };
   }
   // Une partie arrêtée en cours de route compte dans l'historique, ni en victoire ni en défaite.
   if (now?.status === 'abandoned' && !(sameGame && was.status === 'abandoned') && now.events.length > 0) {
-    return { record: { id: now.id, session: now, players: playersOf(next, now) } };
+    return { record: record(next, now) };
   }
   if (sameGame && was.status === 'finished' && now.status !== 'finished') return { forget: now.id };
   return null;
+}
+
+function record(room: Room, session: GameSession): GameRecord {
+  const out: GameRecord = { id: session.id, session, players: playersOf(room, session) };
+  return room.saloonId ? { ...out, saloonId: room.saloonId } : out;
 }
 
 function playersOf(room: Room, session: GameSession) {
