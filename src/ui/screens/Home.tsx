@@ -3,6 +3,7 @@ import type { GameMode } from '../../game-engine/types';
 import type { PublicAccount } from '../../online/accounts';
 import { CODE_LENGTH, isValidCode, normalizeCode, type RoomPlace } from '../../online/protocol';
 import type { SaloonsState } from '../../online/useSaloons';
+import { useLiveGames } from '../../online/useLiveGames';
 import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
@@ -14,6 +15,8 @@ interface Props {
   saloons: SaloonsState;
   onAddSaloon: () => void;
   onSaloonInfo: () => void;
+  /** Regarder une partie du saloon depuis la liste « Parties en cours ». */
+  onWatch: (watchKey: string) => void;
   /** Partie en cours sur cet appareil (quittée sans la fermer, ou page rechargée). */
   currentRoom: string | null;
   onResume: () => void;
@@ -73,8 +76,9 @@ export function Home(props: Props) {
   );
 
   return (
-    <div className="screen home with-rail">
-      <SaloonRail state={props.saloons} onAdd={props.onAddSaloon} />
+    <div className={`screen home${props.saloons.fixed ? '' : ' with-rail'}`}>
+      {/* Saloon fixé sur cet appareil (la borne) : pas de sélecteur. */}
+      {!props.saloons.fixed && <SaloonRail state={props.saloons} onAdd={props.onAddSaloon} />}
       <header className="home-top">
         <div className="home-logo">
           <Logo size={56} />
@@ -97,6 +101,10 @@ export function Home(props: Props) {
                 {menuItem('Modifier', props.onEditAccount)}
                 {menuItem('Mot de passe', props.onPassword)}
                 {props.onImport && menuItem('Récupérer les stats de la borne', props.onImport)}
+                {menuItem(
+                  props.saloons.fixed ? 'Ne plus fixer le saloon sur cet appareil' : 'Fixer ce saloon sur cet appareil (borne)',
+                  () => props.saloons.setFixed(!props.saloons.fixed),
+                )}
                 {props.onAdmin && menuItem('Administration', props.onAdmin)}
                 {menuItem('Déconnexion', props.onLogout, 'home-menu-logout')}
               </div>
@@ -172,9 +180,36 @@ export function Home(props: Props) {
         {error && <div className="home-warning">{error}</div>}
       </section>
 
+      <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} />
+
       <div className="home-links">
         <button onClick={props.onPlayers}>Joueurs et classements</button>
       </div>
     </div>
+  );
+}
+
+const MODE_TITLES: Record<GameMode, string> = { x01: 'X01', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire' };
+
+/** Parties en cours dans le saloon : on peut les regarder ; pour y jouer, il faut leur code. */
+function LiveGames({ saloonId, onWatch }: { saloonId: string; onWatch: (watchKey: string) => void }) {
+  const games = useLiveGames(saloonId);
+  if (games.length === 0) return null;
+  return (
+    <section className="home-live">
+      <div className="label">Parties en cours</div>
+      {games.map((g) => (
+        <div key={g.watchKey} className="home-live-row">
+          <span className={`home-live-status${g.status === 'playing' ? ' playing' : ''}`}>{g.status === 'playing' ? 'En jeu' : 'Salle d’attente'}</span>
+          <span className="home-live-mode">
+            {MODE_TITLES[g.mode]} · {PLACE_NAMES[g.place]}
+          </span>
+          <span className="home-live-players">{g.players.join(', ')}</span>
+          {g.watchers > 0 && <span className="home-live-watchers">👁 {g.watchers}</span>}
+          <button onClick={() => onWatch(g.watchKey)}>Regarder</button>
+        </div>
+      ))}
+      <div className="home-live-hint">Pour jouer dans une partie, demande son code à l’hôte.</div>
+    </section>
   );
 }

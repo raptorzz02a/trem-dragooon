@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
 import { cleanSetup } from '../src/game-setup/setup';
-import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, roomView, setConnected, type Room } from '../src/online/room';
+import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, liveSummary, roomView, setConnected, type Room } from '../src/online/room';
 import { PUBLIC_SALOON_ID } from '../src/online/saloons';
 import { AccountsObject, type AccountsEnv } from './accounts';
 
@@ -105,6 +105,13 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       await db.manageMember(bearer(request), decodeURIComponent(members[1]!), decodeURIComponent(members[2]), members[3]);
       return json({ ok: true });
     }
+    const games = /^\/api\/saloons\/([^/]+)\/(games|defaults)$/.exec(path);
+    if (games?.[2] === 'games' && method === 'GET') return json({ games: await db.saloonGames(bearer(request), decodeURIComponent(games[1]!)) });
+    if (games?.[2] === 'defaults' && method === 'PUT') {
+      const b = await body(request);
+      await db.setSaloonDefaults(bearer(request), decodeURIComponent(games[1]!), cleanSetup(b.setup));
+      return json({ ok: true });
+    }
     if (path === '/api/admin/saloons' && method === 'GET') return json({ saloons: await db.adminSaloons(bearer(request)) });
     const saloon = /^\/api\/saloons\/([^/]+)\/(leave|invite)$/.exec(path);
     if (saloon && method === 'POST') {
@@ -160,17 +167,30 @@ async function route(request: Request, env: Env): Promise<Response> {
     // Le salon naît avec le jeu et le lieu choisis à l'accueil ; l'hôte peut tout changer ensuite.
     const b = await body(request).catch(() => ({}) as Record<string, unknown>);
     const place = b.place === 'same' ? 'same' : 'remote';
-    const setup = cleanSetup(b.setup);
     // Une partie se joue dans un saloon dont le créateur est membre ; sans saloon précisé, dans le saloon public.
     const saloonId = typeof b.saloonId === 'string' && b.saloonId ? b.saloonId : PUBLIC_SALOON_ID;
-    if (!(await accounts(env).inSaloon(bearer(request), saloonId))) return json({ error: 'Tu n’es pas membre de ce saloon.' }, 403);
+    const db = accounts(env);
+    if (!(await db.inSaloon(bearer(request), saloonId))) return json({ error: 'Tu n’es pas membre de ce saloon.' }, 403);
+    // Le mode vient de l'accueil ; les options, des réglages par défaut du saloon s'il en a.
+    const asked = cleanSetup(b.setup);
+    const defaults = await db.saloonDefaults(saloonId);
+    const setup = defaults ? cleanSetup({ ...(defaults as object), mode: asked.mode }) : asked;
     // Quelques essais au cas où le code tiré serait déjà pris par un salon actif.
     for (let attempt = 0; attempt < 5; attempt++) {
       const code = randomCode(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       if (await stub.init(code, place, setup, saloonId)) return json({ code });
     }
-    return json({ error: 'Impossible de créer un salon, réessaie.' }, 503);
+    return json({ error: 'Impossible de créer la partie, réessaie.' }, 503);
+  }
+
+  // Regarder une partie du saloon depuis la liste « Parties en cours », sans en connaître le code.
+  const watch = /^\/api\/saloons\/([^/]+)\/games\/([^/]+)\/ws$/.exec(url.pathname);
+  if (watch) {
+    if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'WebSocket attendu.' }, 426);
+    const code = await accounts(env).watchCode(url.searchParams.get('token') ?? '', decodeURIComponent(watch[1]!), decodeURIComponent(watch[2]!));
+    if (!code) return json({ error: 'Partie introuvable.' }, 404);
+    return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(new Request(`https://partie/${code}?watch=1`, request));
   }
 
   const ws = /^\/api\/rooms\/([^/]+)\/ws$/.exec(url.pathname);
@@ -190,42 +210,57 @@ async function route(request: Request, env: Env): Promise<Response> {
 
 interface Attachment {
   playerId: string | null;
+  /** Spectateur venu de la liste « Parties en cours » : il reçoit la partie, sans rien pouvoir y faire. */
+  watcher?: boolean;
 }
 
 export class RoomObject extends DurableObject<Env> {
   /** Crée le salon ; false si ce code est déjà utilisé. */
   async init(code: string, place: Room['place'], setup: Room['setup'], saloonId: string): Promise<boolean> {
     if (await this.load()) return false;
-    await this.save(createRoom(code, place, setup, saloonId));
+    // Clé de la partie dans la liste « Parties en cours » : elle permet de la regarder, pas d'y jouer.
+    await this.ctx.storage.put('watchKey', crypto.randomUUID().replace(/-/g, ''));
+    await this.commit(createRoom(code, place, setup, saloonId));
     return true;
   }
 
-  async fetch(): Promise<Response> {
+  async fetch(request: Request): Promise<Response> {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    // Mode « hibernation » : le salon ne consomme rien entre deux fléchettes.
+    const watcher = new URL(request.url).searchParams.get('watch') === '1';
+    // Mode « hibernation » : la partie ne consomme rien entre deux fléchettes.
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ playerId: null } satisfies Attachment);
-    if (!(await this.load())) {
+    server.serializeAttachment({ playerId: null, watcher } satisfies Attachment);
+    const room = await this.load();
+    if (!room) {
       this.send(server, { type: 'error', message: 'Aucune partie avec ce code. Vérifie le code ou demande-le à l’hôte.' });
-      server.close(4404, 'Salon inconnu');
+      server.close(4404, 'Partie inconnue');
+    } else if (watcher) {
+      // Un spectateur de plus : tout le monde voit le compteur changer.
+      await this.publish(room);
     }
     return new Response(null, { status: 101, webSocket: client });
   }
 
   async webSocketMessage(socket: WebSocket, data: string | ArrayBuffer): Promise<void> {
     const room = await this.load();
-    if (!room) return void socket.close(4404, 'Salon inconnu');
+    if (!room) return void socket.close(4404, 'Partie inconnue');
     const text = typeof data === 'string' ? data : new TextDecoder().decode(data);
     if (text.length > MAX_MESSAGE_BYTES) return void socket.close(1009, 'Message trop long');
 
-    const { playerId } = socket.deserializeAttachment() as Attachment;
+    const { playerId, watcher } = socket.deserializeAttachment() as Attachment;
     try {
+      if (watcher) throw new Error('Tu regardes la partie : pour jouer, rejoins-la avec son code.');
       const message = JSON.parse(text) as ClientMessage;
       if (message.type === 'hello') {
         if (playerId) throw new Error('Déjà connecté.');
-        const account = await accounts(this.env).me(String(message.account ?? ''));
+        const db = accounts(this.env);
+        const account = await db.me(String(message.account ?? ''));
         if (!account) throw new Error('Connecte-toi à ton compte pour jouer en ligne.');
+        // Seuls les membres du saloon jouent ses parties (un joueur déjà dans la partie la retrouve toujours).
+        if (room.saloonId && !room.players.some((p) => p.id === account.id) && !(await db.isMember(account.id, room.saloonId))) {
+          throw new Error('Cette partie se joue dans un saloon dont tu n’es pas membre.');
+        }
         const identity = { name: account.name, color: account.color, avatar: account.avatar };
         const joined = joinRoom(room, message.token, identity, () => crypto.randomUUID(), account.id);
         socket.serializeAttachment({ playerId: joined.player.id } satisfies Attachment);
@@ -243,6 +278,11 @@ export class RoomObject extends DurableObject<Env> {
           message.type === 'addPlayer'
             ? await db.check(name, password)
             : (await db.signup(name, password, message.color, message.avatar)).account;
+        if (room.saloonId) {
+          // Un nouveau compte créé ici entre dans le saloon ; un compte existant doit déjà en être membre.
+          if (message.type === 'createPlayer') await db.addFromGame(account.id, room.saloonId);
+          else if (!(await db.isMember(account.id, room.saloonId))) throw new Error(`${account.name} n’est pas membre de ce saloon.`);
+        }
         // Le salon a pu changer pendant la vérification du mot de passe.
         const latest = (await this.load()) ?? room;
         await this.commit(addLocalPlayer(latest, playerId, account, () => crypto.randomUUID()));
@@ -271,7 +311,9 @@ export class RoomObject extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const last = (await this.ctx.storage.get<number>('touched')) ?? 0;
     if (Date.now() - last >= ROOM_TTL_MS) {
-      for (const s of this.ctx.getWebSockets()) s.close(4410, 'Salon expiré');
+      const room = await this.load();
+      for (const s of this.ctx.getWebSockets()) s.close(4410, 'Partie expirée');
+      if (room) await this.report(room, true);
       await this.ctx.storage.deleteAll();
     } else {
       await this.ctx.storage.setAlarm(last + ROOM_TTL_MS);
@@ -279,7 +321,13 @@ export class RoomObject extends DurableObject<Env> {
   }
 
   private async disconnected(socket: WebSocket): Promise<void> {
-    const { playerId } = (socket.deserializeAttachment() ?? { playerId: null }) as Attachment;
+    const { playerId, watcher } = (socket.deserializeAttachment() ?? { playerId: null }) as Attachment;
+    if (watcher) {
+      socket.serializeAttachment({ playerId: null } satisfies Attachment);
+      const room = await this.load();
+      if (room) await this.publish(room);
+      return;
+    }
     const room = playerId ? await this.load() : null;
     if (!room || !playerId) return;
     // Le même joueur peut avoir rouvert l'appli : il n'est absent que si plus aucune connexion n'est à lui.
@@ -312,12 +360,35 @@ export class RoomObject extends DurableObject<Env> {
     await this.ctx.storage.setAlarm(now + ROOM_TTL_MS);
   }
 
-  /** Enregistre le salon et envoie son nouvel état à tous les joueurs connectés. */
+  /** Enregistre la partie et envoie son nouvel état à tous les joueurs et spectateurs connectés. */
   private async commit(room: Room): Promise<void> {
     await this.save(room);
-    const message: ServerMessage = { type: 'room', room: roomView(room) };
-    for (const s of this.ctx.getWebSockets()) {
-      if ((s.deserializeAttachment() as Attachment | null)?.playerId) this.send(s, message);
+    await this.publish(room);
+  }
+
+  private async publish(room: Room): Promise<void> {
+    const sockets = this.ctx.getWebSockets().map((s) => ({ s, a: s.deserializeAttachment() as Attachment | null }));
+    const watchers = sockets.filter(({ a }) => a?.watcher).length;
+    const message: ServerMessage = { type: 'room', room: roomView(room, watchers) };
+    for (const { s, a } of sockets) if (a?.playerId || a?.watcher) this.send(s, message);
+    await this.report(room);
+  }
+
+  /** Dernier résumé envoyé à la liste « Parties en cours » (en mémoire : au pire, renvoyé une fois de trop). */
+  private reported: string | undefined;
+
+  /** Tient à jour la liste « Parties en cours » du saloon, seulement quand ce qu'elle montre change. */
+  private async report(room: Room, gone = false): Promise<void> {
+    const watchers = this.ctx.getWebSockets().filter((s) => (s.deserializeAttachment() as Attachment | null)?.watcher).length;
+    const summary = gone ? null : liveSummary(room, watchers);
+    const text = JSON.stringify(summary);
+    if (text === this.reported) return;
+    const watchKey = (await this.ctx.storage.get<string>('watchKey')) ?? '';
+    try {
+      await accounts(this.env).reportRoom(room.code, room.saloonId ?? PUBLIC_SALOON_ID, watchKey, summary);
+      this.reported = text;
+    } catch (e) {
+      console.error('Liste des parties en cours non mise à jour', e);
     }
   }
 

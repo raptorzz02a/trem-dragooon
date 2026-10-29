@@ -25,6 +25,7 @@ function SaloonIcon({ saloon, size = 56 }: { saloon: Saloon; size?: number }) {
       aria-hidden
     >
       {saloon.icon}
+      {!!saloon.live && <span className="saloon-live" title="Partie en cours" />}
     </span>
   );
 }
@@ -62,7 +63,7 @@ export function SaloonHeader({ state, onAdd, onInfo }: PickerProps & { onInfo: (
   const [open, setOpen] = useState(false);
   const { current } = state;
   return (
-    <div className="saloon-header">
+    <div className={`saloon-header${state.fixed ? ' saloon-fixed' : ''}`}>
       <button className="saloon-header-toggle" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
         <SaloonIcon saloon={current} size={40} />
         <span className="saloon-header-name">{current.name}</span>

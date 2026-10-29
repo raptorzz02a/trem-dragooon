@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { DEFAULT_SETUP } from '../game-setup/setup';
 import type { GameMode } from '../game-engine/types';
 import { normalizeCode, type RoomPlace } from '../online/protocol';
-import { useAccount } from '../online/useAccount';
-import { isInviteToken } from '../online/saloons';
+import { api, useAccount } from '../online/useAccount';
+import { isInviteToken, PUBLIC_SALOON_ID } from '../online/saloons';
 import { useSaloons } from '../online/useSaloons';
 import { createOnlineRoom, currentOnlineRoom, setCurrentOnlineRoom } from '../online/useOnlineRoom';
 import type { Profile } from '../profiles/types';
@@ -16,15 +16,17 @@ import { Community } from './screens/Community';
 import { Home } from './screens/Home';
 import { ImportLocal, localData } from './screens/ImportLocal';
 import { RoomScreen } from './screens/Room';
+import { WatchScreen } from './screens/Watch';
 import { Welcome } from './screens/Welcome';
 
 // Tout se joue avec des comptes en ligne : sur la même cible (un appareil saisit pour tous) ou à distance.
 
-type Screen = 'home' | 'room' | 'players' | 'import' | 'admin';
+type Screen = 'home' | 'room' | 'players' | 'import' | 'admin' | 'watch';
 
-/** Code reçu par un lien de partage (?salon=ABC234), retiré de l'adresse une fois lu. */
+/** Code reçu par un lien de partage (?partie=ABC234, ou ?salon= pour les anciens liens), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
-  const code = new URLSearchParams(location.search).get('salon');
+  const params = new URLSearchParams(location.search);
+  const code = params.get('partie') ?? params.get('salon');
   if (code) history.replaceState(null, '', location.pathname);
   return code ? normalizeCode(code) : null;
 }
@@ -75,6 +77,7 @@ export function App() {
   const accountState = useAccount();
   const account = accountState.account;
   const saloons = useSaloons(account?.id ?? '');
+  const [watching, setWatching] = useState<{ saloonId: string; watchKey: string } | null>(null);
   const [saloonDialog, setSaloonDialog] = useState<'add' | 'info' | null>(null);
   const [saloonMessage, setSaloonMessage] = useState<{ text: string; error?: boolean } | null>(null);
   useSaloonTheme(account ? saloons.current.color : '');
@@ -141,6 +144,10 @@ export function App() {
       <RoomScreen
         key={room}
         code={room}
+        canSetDefaults={(id) => (id === PUBLIC_SALOON_ID ? accountState.admin : (saloons.saloons.find((s) => s.id === id)?.role ?? 'member') !== 'member')}
+        onSaveDefaults={(id, setup) =>
+          api(`/api/saloons/${encodeURIComponent(id)}/defaults`, { method: 'PUT', body: JSON.stringify({ setup }) }).then(() => undefined)
+        }
         identity={{ name: account.name, color: account.color, avatar: account.avatar }}
         settings={settings}
         onLeave={() => {
@@ -151,6 +158,10 @@ export function App() {
         onHome={home}
       />
     );
+  }
+
+  if (screen === 'watch' && watching) {
+    return <WatchScreen key={watching.watchKey} {...watching} settings={settings} onBack={home} />;
   }
 
   if (screen === 'players') return <Community settings={settings} onSettings={updateSettings} onBack={home} />;
@@ -169,6 +180,10 @@ export function App() {
         saloons={saloons}
         onAddSaloon={() => setSaloonDialog('add')}
         onSaloonInfo={() => setSaloonDialog('info')}
+        onWatch={(watchKey) => {
+          setWatching({ saloonId: saloons.current.id, watchKey });
+          setScreen('watch');
+        }}
         onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }, saloons.current.id))}
         onJoin={enter}
         onPlayers={() => setScreen('players')}

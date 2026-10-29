@@ -4,6 +4,7 @@ import { sessionState } from '../../game-session/session';
 import { setupProblem, type GameSetup } from '../../game-setup/setup';
 import { passwordProblem, pseudoKey, pseudoProblem, PSEUDO_MAX, type PublicAccount } from '../../online/accounts';
 import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomView } from '../../online/protocol';
+import { PUBLIC_SALOON_ID } from '../../online/saloons';
 import { canThrow, canUndo, startingPlayers } from '../../online/room';
 import { loadCommunity } from '../../online/useAccount';
 import { useOnlineRoom } from '../../online/useOnlineRoom';
@@ -27,12 +28,16 @@ export function RoomScreen(props: {
   onLeave: () => void;
   /** Revenir à l'accueil sans quitter : la partie reste accessible avec son code. */
   onHome: () => void;
+  /** Le compte connecté peut-il fixer les réglages par défaut de ce saloon ? */
+  canSetDefaults: (saloonId: string) => boolean;
+  onSaveDefaults: (saloonId: string, setup: GameSetup) => Promise<void>;
 }) {
   const { connection, room, playerId, error, closedReason, send, leave } = useOnlineRoom(props.code, props.identity);
   const state = useMemo(() => (room?.session && room.status === 'playing' ? sessionState(room.session) : null), [room?.session, room?.status]);
 
   const banners = (
     <>
+      {!!room?.watchers && <div className="watch-badge">👁 {room.watchers} spectateur{room.watchers > 1 ? 's' : ''}</div>}
       {connection === 'reconnecting' && <div className="online-banner">Connexion perdue, reconnexion…</div>}
       {error && <div className="online-banner online-banner-error">{error}</div>}
     </>
@@ -111,7 +116,13 @@ export function RoomScreen(props: {
         <h1>Nouvelle partie · {PLACE_NAMES[room.place]}</h1>
         <button onClick={quit}>{host ? 'Fermer' : 'Quitter'}</button>
       </header>
-      <Lobby room={room} playerId={playerId} send={send} error={error} />
+      <Lobby
+        room={room}
+        playerId={playerId}
+        send={send}
+        error={error}
+        onSaveDefaults={host && props.canSetDefaults(room.saloonId ?? PUBLIC_SALOON_ID) ? (setup) => props.onSaveDefaults(room.saloonId ?? PUBLIC_SALOON_ID, setup) : undefined}
+      />
       {banners}
     </div>
   );
@@ -119,7 +130,7 @@ export function RoomScreen(props: {
 
 function ShareCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
-  const link = `${location.origin}${location.pathname}?salon=${code}`;
+  const link = `${location.origin}${location.pathname}?partie=${code}`;
   const share = async () => {
     try {
       if (navigator.share) await navigator.share({ title: 'TREM-DRAGOOON', text: `Rejoins ma partie de fléchettes : code ${code}`, url: link });
@@ -140,7 +151,21 @@ function ShareCode({ code }: { code: string }) {
   );
 }
 
-function Lobby({ room, playerId, send, error }: { room: RoomView; playerId: string; send: Send; error: string | null }) {
+function Lobby({
+  room,
+  playerId,
+  send,
+  error,
+  onSaveDefaults,
+}: {
+  room: RoomView;
+  playerId: string;
+  send: Send;
+  error: string | null;
+  /** Présent pour l'hôte admin du saloon : ces réglages deviennent ceux des prochaines parties du saloon. */
+  onSaveDefaults?: (setup: GameSetup) => Promise<void>;
+}) {
+  const [saved, setSaved] = useState<string | null>(null);
   const host = room.hostId === playerId;
   const me = room.players.find((p) => p.id === playerId);
   const [adding, setAdding] = useState(false);
@@ -154,15 +179,29 @@ function Lobby({ room, playerId, send, error }: { room: RoomView; playerId: stri
   return (
     <>
       <div className="lobby-body">
-        <SetupPanel
-          setup={room.setup}
-          place={room.place}
-          playerCount={starting.length}
-          host={host}
-          onSetup={setSetup}
-          onPlace={(place) => send({ type: 'place', place })}
-          onDrawTeams={() => send({ type: 'drawTeams' })}
-        />
+        <div className="lobby-setup">
+          <SetupPanel
+            setup={room.setup}
+            place={room.place}
+            playerCount={starting.length}
+            host={host}
+            onSetup={setSetup}
+            onPlace={(place) => send({ type: 'place', place })}
+            onDrawTeams={() => send({ type: 'drawTeams' })}
+          />
+          {onSaveDefaults && (
+            <button
+              className="lobby-defaults"
+              onClick={() =>
+                onSaveDefaults(room.setup)
+                  .then(() => setSaved('Réglages enregistrés pour les prochaines parties du saloon.'))
+                  .catch((e: Error) => setSaved(e.message))
+              }
+            >
+              {saved ?? 'Garder ces réglages par défaut pour le saloon'}
+            </button>
+          )}
+        </div>
 
         <section className="lobby-players">
           <ShareCode code={room.code} />

@@ -165,7 +165,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await phone.locator('.home-mode', { hasText: 'Chiffre aléatoire' }).click();
   await phone.locator('.lobby-code-value').waitFor({ timeout: 10000 });
   const remote = (await phone.locator('.lobby-code-value').innerText()).trim();
-  await laptop.goto(`${URL}?salon=${remote}`);
+  await laptop.goto(`${URL}?partie=${remote}`);
   await laptop.getByLabel('Pseudo').fill(JU);
   await laptop.getByLabel('Mot de passe').fill(PASS);
   await laptop.locator('.online-login button').click();

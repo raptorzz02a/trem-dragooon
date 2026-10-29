@@ -1,4 +1,6 @@
+import type { GameMode } from '../game-engine/types';
 import type { AvatarConfig } from '../profiles/types';
+import type { RoomPlace } from './protocol';
 
 // Saloons : les groupes d'amis, sur le modèle Discord. Chaque saloon a ses membres, ses parties et ses
 // classements ; on y entre une fois avec son nom et son mot de passe, ou directement par un lien d'invitation.
@@ -17,6 +19,8 @@ export interface Saloon {
   public: boolean;
   role: SaloonRole;
   members: number;
+  /** Parties lancées en ce moment dans le saloon. */
+  live?: number;
   /** Jeton du lien d'invitation : seulement pour le propriétaire et les admins du saloon. */
   invite?: string;
 }
@@ -125,3 +129,21 @@ export interface AdminSaloon {
   owner: string | null;
   createdAt: string;
 }
+
+/** Une partie en cours dans un saloon, telle que la liste « Parties en cours » la montre (sans son code). */
+export interface LiveGame {
+  /** Clé pour la regarder en spectateur ; le code reste nécessaire pour y jouer. */
+  watchKey: string;
+  mode: GameMode;
+  place: RoomPlace;
+  status: 'lobby' | 'playing';
+  players: string[];
+  watchers: number;
+  updatedAt: string;
+}
+
+/** Résumé qu'une partie envoie à la base des saloons quand il change (null : partie finie ou effacée). */
+export type LiveSummary = Omit<LiveGame, 'watchKey' | 'updatedAt'>;
+
+/** Une partie qui ne donne plus de nouvelles depuis ce délai sort de la liste (même durée que l'effacement d'une partie). */
+export const LIVE_GAME_TTL_MS = 12 * 60 * 60 * 1000;
