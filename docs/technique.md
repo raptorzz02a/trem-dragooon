@@ -124,17 +124,16 @@ sert à modifier le code, pas au jeu au quotidien.
    (`Win + R`, `shell:startup`) vers un fichier `trem-dragooon.bat` qui contient :
 
    ```bat
-   start "" msedge --kiosk https://trem-dragooon.julien-charrier01.workers.dev --edge-kiosk-type=fullscreen --no-first-run
+   start "" msedge --app=https://trem-dragooon.julien-charrier01.workers.dev --start-fullscreen --no-first-run
    ```
 
    Plus besoin de serveur local, sauf une fois pour reprendre les anciennes stats (`en-ligne.md`).
 
-2. **Mode kiosque Edge** : `--kiosk` ouvre Edge en plein écran, sans barre d'adresse ni onglets. Pour en
-   sortir, `Alt + F4`, ou fermer la session Windows.
-3. **Verrouillage complet** (optionnel) : Paramètres Windows > Comptes > Autres utilisateurs > « Configurer un
-   kiosque » (accès attribué), avec Microsoft Edge en mode « Affichage numérique / interactif » sur l'adresse
-   l'adresse en ligne ci-dessus.
-4. **Éviter les interruptions** : désactiver la mise en veille de l'écran (Paramètres > Système >
+2. **Plein écran Edge** : `--app` ouvre Edge sans barre d'adresse ni onglets. Pour en sortir, `Alt + F4`, ou
+   fermer la session Windows. Ne pas utiliser `--kiosk` ni l'accès attribué de Windows (« Configurer un
+   kiosque ») : Edge y tourne en navigation InPrivate et oublie tout à la fermeture, donc le compte connecté
+   sur la borne serait déconnecté à chaque redémarrage.
+3. **Éviter les interruptions** : désactiver la mise en veille de l'écran (Paramètres > Système >
    Alimentation) et les notifications. Laisser le clavier tactile activé pour la saisie des surnoms.
 
 Dans l'application, un code administrateur protégera la sortie du kiosque, les réglages et la restauration
