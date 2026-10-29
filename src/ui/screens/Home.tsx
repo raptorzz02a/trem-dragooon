@@ -2,13 +2,18 @@ import { useState } from 'react';
 import type { GameMode } from '../../game-engine/types';
 import type { PublicAccount } from '../../online/accounts';
 import { CODE_LENGTH, isValidCode, normalizeCode, type RoomPlace } from '../../online/protocol';
+import type { SaloonsState } from '../../online/useSaloons';
 import { Avatar } from '../components/Avatar';
+import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
 import { PLACE_NAMES } from './Setup';
 import './Home.css';
 
 interface Props {
   account: PublicAccount;
+  saloons: SaloonsState;
+  onAddSaloon: () => void;
+  onSaloonInfo: () => void;
   /** Partie en cours sur cet appareil (quittée sans la fermer, ou page rechargée). */
   currentRoom: string | null;
   onResume: () => void;
@@ -68,7 +73,8 @@ export function Home(props: Props) {
   );
 
   return (
-    <div className="screen home">
+    <div className="screen home with-rail">
+      <SaloonRail state={props.saloons} onAdd={props.onAddSaloon} />
       <header className="home-top">
         <div className="home-logo">
           <Logo size={56} />
@@ -98,6 +104,8 @@ export function Home(props: Props) {
           )}
         </div>
       </header>
+
+      <SaloonHeader state={props.saloons} onAdd={props.onAddSaloon} onInfo={props.onSaloonInfo} />
 
       {props.currentRoom && (
         <button className="btn-gold home-resume" onClick={props.onResume}>

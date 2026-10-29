@@ -30,8 +30,13 @@ function storeToken(code: string, token: string | null): void {
 const socketUrl = (code: string) => wsUrl(`/api/rooms/${code}/ws`);
 
 /** Demande un nouveau salon au serveur et renvoie son code. */
-export async function createOnlineRoom(place: RoomPlace, setup: GameSetup): Promise<string> {
-  const res = await fetch(apiUrl('/api/rooms'), { method: 'POST', body: JSON.stringify({ place, setup }) }).catch(() => {
+export async function createOnlineRoom(place: RoomPlace, setup: GameSetup, saloonId: string): Promise<string> {
+  const token = accountToken();
+  const res = await fetch(apiUrl('/api/rooms'), {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify({ place, setup, saloonId }),
+  }).catch(() => {
     throw new Error('Serveur en ligne injoignable.');
   });
   const data = (await res.json().catch(() => ({}))) as { code?: string; error?: string };

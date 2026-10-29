@@ -3,11 +3,14 @@ import { DEFAULT_SETUP } from '../game-setup/setup';
 import type { GameMode } from '../game-engine/types';
 import { normalizeCode, type RoomPlace } from '../online/protocol';
 import { useAccount } from '../online/useAccount';
+import { isInviteToken } from '../online/saloons';
+import { useSaloons } from '../online/useSaloons';
 import { createOnlineRoom, currentOnlineRoom, setCurrentOnlineRoom } from '../online/useOnlineRoom';
 import type { Profile } from '../profiles/types';
 import { loadSettings, saveSettings, type AppSettings } from '../settings/settings';
 import { PasswordDialog } from './components/PasswordDialog';
 import { ProfileEditor } from './components/ProfileEditor';
+import { SaloonDialog, SaloonInfo } from './components/Saloons';
 import { Admin } from './screens/Admin';
 import { Community } from './screens/Community';
 import { Home } from './screens/Home';
@@ -26,9 +29,72 @@ function sharedCode(): string | null {
   return code ? normalizeCode(code) : null;
 }
 
+const INVITE_KEY = 'trem-dragooon.invitation';
+
+/**
+ * Lien d'invitation dans un saloon (?invitation=…) : retiré de l'adresse et gardé de côté, pour entrer dans le saloon
+ * dès que le joueur est connecté (il peut d'abord devoir créer son compte).
+ */
+function readInvite(): void {
+  const invite = new URLSearchParams(location.search).get('invitation');
+  if (!invite) return;
+  history.replaceState(null, '', location.pathname);
+  try {
+    if (isInviteToken(invite)) sessionStorage.setItem(INVITE_KEY, invite);
+  } catch {
+    // Sans stockage, le lien reste à rouvrir une fois connecté.
+  }
+}
+
+function takeInvite(): string | null {
+  try {
+    const invite = sessionStorage.getItem(INVITE_KEY);
+    sessionStorage.removeItem(INVITE_KEY);
+    return invite;
+  } catch {
+    return null;
+  }
+}
+
+/** L'interface prend la couleur du saloon ouvert ; le saloon public garde le vert d'origine. */
+function useSaloonTheme(color: string): void {
+  useEffect(() => {
+    const root = document.documentElement.style;
+    if (color) {
+      root.setProperty('--green', `color-mix(in srgb, ${color} 62%, #101713)`);
+      root.setProperty('--green-bright', color);
+      root.setProperty('--glow-green', `0 0 18px color-mix(in srgb, ${color} 45%, transparent)`);
+    } else {
+      for (const v of ['--green', '--green-bright', '--glow-green']) root.removeProperty(v);
+    }
+  }, [color]);
+}
+
 export function App() {
+  useState(readInvite);
   const accountState = useAccount();
   const account = accountState.account;
+  const saloons = useSaloons(account?.id ?? '');
+  const [saloonDialog, setSaloonDialog] = useState<'add' | 'info' | null>(null);
+  const [saloonMessage, setSaloonMessage] = useState<{ text: string; error?: boolean } | null>(null);
+  useSaloonTheme(account ? saloons.current.color : '');
+
+  useEffect(() => {
+    if (!saloonMessage) return;
+    const timer = setTimeout(() => setSaloonMessage(null), 5000);
+    return () => clearTimeout(timer);
+  }, [saloonMessage]);
+
+  // Invitation en attente : on entre dans le saloon une fois connecté.
+  useEffect(() => {
+    if (!account) return;
+    const invite = takeInvite();
+    if (!invite) return;
+    saloons
+      .joinByInvite(invite)
+      .then((s) => setSaloonMessage({ text: `Bienvenue au saloon ${s.name} !` }))
+      .catch((e: Error) => setSaloonMessage({ text: e.message, error: true }));
+  }, [account?.id]);
   const [room, setRoom] = useState<string | null>(sharedCode);
   const [screen, setScreen] = useState<Screen>(room ? 'room' : 'home');
   const [editing, setEditing] = useState(false);
@@ -100,7 +166,10 @@ export function App() {
         account={account}
         currentRoom={current}
         onResume={() => current && enter(current)}
-        onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }))}
+        saloons={saloons}
+        onAddSaloon={() => setSaloonDialog('add')}
+        onSaloonInfo={() => setSaloonDialog('info')}
+        onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }, saloons.current.id))}
         onJoin={enter}
         onPlayers={() => setScreen('players')}
         onEditAccount={() => {
@@ -113,6 +182,13 @@ export function App() {
         onImport={hasLocalStats ? () => setScreen('import') : undefined}
       />
       {editError && <div className="online-banner online-banner-error">{editError}</div>}
+      {saloonMessage && (
+        <div className={`online-banner${saloonMessage.error ? ' online-banner-error' : ''}`} onClick={() => setSaloonMessage(null)}>
+          {saloonMessage.text}
+        </div>
+      )}
+      {saloonDialog === 'add' && <SaloonDialog state={saloons} onClose={() => setSaloonDialog(null)} />}
+      {saloonDialog === 'info' && <SaloonInfo saloon={saloons.current} state={saloons} onClose={() => setSaloonDialog(null)} />}
       {editor}
       {changingPassword && <PasswordDialog onSave={accountState.changePassword} onClose={() => setChangingPassword(false)} />}
     </>

@@ -17,6 +17,20 @@ import {
   type Login,
   type PublicAccount,
 } from '../src/online/accounts';
+import {
+  cleanSaloonColor,
+  cleanSaloonIcon,
+  isInviteToken,
+  MAX_OWNED_SALOONS,
+  MAX_SALOON_MEMBERS,
+  PUBLIC_SALOON_ID,
+  PUBLIC_SALOON_NAME,
+  saloonKey,
+  saloonNameProblem,
+  saloonPasswordProblem,
+  type Saloon,
+  type SaloonRole,
+} from '../src/online/saloons';
 import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
 
 // Base des comptes et des parties en ligne : un seul Durable Object, stocké en SQLite (offre gratuite).
@@ -28,6 +42,8 @@ const PBKDF2_ITERATIONS = 100_000;
 /** Après tant d'échecs de connexion sur un pseudo, il est bloqué un moment. */
 const MAX_FAILURES = 10;
 const LOCK_MS = 15 * 60 * 1000;
+/** Essais ratés du mot de passe d'un saloon avant blocage (par compte, pour ne bloquer que celui qui essaie). */
+const MAX_SALOON_FAILURES = 5;
 /** La date de dernière utilisation n'est réécrite qu'au plus une fois par tranche de ce délai. */
 const SEEN_EVERY_MS = 10 * 60 * 1000;
 
@@ -116,6 +132,32 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       CREATE TABLE IF NOT EXISTS admins (
         pseudo_key TEXT PRIMARY KEY,
         account_id TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS saloons (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL UNIQUE,
+        color TEXT NOT NULL,
+        icon TEXT NOT NULL,
+        salt TEXT NOT NULL,
+        password_hash TEXT NOT NULL,
+        invite TEXT NOT NULL UNIQUE,
+        created_by TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS saloon_members (
+        saloon_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        joined_at TEXT NOT NULL,
+        PRIMARY KEY (saloon_id, account_id)
+      );
+      CREATE TABLE IF NOT EXISTS saloon_failures (
+        saloon_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        failures INTEGER NOT NULL,
+        locked_until INTEGER NOT NULL,
+        PRIMARY KEY (saloon_id, account_id)
       );
     `);
     const columns = this.sql.exec<{ name: string }>('PRAGMA table_info(accounts)').toArray();
@@ -367,6 +409,184 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     return { accounts, games };
   }
 
+  // Saloons : les groupes d'amis. Le saloon public n'a pas de ligne en base, tout compte en est membre.
+
+  private async member(token: string): Promise<AccountRow> {
+    const row = await this.sessionRow(token);
+    if (!row) throw Object.assign(new Error('Connecte-toi d’abord.'), { status: 401 });
+    return row;
+  }
+
+  private publicSaloon(accountId: string): Saloon {
+    const members = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM accounts').one().n;
+    return {
+      id: PUBLIC_SALOON_ID,
+      name: PUBLIC_SALOON_NAME,
+      color: '',
+      icon: '🎯',
+      public: true,
+      role: this.isAdmin(accountId) ? 'admin' : 'member',
+      members,
+    };
+  }
+
+  private saloonView(saloonId: string, accountId: string): Saloon | null {
+    const row = this.sql
+      .exec<{ id: string; name: string; color: string; icon: string; invite: string; role: string }>(
+        `SELECT s.id, s.name, s.color, s.icon, s.invite, m.role FROM saloons s
+         JOIN saloon_members m ON m.saloon_id = s.id AND m.account_id = ? WHERE s.id = ?`,
+        accountId,
+        saloonId,
+      )
+      .toArray()[0];
+    if (!row) return null;
+    const role = row.role as SaloonRole;
+    return {
+      id: row.id,
+      name: row.name,
+      color: row.color,
+      icon: row.icon,
+      public: false,
+      role,
+      members: this.memberCount(row.id),
+      ...(role !== 'member' ? { invite: row.invite } : {}),
+    };
+  }
+
+  private memberCount(saloonId: string): number {
+    return this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM saloon_members WHERE saloon_id = ?', saloonId).one().n;
+  }
+
+  /** Le saloon public d'abord, puis les saloons du compte dans l'ordre où il les a rejoints. */
+  async saloons(token: string): Promise<Saloon[]> {
+    const me = await this.member(token);
+    const ids = this.sql
+      .exec<{ saloon_id: string }>('SELECT saloon_id FROM saloon_members WHERE account_id = ? ORDER BY joined_at', me.id)
+      .toArray()
+      .map((r) => r.saloon_id);
+    return [this.publicSaloon(me.id), ...ids.map((id) => this.saloonView(id, me.id)).filter((s): s is Saloon => s !== null)];
+  }
+
+  /** Le compte peut-il jouer une partie de ce saloon ? */
+  async inSaloon(token: string, saloonId: string): Promise<boolean> {
+    const me = await this.sessionRow(token);
+    if (!me) return false;
+    return saloonId === PUBLIC_SALOON_ID || this.saloonView(saloonId, me.id) !== null;
+  }
+
+  async createSaloon(token: string, name: unknown, password: unknown, color: unknown, icon: unknown): Promise<Saloon> {
+    const me = await this.member(token);
+    const title = String(name ?? '').trim().replace(/\s+/g, ' ');
+    const secret = String(password ?? '');
+    const problem = saloonNameProblem(title) ?? saloonPasswordProblem(secret);
+    if (problem) throw new Error(problem);
+    const colour = cleanSaloonColor(color);
+    const symbol = cleanSaloonIcon(icon);
+    if (!colour || !symbol) throw new Error('Choisis une couleur et une icône.');
+    const owned = this.sql.exec<{ n: number }>("SELECT COUNT(*) AS n FROM saloon_members WHERE account_id = ? AND role = 'owner'", me.id).one().n;
+    if (owned >= MAX_OWNED_SALOONS) throw new Error(`Tu as déjà créé ${MAX_OWNED_SALOONS} saloons, c'est le maximum.`);
+    const taken = () => this.sql.exec('SELECT id FROM saloons WHERE name_key = ?', saloonKey(title)).toArray().length > 0;
+    if (taken()) throw new Error('Ce nom de saloon est déjà pris.');
+    const id = crypto.randomUUID();
+    const salt = randomHex(16);
+    const hash = await hashPassword(secret, salt);
+    if (taken()) throw new Error('Ce nom de saloon est déjà pris.');
+    const now = new Date().toISOString();
+    this.sql.exec(
+      'INSERT INTO saloons (id, name, name_key, color, icon, salt, password_hash, invite, created_by, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      id,
+      title,
+      saloonKey(title),
+      colour,
+      symbol,
+      salt,
+      hash,
+      randomHex(16),
+      me.id,
+      now,
+    );
+    this.sql.exec("INSERT INTO saloon_members VALUES (?, ?, 'owner', ?)", id, me.id, now);
+    return this.saloonView(id, me.id)!;
+  }
+
+  /** Entrée dans un saloon avec son nom et son mot de passe : une seule fois, on en reste membre ensuite. */
+  async joinSaloon(token: string, name: unknown, password: unknown): Promise<Saloon> {
+    const me = await this.member(token);
+    const wrong = new Error('Nom de saloon ou mot de passe incorrect.');
+    const key = saloonKey(String(name ?? ''));
+    if (key === saloonKey(PUBLIC_SALOON_NAME)) return this.publicSaloon(me.id);
+    const row = this.sql.exec<{ id: string; salt: string; password_hash: string }>('SELECT id, salt, password_hash FROM saloons WHERE name_key = ?', key).toArray()[0];
+    if (!row) throw wrong;
+    const already = this.saloonView(row.id, me.id);
+    if (already) return already;
+    const now = Date.now();
+    const fail = this.sql
+      .exec<{ failures: number; locked_until: number }>('SELECT failures, locked_until FROM saloon_failures WHERE saloon_id = ? AND account_id = ?', row.id, me.id)
+      .toArray()[0];
+    if (fail && fail.locked_until > now) throw new Error('Trop d’essais : réessaie dans quelques minutes.');
+    const hash = await hashPassword(String(password ?? ''), row.salt);
+    if (!sameHash(hash, row.password_hash)) {
+      const failures = (fail?.failures ?? 0) + 1;
+      const locked = failures >= MAX_SALOON_FAILURES;
+      this.sql.exec('INSERT OR REPLACE INTO saloon_failures VALUES (?, ?, ?, ?)', row.id, me.id, locked ? 0 : failures, locked ? now + LOCK_MS : 0);
+      throw wrong;
+    }
+    this.sql.exec('DELETE FROM saloon_failures WHERE saloon_id = ? AND account_id = ?', row.id, me.id);
+    return this.addMember(row.id, me.id);
+  }
+
+  /** Entrée par le lien d'invitation : il vaut mot de passe. */
+  async joinByInvite(token: string, invite: unknown): Promise<Saloon> {
+    const me = await this.member(token);
+    const row = isInviteToken(invite) ? this.sql.exec<{ id: string }>('SELECT id FROM saloons WHERE invite = ?', invite).toArray()[0] : undefined;
+    if (!row) throw new Error('Ce lien d’invitation n’est plus valable : demande-en un nouveau.');
+    return this.saloonView(row.id, me.id) ?? this.addMember(row.id, me.id);
+  }
+
+  private addMember(saloonId: string, accountId: string): Saloon {
+    if (this.memberCount(saloonId) >= MAX_SALOON_MEMBERS) throw new Error(`Ce saloon est complet (${MAX_SALOON_MEMBERS} membres).`);
+    this.sql.exec("INSERT OR IGNORE INTO saloon_members VALUES (?, ?, 'member', ?)", saloonId, accountId, new Date().toISOString());
+    return this.saloonView(saloonId, accountId)!;
+  }
+
+  /** Nouveau lien d'invitation : l'ancien ne fait plus entrer personne. */
+  async renewInvite(token: string, saloonId: unknown): Promise<Saloon> {
+    const me = await this.member(token);
+    const saloon = typeof saloonId === 'string' ? this.saloonView(saloonId, me.id) : null;
+    if (!saloon || saloon.role === 'member') throw Object.assign(new Error('Réservé au propriétaire et aux admins du saloon.'), { status: 403 });
+    this.sql.exec('UPDATE saloons SET invite = ? WHERE id = ?', randomHex(16), saloon.id);
+    return this.saloonView(saloon.id, me.id)!;
+  }
+
+  async leaveSaloon(token: string, saloonId: unknown): Promise<void> {
+    const me = await this.member(token);
+    if (saloonId === PUBLIC_SALOON_ID) throw new Error('On ne quitte pas le saloon public.');
+    if (typeof saloonId === 'string') this.removeMember(saloonId, me.id);
+  }
+
+  /**
+   * Un membre s'en va (ou son compte est supprimé). Si c'était le propriétaire, la propriété passe à l'admin le plus
+   * ancien, à défaut au membre le plus ancien ; un saloon sans plus personne est effacé (ses parties restent dans les
+   * stats de ceux qui les ont jouées).
+   */
+  private removeMember(saloonId: string, accountId: string): void {
+    const role = this.sql.exec<{ role: string }>('SELECT role FROM saloon_members WHERE saloon_id = ? AND account_id = ?', saloonId, accountId).toArray()[0]?.role;
+    if (!role) return;
+    this.sql.exec('DELETE FROM saloon_members WHERE saloon_id = ? AND account_id = ?', saloonId, accountId);
+    if (role !== 'owner') return;
+    const heir = this.sql
+      .exec<{ account_id: string }>(
+        "SELECT account_id FROM saloon_members WHERE saloon_id = ? ORDER BY CASE role WHEN 'admin' THEN 0 ELSE 1 END, joined_at LIMIT 1",
+        saloonId,
+      )
+      .toArray()[0];
+    if (heir) this.sql.exec("UPDATE saloon_members SET role = 'owner' WHERE saloon_id = ? AND account_id = ?", saloonId, heir.account_id);
+    else {
+      this.sql.exec('DELETE FROM saloon_failures WHERE saloon_id = ?', saloonId);
+      this.sql.exec('DELETE FROM saloons WHERE id = ?', saloonId);
+    }
+  }
+
   // Espace administrateur : chaque action vérifie d'abord que le jeton est celui d'un administrateur.
 
   private async admin(token: string): Promise<AccountRow> {
@@ -421,6 +641,10 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     this.sql.exec('DELETE FROM sessions WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM claims WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM admins WHERE account_id = ?', row.id);
+    for (const { saloon_id } of this.sql.exec<{ saloon_id: string }>('SELECT saloon_id FROM saloon_members WHERE account_id = ?', row.id).toArray()) {
+      this.removeMember(saloon_id, row.id);
+    }
+    this.sql.exec('DELETE FROM saloon_failures WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM accounts WHERE id = ?', row.id);
   }
 

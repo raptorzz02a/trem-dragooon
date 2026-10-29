@@ -30,6 +30,8 @@ export interface GameRecord {
   id: string;
   session: GameSession;
   players: PlayerRef[];
+  /** Saloon où la partie a été jouée (absent : saloon public, comme toutes les parties d'avant les saloons). */
+  saloonId?: string;
 }
 
 export const DELETED_NAME = 'Joueur supprimé';

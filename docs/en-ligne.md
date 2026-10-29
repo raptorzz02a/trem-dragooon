@@ -50,6 +50,26 @@ d'e-mail, donc pas de « mot de passe oublié » : c'est l'administrateur qui do
 (voir ci-dessous). Chacun change son mot de passe depuis l'accueil (**Mot de passe**) ; ses autres appareils
 sont alors déconnectés.
 
+## Saloons (groupes d'amis)
+
+Un **saloon** est un groupe d'amis, sur le modèle des serveurs Discord. L'accueil ouvre le dernier saloon
+utilisé ; on en change avec la colonne d'icônes à gauche (PC) ou le menu sous son pseudo (téléphone).
+L'interface prend la couleur du saloon ouvert.
+
+- **TREM-DRAGOOON** est le saloon public : tout compte en est membre, sans mot de passe, et ne peut pas le
+  quitter. Les parties d'avant les saloons lui appartiennent.
+- **+** : créer un saloon (nom unique, mot de passe d'au moins 4 caractères, couleur, icône ; 3 saloons créés
+  au plus par compte) ou en rejoindre un avec son nom et son mot de passe (une seule fois : on reste membre).
+  5 essais ratés bloquent ce compte 15 minutes pour ce saloon. 50 membres au plus.
+- **Lien d'invitation** (bouton « membres · Inviter », pour le propriétaire et les admins) : il fait entrer
+  directement, sans mot de passe, y compris un joueur qui doit d'abord créer son compte. **Nouveau lien**
+  rend l'ancien inutilisable.
+- **Quitter le saloon** : ses parties restent. Si le propriétaire s'en va, l'admin le plus ancien (à défaut
+  le membre le plus ancien) devient propriétaire ; un saloon vide est effacé.
+- Une partie créée appartient au saloon ouvert à ce moment-là (champ `saloonId` des parties enregistrées).
+
+Recette : `node scripts/recette-saloons.cjs` avec `npm run online:dev` lancé à côté.
+
 ## Espace administrateur
 
 Le bouton **Administration** (accueil) n'apparaît que pour les pseudos listés dans `ADMINS`
