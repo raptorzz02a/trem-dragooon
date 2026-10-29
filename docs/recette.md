@@ -146,6 +146,19 @@ Légende : ✅ Conforme · 🟡 Conforme avec réserve · ⛔ Non livré.
 | H09 | Animations désactivées : fonctionnement identique | Interface (pas d'écran de transition, le tour passe directement) | 🟡 Le réglage existe, mais l'écran de réglages arrive au lot 5. |
 | H10 | Changer de mode : pas de contamination | Test auto + interface | ✅ |
 
+### S. Avenant statistiques joueurs (v2)
+
+Recette du 29/10/2026, sur 12 profils et 114 parties de test générées par le moteur, en 1366 × 768 et
+1920 × 1080.
+
+| Id | Critère de l'avenant | Vérifié par | État |
+| --- | --- | --- | --- |
+| S01 | 20 profils au maximum, profils et historique existants conservés | Interface (compteur 12/20, bouton désactivé à 20, aussi au lancement d'une partie). La base n'a pas changé de version : rien n'est migré ni effacé. | ✅ |
+| S02 | Statistiques calculables à partir des données réelles | Test auto (`scores.test.ts`, 12 tests : moyenne, écart type, seuils, tranches, bust = 0, marques du Cricket, semaines, mois, périodes, clôture, records, classements, CSV) | ✅ |
+| S03 | Aucun visuel ne suggère une précision non mesurée | Revue : pas de carte de chaleur, de précision par cible visée ni de taux de ratés. Les numéros les plus touchés et la réussite aux doubles viennent des fléchettes saisies, avec la mention « Ne dit rien de la cible visée ». | ✅ |
+| S04 | Valeurs, unités et volumes cohérents | Interface : chaque moyenne affiche son unité (points ou marques) et le nombre de volées et de parties. « non disponible » remplace les valeurs non calculables. | ✅ |
+| S05 | Fonctions initiales conservées | Les 109 tests d'origine passent toujours (121 au total) ; parcours de jeu inchangé. | ✅ |
+
 ## 4. Bilan
 
 | État | Nombre |
@@ -167,6 +180,7 @@ Légende : ✅ Conforme · 🟡 Conforme avec réserve · ⛔ Non livré.
 | Fonctions principales utilisables au tactile, sans clavier ni souris | 🟡 Oui, sauf la saisie des surnoms par le clavier tactile Windows |
 | Règles de chaque mode documentées et testées | ✅ `docs/regles.md` et tests A à E |
 | Statistiques cohérentes avec les résultats enregistrés | ✅ Recalculées à partir des archives (G03, G09) |
+| Avenant statistiques joueurs v2 | ✅ 5 / 5 (S01 à S05) |
 
 ## 5. Anomalies et points restants
 

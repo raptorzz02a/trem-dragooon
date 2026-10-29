@@ -29,10 +29,10 @@ Une fois les fichiers servis en local, une coupure d'Internet n'a aucun effet.
 | `src/game-engine` | Règles des 4 familles de modes (6 modes), calcul des scores, vainqueurs, classements, suggestions de finition. Aucune dépendance à l'interface. |
 | `src/game-session` | Cycle de vie d'une partie : création, lancers, fin de tour, annulation, correction, abandon, revanche. |
 | `src/teams` | Équipes, tirage au sort, ordre de passage, couleurs d'équipe. |
-| `src/profiles` | Types des profils et des archives ; statistiques et classements (`stats.ts`). |
+| `src/profiles` | Types des profils et des archives ; statistiques et classements (`stats.ts`), statistiques de score par volée, progression, périodes et classements par moyenne (`scores.ts`), export CSV (`export.ts`). |
 | `src/storage` | Partie en cours (`currentGame.ts`, localStorage) ; base IndexedDB (`db.ts`). |
-| `src/settings` | Réglages d'affichage (durée de la transition, animations). |
-| `src/ui` | Écrans React. `src/ui/modes` contient ce qui change d'un mode à l'autre à l'écran ; `src/ui/components` les éléments partagés (pavé de saisie, avatar, cible de l'Horloge, éditeur de profil). |
+| `src/settings` | Réglages d'affichage (durée de la transition, animations) et des statistiques (seuils, tranches de l'histogramme). |
+| `src/ui` | Écrans React. `src/ui/modes` contient ce qui change d'un mode à l'autre à l'écran ; `src/ui/components` les éléments partagés (pavé de saisie, avatar, cible de l'Horloge, éditeur de profil, graphiques des statistiques `Charts.tsx`, filtre de période `PeriodFilter.tsx`). |
 | `docs` | Règles appliquées (`regles.md`), guide utilisateur, cette documentation, procès-verbal de recette. |
 | `scripts/recette-ui.cjs` | Recette automatisée de l'interface dans Chromium. |
 
@@ -152,7 +152,7 @@ Dans l'application, un code administrateur protégera la sortie du kiosque, les 
 | Donnée | Emplacement | Clé |
 | --- | --- | --- |
 | Partie en cours | `localStorage` | `trem-dragooon.current-game` |
-| Réglages | `localStorage` | `trem-dragooon.settings` (`transitionMs`, `animations`) |
+| Réglages | `localStorage` | `trem-dragooon.settings` (`transitionMs`, `animations`, `statThresholds`, `histogramStep`) |
 | Profils | IndexedDB, base `trem-dragooon` v1 | magasin `profiles`, clé `id` |
 | Parties archivées | IndexedDB, base `trem-dragooon` v1 | magasin `games`, clé `id` (identifiant de la partie) |
 
