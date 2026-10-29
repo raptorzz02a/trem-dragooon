@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClientMessage, OnlineIdentity, RoomView, ServerMessage } from './protocol';
+import type { GameSetup } from '../game-setup/setup';
+import { apiUrl, wsUrl } from './api';
+import type { ClientMessage, OnlineIdentity, RoomPlace, RoomView, ServerMessage } from './protocol';
 import { accountToken } from './useAccount';
 
 // Connexion de l'appli à un salon en ligne, avec reconnexion automatique après une coupure réseau.
@@ -25,14 +27,13 @@ function storeToken(code: string, token: string | null): void {
   }
 }
 
-function socketUrl(code: string): string {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  return `${protocol}//${location.host}/api/rooms/${code}/ws`;
-}
+const socketUrl = (code: string) => wsUrl(`/api/rooms/${code}/ws`);
 
 /** Demande un nouveau salon au serveur et renvoie son code. */
-export async function createOnlineRoom(): Promise<string> {
-  const res = await fetch('/api/rooms', { method: 'POST' });
+export async function createOnlineRoom(place: RoomPlace, setup: GameSetup): Promise<string> {
+  const res = await fetch(apiUrl('/api/rooms'), { method: 'POST', body: JSON.stringify({ place, setup }) }).catch(() => {
+    throw new Error('Serveur en ligne injoignable.');
+  });
   const data = (await res.json().catch(() => ({}))) as { code?: string; error?: string };
   if (!res.ok || !data.code) throw new Error(data.error ?? 'Serveur en ligne injoignable.');
   return data.code;

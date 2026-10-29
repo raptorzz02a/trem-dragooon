@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
-import { applyMessage, archiveChange, createRoom, joinRoom, roomView, setConnected, type Room } from '../src/online/room';
+import { cleanSetup } from '../src/game-setup/setup';
+import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, roomView, setConnected, type Room } from '../src/online/room';
 import { AccountsObject } from './accounts';
 
 export { AccountsObject };
@@ -20,9 +21,9 @@ const accounts = (env: Env) => env.ACCOUNTS.get(env.ACCOUNTS.idFromName('account
 const bearer = (request: Request) => request.headers.get('Authorization')?.replace(/^Bearer /, '') ?? '';
 
 /** Corps JSON d'une requête, limité en taille. */
-async function body(request: Request): Promise<Record<string, unknown>> {
+async function body(request: Request, max = 8192): Promise<Record<string, unknown>> {
   const text = await request.text();
-  if (text.length > 8192) throw new Error('Requête trop longue.');
+  if (text.length > max) throw new Error('Requête trop longue.');
   const data = JSON.parse(text || '{}');
   return data && typeof data === 'object' ? data : {};
 }
@@ -52,6 +53,11 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       const b = await body(request);
       return json({ account: await db.update(bearer(request), b.name, b.color, b.avatar) });
     }
+    if (path === '/api/account/import' && method === 'POST') {
+      // Parties de la borne : jusqu'à IMPORT_BATCH parties complètes par envoi.
+      const b = await body(request, 4_000_000);
+      return json({ imported: await db.importGames(bearer(request), b.localId, b.games) });
+    }
     if (path === '/api/community' && method === 'GET') return json(await db.community());
   } catch (e) {
     return json({ error: e instanceof Error ? e.message : 'Requête refusée.' }, 400);
@@ -67,35 +73,61 @@ const MAX_MESSAGE_BYTES = 4096;
 const json = (data: unknown, status = 200) =>
   new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json' } });
 
+/**
+ * La borne peut servir l'appli elle-même (http://localhost:4173) en appelant ce serveur : c'est ce qui lui permet
+ * de lire ses anciennes stats, rangées par le navigateur sous cette adresse, pour les reprendre en ligne.
+ */
+const LOCAL_ORIGINS = new Set(['http://localhost:4173', 'http://127.0.0.1:4173']);
+
+function cors(request: Request, response: Response): Response {
+  const origin = request.headers.get('Origin');
+  if (!origin || !LOCAL_ORIGINS.has(origin) || response.status === 101) return response;
+  const out = new Response(response.body, response);
+  out.headers.set('Access-Control-Allow-Origin', origin);
+  out.headers.set('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+  out.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, OPTIONS');
+  out.headers.set('Vary', 'Origin');
+  return out;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const url = new URL(request.url);
-
-    if (url.pathname === '/api/rooms' && request.method === 'POST') {
-      // Quelques essais au cas où le code tiré serait déjà pris par un salon actif.
-      for (let attempt = 0; attempt < 5; attempt++) {
-        const code = randomCode(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
-        const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
-        if (await stub.init(code)) return json({ code });
-      }
-      return json({ error: 'Impossible de créer un salon, réessaie.' }, 503);
-    }
-
-    const ws = /^\/api\/rooms\/([^/]+)\/ws$/.exec(url.pathname);
-    if (ws) {
-      const code = normalizeCode(ws[1]!);
-      if (!isValidCode(code)) return json({ error: 'Code invalide.' }, 400);
-      if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'WebSocket attendu.' }, 426);
-      return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(request);
-    }
-
-    const answered = url.pathname.startsWith('/api/') ? await accountRoute(request, env, url.pathname) : null;
-    if (answered) return answered;
-
-    if (url.pathname.startsWith('/api/')) return json({ error: 'Introuvable.' }, 404);
-    return env.ASSETS.fetch(request);
+    if (request.method === 'OPTIONS') return cors(request, new Response(null, { status: 204 }));
+    return cors(request, await route(request, env));
   },
 } satisfies ExportedHandler<Env>;
+
+async function route(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+
+  if (url.pathname === '/api/rooms' && request.method === 'POST') {
+    // Le salon naît avec le jeu et le lieu choisis à l'accueil ; l'hôte peut tout changer ensuite.
+    const b = await body(request).catch(() => ({}) as Record<string, unknown>);
+    const place = b.place === 'same' ? 'same' : 'remote';
+    const setup = cleanSetup(b.setup);
+    // Quelques essais au cas où le code tiré serait déjà pris par un salon actif.
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const code = randomCode(() => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32);
+      const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
+      if (await stub.init(code, place, setup)) return json({ code });
+    }
+    return json({ error: 'Impossible de créer un salon, réessaie.' }, 503);
+  }
+
+  const ws = /^\/api\/rooms\/([^/]+)\/ws$/.exec(url.pathname);
+  if (ws) {
+    const code = normalizeCode(ws[1]!);
+    if (!isValidCode(code)) return json({ error: 'Code invalide.' }, 400);
+    if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'WebSocket attendu.' }, 426);
+    return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(request);
+  }
+
+  const answered = url.pathname.startsWith('/api/') ? await accountRoute(request, env, url.pathname) : null;
+  if (answered) return answered;
+
+  if (url.pathname.startsWith('/api/')) return json({ error: 'Introuvable.' }, 404);
+  return env.ASSETS.fetch(request);
+}
 
 interface Attachment {
   playerId: string | null;
@@ -103,9 +135,9 @@ interface Attachment {
 
 export class RoomObject extends DurableObject<Env> {
   /** Crée le salon ; false si ce code est déjà utilisé. */
-  async init(code: string): Promise<boolean> {
+  async init(code: string, place: Room['place'], setup: Room['setup']): Promise<boolean> {
     if (await this.load()) return false;
-    await this.save(createRoom(code));
+    await this.save(createRoom(code, place, setup));
     return true;
   }
 
@@ -143,6 +175,20 @@ export class RoomObject extends DurableObject<Env> {
         return;
       }
       if (!playerId) throw new Error('Présente-toi d’abord.');
+      if (message.type === 'addPlayer' || message.type === 'createPlayer') {
+        if (room.hostId !== playerId) throw new Error('Seul l’hôte peut ajouter un joueur.');
+        const db = accounts(this.env);
+        const name = String(message.name ?? '');
+        const password = String(message.password ?? '');
+        const account =
+          message.type === 'addPlayer'
+            ? await db.check(name, password)
+            : (await db.signup(name, password, message.color, message.avatar)).account;
+        // Le salon a pu changer pendant la vérification du mot de passe.
+        const latest = (await this.load()) ?? room;
+        await this.commit(addLocalPlayer(latest, playerId, account, () => crypto.randomUUID()));
+        return;
+      }
       const next = applyMessage(room, playerId, message);
       await this.commit(next);
       await this.archive(room, next);

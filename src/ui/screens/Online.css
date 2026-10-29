@@ -253,3 +253,24 @@
   border: 1px solid var(--gold);
   color: var(--gold-bright);
 }
+
+/* Connexion. */
+.welcome {
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+}
+
+.welcome-block {
+  width: min(640px, 100%);
+}
+
+@media (max-width: 700px) {
+  .welcome {
+    justify-content: flex-start;
+    padding-top: 40px;
+  }
+  .welcome-logo .logo {
+    font-size: 7.4vw !important;
+  }
+}

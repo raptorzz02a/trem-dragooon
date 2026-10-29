@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite --host",
     "build": "tsc --noEmit && tsc -p server/tsconfig.json && vite build",
+    "build:borne": "tsc --noEmit && vite build --mode borne",
     "preview": "vite preview --host",
     "test": "vitest run",
     "test:watch": "vitest",

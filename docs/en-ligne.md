@@ -1,63 +1,93 @@
-# Jouer en ligne entre copains
+# Jouer en ligne
 
-Chacun joue chez lui devant sa cible et saisit ses fléchettes sur son téléphone (ou un PC).
-L'hôte crée une partie, l'appli affiche un code de 6 caractères, les autres le tapent (ou ouvrent le lien
-partagé) et arrivent dans la salle d'attente. Tout le monde voit le tableau des scores en direct.
+Depuis la version « tout en ligne », l'appli n'a plus de profils propres à la borne : chaque joueur a un
+compte en ligne (pseudo + mot de passe) et toutes les parties sont enregistrées sur le serveur. On a donc le
+même compte et les mêmes stats que l'on joue ensemble sur la même cible ou chacun chez soi.
 
-Ce premier lot couvre le **301 / 501 / 701** en individuel, de 2 à 10 joueurs. La borne garde son
-fonctionnement hors ligne : le mode en ligne est un bouton de plus sur l'accueil.
+Adresse : https://trem-dragooon.julien-charrier01.workers.dev (borne, PC ou téléphone).
 
-| Salle d'attente (borne, hôte) | Salle d'attente (téléphone) | Partie (téléphone) |
+| Salle d'attente sur la borne (même cible) | Suivi sur un téléphone | À distance sur un PC 13 pouces |
 | --- | --- | --- |
-| ![](images/en-ligne/2-salle-attente-borne.png) | ![](images/en-ligne/3-salle-attente-telephone.png) | ![](images/en-ligne/4-partie-telephone.png) |
+| ![](images/en-ligne/1-salle-attente-borne.png) | ![](images/en-ligne/2-cricket-telephone.png) | ![](images/en-ligne/3-shanghai-pc13.png) |
+
+## Deux façons de jouer
+
+| | Même cible | À distance |
+| --- | --- | --- |
+| Qui saisit | L'appareil qui a créé la partie (la borne) saisit pour tout le monde | Chacun saisit ses fléchettes sur son appareil, à son tour |
+| Ajouter les joueurs | Sur la borne : **＋ Ajouter un joueur**, choisir son pseudo et taper son mot de passe, ou **Nouveau joueur** pour créer un compte sur place | Chacun rejoint avec le code ou le lien partagé |
+| Téléphones | Peuvent rejoindre avec le code pour suivre les scores, sans saisir | Indispensables : c'est là qu'on saisit |
+
+Le lieu se choisit sur l'accueil (il est retenu sur l'appareil) et peut être changé dans la salle d'attente.
+Le compte connecté sur l'appareil est l'hôte. Sur la borne, s'il ne joue pas, **Je ne joue pas** le retire de
+la partie sans le déconnecter.
 
 ## Déroulement
 
-1. Accueil → **Jouer en ligne** → se connecter à son compte (pseudo + mot de passe), ou **Créer un compte**
-   puis choisir son avatar. Le compte reste connecté sur l'appareil.
-2. L'hôte appuie sur **Créer une partie** et partage le code ou le lien (« Partager le lien »).
-3. Les autres tapent le code puis **Rejoindre**. On ne peut plus rejoindre une fois la partie lancée.
-4. L'hôte choisit 301 / 501 / 701 et la sortie (n'importe quoi ou double), puis **Lancer la partie**.
-   L'ordre de passage est tiré au sort.
-5. Seul le joueur dont c'est le tour peut saisir. Il peut annuler sa dernière fléchette, même après le passage
-   au joueur suivant ; l'hôte peut aussi annuler (il fait office d'arbitre).
-6. En fin de partie, l'hôte peut **Rejouer** (mêmes joueurs, nouvel ordre) ou revenir à la **Salle d'attente**.
+1. Se connecter (ou **Créer un compte**, puis choisir son avatar). Le compte reste connecté sur l'appareil.
+2. Choisir **Même cible** ou **À distance**, puis le jeu : 301 · 501 · 701, Cricket, Horloge ou Shanghai.
+3. Dans la salle d'attente, l'hôte règle la partie comme sur l'ancienne borne : score de départ, sortie,
+   variantes de chaque jeu, individuel ou équipes (tirage au sort ou à la main), ordre de passage (tiré au
+   sort ou ordre de la liste, modifiable avec ▲ ▼). Seul, c'est une partie d'entraînement.
+4. **Lancer la partie**. Annuler une fléchette : l'hôte peut toujours ; à distance, le joueur peut aussi
+   annuler la sienne.
+5. **Quitter** : l'hôte peut **Arrêter la partie** (elle compte comme abandonnée dans les stats). En fin de
+   partie : **Rejouer** ou **Changer les réglages**.
 
-Coupure réseau : l'appli se reconnecte toute seule. Si la page a été fermée ou rechargée, l'accueil propose
-**Revenir dans le salon en ligne**. Si l'hôte part, le joueur suivant devient hôte. Un salon sans activité
-est effacé au bout de 12 heures.
+Coupure réseau : l'appli se reconnecte seule. Page fermée ou rechargée : l'accueil propose **Reprendre la
+partie**. Si l'hôte part, le joueur suivant devient hôte. Une partie sans activité est effacée au bout de
+12 heures.
 
-## Comptes et statistiques en ligne
+## Comptes et statistiques
 
-Chaque joueur en ligne a un compte : un pseudo (unique, sans tenir compte des majuscules) et un mot de passe
-d'au moins 6 caractères. On peut se connecter depuis n'importe quel appareil ; si on rejoint un salon où son
-compte est déjà, on reprend sa place (utile pour passer du téléphone au PC en pleine partie).
+Pseudo unique (sans tenir compte des majuscules), mot de passe d'au moins 6 caractères. Chaque partie
+terminée ou arrêtée est enregistrée pour tous ses joueurs, quel que soit l'appareil. **Joueurs et
+classements** montre les classements et les fiches de tout le monde.
 
-Chaque partie en ligne terminée est enregistrée pour tous ses joueurs. Le bouton **Stats et classements des
-joueurs en ligne** montre les mêmes classements et fiches que la borne, calculés sur les parties en ligne de
-tout le monde (fiches en lecture seule). Une partie rouverte par une annulation est retirée, puis réenregistrée
-à sa nouvelle fin. Les parties en ligne ne sont pas mélangées aux statistiques de la borne.
+Sécurité : seule une empreinte du mot de passe est stockée (PBKDF2-SHA256, 100 000 tours, sel par compte).
+Après 10 essais ratés, le pseudo est bloqué 15 minutes, y compris quand on l'ajoute sur la borne. Pas
+d'e-mail, donc pas de « mot de passe oublié » : un mot de passe perdu se réinitialise à la main dans la base.
 
-Sécurité : le mot de passe n'est jamais stocké, seulement son empreinte (PBKDF2-SHA256, 100 000 tours, sel
-propre à chaque compte). Après 10 essais ratés, le pseudo est bloqué 15 minutes. Pas d'e-mail, donc pas de
-« mot de passe oublié » : un mot de passe perdu se réinitialise à la main dans la base.
+## Reprendre les stats de la borne
+
+Les parties jouées avant le passage en ligne sont dans le navigateur de la borne. Pour les rattacher aux
+comptes, une seule fois, sur la borne :
+
+```powershell
+cd $HOME\trem-dragooon
+git pull
+npm.cmd install
+npm.cmd run build:borne   # même appli, qui parle au serveur en ligne
+npm.cmd run preview       # http://localhost:4173, là où sont les anciennes données
+```
+
+Ouvrir http://localhost:4173, se connecter, puis **Récupérer les stats de la borne** : choisir son ancien
+profil et valider. Chacun fait de même avec son compte (se déconnecter, se connecter avec le compte suivant).
+Une partie jouée à plusieurs est rattachée à chaque compte qui récupère son profil ; recommencer ne crée pas
+de doublon.
+
+Ensuite, la borne peut ouvrir directement l'adresse en ligne (voir `technique.md`, configuration kiosque) :
+plus besoin de serveur local.
 
 ## Fonctionnement technique
 
 | Élément | Rôle |
 | --- | --- |
-| `src/online/protocol.ts` | Messages échangés (JSON sur WebSocket), codes de salon. |
-| `src/online/room.ts` | Règles d'un salon : arrivée, reprise, hôte, lancement, arbitrage des fléchettes. Pur et testé (`room.test.ts`). |
-| `src/online/useOnlineRoom.ts` | Connexion de l'appli au salon, reconnexion automatique. |
-| `src/ui/screens/Online.tsx` | Écrans « Jouer en ligne » et salle d'attente ; la partie réutilise l'écran de jeu existant. |
-| `server/worker.ts` | Cloudflare Worker : sert l'appli et crée les salons. Un Durable Object par code garde l'état du salon. |
-| `server/accounts.ts` | Base des comptes et des parties en ligne : un Durable Object unique stocké en SQLite (inclus dans l'offre gratuite). |
-| `src/online/accounts.ts`, `useAccount.ts` | Règles des pseudos et mots de passe, connexion de l'appli au compte. |
-| `src/ui/screens/Community.tsx` | Classements et fiches des joueurs en ligne (réutilise les écrans de la borne). |
-| `scripts/recette-en-ligne.cjs` | Recette automatisée : une borne et un téléphone jouent une partie complète. |
+| `src/game-setup/setup.ts` | Réglages d'une partie (jeu, options, équipes, ordre), validés de la même façon par l'appli et le serveur. |
+| `src/online/protocol.ts` | Messages échangés (JSON sur WebSocket), codes de partie. |
+| `src/online/room.ts` | Règles d'une partie : arrivée, joueurs ajoutés sur place, hôte, lancement, qui peut saisir. Pur et testé (`room.test.ts`). |
+| `src/online/useOnlineRoom.ts`, `api.ts` | Connexion de l'appli au serveur, reconnexion automatique, adresse du serveur. |
+| `src/ui/screens/Room.tsx`, `Setup.tsx` | Salle d'attente, réglages, ajout des joueurs ; la partie réutilise l'écran de jeu. |
+| `src/ui/screens/ImportLocal.tsx` | Reprise des stats de la borne. |
+| `server/worker.ts` | Cloudflare Worker : sert l'appli et l'API. Un Durable Object par code garde l'état de la partie. |
+| `server/accounts.ts` | Comptes et parties : un Durable Object unique stocké en SQLite (inclus dans l'offre gratuite). |
+| `scripts/recette-en-ligne.cjs` | Recette automatisée : borne, téléphone et PC 13 pouces. |
 
-Le serveur applique exactement le même moteur que l'appli : il rejoue chaque fléchette reçue et refuse
-celles d'un joueur dont ce n'est pas le tour. L'appli ne fait qu'afficher l'état qu'il renvoie.
+Le serveur applique le même moteur que l'appli : il rejoue chaque fléchette reçue et refuse celles qui ne
+viennent pas du bon appareil. L'appli ne fait qu'afficher l'état qu'il renvoie.
+
+`npm run build:borne` lit `.env.borne`, qui donne l'adresse du serveur (`VITE_API_URL`) ; le serveur
+accepte les appels venant de http://localhost:4173.
 
 ## Essayer en local
 
@@ -67,24 +97,13 @@ npm run online:dev                         # construit l'appli et lance le serve
 node scripts/recette-en-ligne.cjs          # dans un autre terminal (Playwright requis)
 ```
 
-Ouvrir http://localhost:8787 dans deux fenêtres (une en navigation privée) pour jouer contre soi-même.
 Sous Windows : `npm.cmd run online:dev`.
 
-## Mettre en ligne (Cloudflare, gratuit)
-
-À faire une seule fois :
-
-1. Créer un compte gratuit sur https://dash.cloudflare.com/sign-up.
-2. Dans le dossier du projet : `npx wrangler login` (ouvre le navigateur pour autoriser).
-
-Puis à chaque mise à jour :
+## Mettre à jour le serveur
 
 ```bash
 npm run deploy
 ```
 
-La commande affiche l'adresse publique, de la forme `https://trem-dragooon.<ton-sous-domaine>.workers.dev`.
-C'est ce lien qu'on envoie aux copains. Un nom de domaine à soi peut être branché plus tard dans le tableau
-de bord Cloudflare (Workers → trem-dragooon → Domaines).
-
-L'offre gratuite couvre largement un groupe d'amis (100 000 requêtes par jour, Durable Objects inclus).
+Il faut être connecté à Cloudflare (`npx wrangler login`, ou la variable `CLOUDFLARE_API_TOKEN`). L'offre
+gratuite couvre largement un groupe d'amis (100 000 requêtes par jour, Durable Objects inclus).

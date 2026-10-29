@@ -1,6 +1,11 @@
 import { DurableObject } from 'cloudflare:workers';
+import { sessionState } from '../src/game-session/session';
 import {
+  claimRecord,
   cleanAvatar,
+  IMPORT_BATCH,
+  importedGameId,
+  involves,
   cleanColor,
   passwordProblem,
   pseudoKey,
@@ -91,6 +96,11 @@ export class AccountsObject extends DurableObject<object> {
         finished_at TEXT NOT NULL,
         record TEXT NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS claims (
+        local_id TEXT PRIMARY KEY,
+        account_id TEXT NOT NULL,
+        claimed_at TEXT NOT NULL
+      );
     `);
   }
 
@@ -132,6 +142,15 @@ export class AccountsObject extends DurableObject<object> {
   }
 
   async login(name: string, password: string): Promise<Login> {
+    const account = await this.check(name, password);
+    return { token: await this.openSession(account.id), account };
+  }
+
+  /**
+   * Vérifie un pseudo et son mot de passe, sans ouvrir de session : c'est ce qui permet d'ajouter un joueur
+   * sans téléphone à une partie sur la même cible. Les échecs comptent pour le blocage, comme à la connexion.
+   */
+  async check(name: string, password: string): Promise<PublicAccount> {
     const wrong = new Error('Pseudo ou mot de passe incorrect.');
     const row = this.row('name_key', pseudoKey(String(name ?? '')));
     if (!row) throw wrong;
@@ -145,7 +164,7 @@ export class AccountsObject extends DurableObject<object> {
       throw wrong;
     }
     this.sql.exec('UPDATE accounts SET failures = 0 WHERE id = ?', row.id);
-    return { token: await this.openSession(row.id), account: publicAccount(row) };
+    return publicAccount(row);
   }
 
   /** Compte correspondant à un jeton de connexion, ou null s'il est inconnu (déconnecté). */
@@ -195,6 +214,39 @@ export class AccountsObject extends DurableObject<object> {
   /** Une annulation a rouvert la partie : elle n'est plus terminée. */
   async forgetGame(id: string): Promise<void> {
     this.sql.exec('DELETE FROM games WHERE id = ?', id);
+  }
+
+  /**
+   * Reprise des stats de la borne : le profil local `localId` est rattaché au compte connecté, et ses parties
+   * archivées sur la borne rejoignent les parties en ligne. Un profil local ne peut être rattaché qu'à un seul compte.
+   * Renvoie le nombre de parties reprises.
+   */
+  async importGames(token: string, localId: unknown, records: unknown): Promise<number> {
+    const account = await this.me(token);
+    if (!account) throw new Error('Connecte-toi d’abord.');
+    if (typeof localId !== 'string' || !localId || localId.length > 64) throw new Error('Joueur de la borne invalide.');
+    if (!Array.isArray(records) || records.length > IMPORT_BATCH) throw new Error('Envoi invalide.');
+    const claim = this.sql.exec<{ account_id: string }>('SELECT account_id FROM claims WHERE local_id = ?', localId).toArray()[0];
+    if (claim && claim.account_id !== account.id) throw new Error('Ce joueur de la borne est déjà rattaché à un autre compte.');
+    if (!claim) this.sql.exec('INSERT INTO claims VALUES (?, ?, ?)', localId, account.id, new Date().toISOString());
+
+    let count = 0;
+    for (const raw of records as GameRecord[]) {
+      try {
+        if (typeof raw?.id !== 'string' || raw.id.length > 100 || !involves(raw, localId)) continue;
+        sessionState(raw.session); // une partie que le moteur ne sait pas rejouer est ignorée
+        const id = importedGameId(raw.id);
+        // Un autre joueur de la même partie a pu la reprendre avant : on complète sa version.
+        const existing = this.sql.exec<{ record: string }>('SELECT record FROM games WHERE id = ?', id).toArray()[0];
+        const base = existing ? (JSON.parse(existing.record) as GameRecord) : { ...raw, id };
+        const record = claimRecord(base, localId, account);
+        this.sql.exec('INSERT OR REPLACE INTO games VALUES (?, ?, ?)', id, record.session.endedAt ?? record.session.createdAt, JSON.stringify(record));
+        count++;
+      } catch {
+        // Partie illisible : ignorée, les autres sont reprises.
+      }
+    }
+    return count;
   }
 
   async community(): Promise<Community> {

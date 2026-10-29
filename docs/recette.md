@@ -26,6 +26,8 @@ dépendent sont marqués **Non livré**.
 | Contrôle visuel | Captures en 1366 × 768 (écran cible) et 1920 × 1080 | Conforme |
 | Calcul de contraste | Couleurs du thème sur le fond `#101713` | Voir H05 |
 
+> Depuis le passage au tout en ligne, `scripts/recette-ui.cjs` (parcours avec profils locaux) est remplacé par `scripts/recette-en-ligne.cjs`.
+
 Environnement de recette : Chromium (moteur d'Edge) en 1366 × 768 et 1920 × 1080, application construite
 (`npm run build`) et servie en local (`npm run preview`).
 

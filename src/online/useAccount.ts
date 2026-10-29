@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { AvatarConfig } from '../profiles/types';
+import { apiUrl } from './api';
 import type { Community, Login, PublicAccount } from './accounts';
 
 // Compte du mode en ligne sur cet appareil : le jeton de connexion est gardé dans le navigateur.
@@ -34,9 +35,9 @@ function cachedAccount(): PublicAccount | null {
   }
 }
 
-async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = accountToken();
-  const res = await fetch(path, {
+  const res = await fetch(apiUrl(path), {
     ...init,
     headers: { 'content-type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}), ...init.headers },
   }).catch(() => {
