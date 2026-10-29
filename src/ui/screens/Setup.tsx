@@ -9,7 +9,7 @@ import type {
   ShanghaiOptions,
   X01Options,
 } from '../../game-engine/types';
-import type { Profile } from '../../profiles/types';
+import { MAX_PROFILES, type Profile } from '../../profiles/types';
 import type { PlayerRef } from '../../storage/currentGame';
 import { emptyTeams, individualSides, randomOrder, randomTeams, TEAM_COLORS } from '../../teams/teams';
 import { Avatar } from '../components/Avatar';
@@ -271,7 +271,7 @@ function PlayerPicker(props: {
           <span className="label">{props.remaining > 0 ? `Encore ${props.remaining} place(s)` : 'Partie complète'}</span>
         </div>
         <div className="picker-grid">
-          <button className="picker-tile picker-new btn-primary" disabled={props.remaining <= 0} onClick={props.onNew}>
+          <button className="picker-tile picker-new btn-primary" disabled={props.remaining <= 0 || props.profiles.filter((p) => !p.deleted).length >= MAX_PROFILES} onClick={props.onNew}>
             <span className="picker-plus">＋</span>
             <span>Nouveau joueur</span>
           </button>

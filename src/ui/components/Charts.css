@@ -1,0 +1,157 @@
+/* Couleur des données : or validé pour le fond sombre (contraste et daltonisme), distinct de l'or des textes. */
+:root {
+  --data: #ad8e3b;
+  --data-strong: #ccae5e;
+  --chart-grid: #26352c;
+}
+
+.meter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.meter-label {
+  font-size: 16px;
+  color: var(--text);
+}
+
+.meter-value {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.meter-track {
+  height: 14px;
+  border-radius: 4px;
+  background: var(--chart-grid);
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: var(--data);
+  border-radius: 0 4px 4px 0;
+}
+
+.meter-detail {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.chart {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.chart svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  touch-action: none;
+}
+
+.chart-grid {
+  stroke: var(--chart-grid);
+  stroke-width: 1;
+}
+
+.chart-baseline {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+
+.chart-axis {
+  fill: var(--text-dim);
+  font-size: 13px;
+}
+
+.chart-label {
+  fill: var(--text);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.chart-bar {
+  fill: var(--data);
+}
+
+.chart-bar.active {
+  fill: var(--data-strong);
+}
+
+.chart-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+
+.chart-line {
+  fill: none;
+  stroke: var(--data);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart-dot {
+  fill: var(--data);
+  stroke: var(--bg-raised);
+  stroke-width: 2;
+}
+
+.chart-dot.active {
+  fill: var(--data-strong);
+}
+
+.chart-cross {
+  stroke: var(--text-dim);
+  stroke-width: 1;
+}
+
+.chart-tip {
+  min-height: 22px;
+  font-size: 15px;
+  color: var(--text);
+}
+
+.chart-table summary {
+  font-size: 14px;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 6px 0;
+}
+
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+
+.chart-table th,
+.chart-table td {
+  text-align: right;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--chart-grid);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-table th:first-child,
+.chart-table td:first-child {
+  text-align: left;
+}
+
+.chart-table th {
+  color: var(--text-dim);
+  font-weight: 600;
+}

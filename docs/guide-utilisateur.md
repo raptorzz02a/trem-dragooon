@@ -23,7 +23,8 @@ L'application s'ouvre sur l'accueil.
 ## 2. Créer les joueurs
 
 Chaque joueur a un profil : un surnom, une couleur et un avatar. Le profil est obligatoire, c'est lui qui
-porte les statistiques.
+porte les statistiques. On peut avoir **20 profils** au plus ; le compteur est à côté du titre **Joueurs**.
+Au-delà, supprimez un profil pour en créer un autre.
 
 Depuis **Joueurs**, appuyez sur **＋ Nouveau joueur**. Vous pouvez aussi créer un joueur directement au
 moment de lancer une partie.
@@ -178,37 +179,82 @@ immédiatement. L'écran rappelle les zones qui manquent encore.
 
 ## 6. Statistiques et classements
 
+Toutes les statistiques sont recalculées à partir des parties enregistrées. Quand une valeur ne peut pas
+être calculée (pas assez de parties sur la période, par exemple), l'écran affiche **non disponible**, jamais
+un 0 trompeur. L'application note chaque fléchette (zone et numéro) mais pas la cible que le joueur visait :
+elle ne donne donc ni précision sur une cible, ni taux de ratés, ni carte de chaleur.
+
 ### Fiche joueur
 
-Depuis **Joueurs**, touchez un joueur pour ouvrir sa fiche.
+Depuis **Joueurs**, touchez un joueur pour ouvrir sa fiche. Les filtres en haut s'appliquent à tous les onglets :
 
-![Fiche joueur](images/profil.png)
+- le **mode** (Tous, 301/501/701, Cricket, Horloge, Shanghai) ;
+- la **formule** (Tout, Individuel, Équipes) ;
+- la **période** : Tout, 30 jours, 90 jours, 1 an, ou **Dates…** pour choisir le début et la fin.
 
-- **En haut**, des filtres : par mode, et en individuel ou en équipes.
-- **Les tuiles** : parties terminées, victoires (en solo et en équipe), taux de victoire, triple et simple
-  les plus touchés.
-- **Par mode** :
-  - au 301/501/701, une carte par variante : moyenne par volée et par fléchette, réussite aux doubles,
-    meilleure volée, meilleure finition, busts, volées à 100 et plus, 140 et plus, 180 ;
-  - au Cricket : marques par volée ;
-  - à l'Horloge : record en fléchettes ;
-  - au Shanghai : meilleur score et Shanghai réussis.
-- **À droite, l'historique** des parties, abandonnées comprises.
+#### Résumé
+
+![Résumé de la fiche joueur](images/profil.png)
+
+Parties terminées, victoires, défaites et taux de victoire, puis les **cartes de records** : meilleure volée et
+meilleure moyenne sur une partie (au moins 3 volées) pour chaque mode, et plus grand checkout au 301/501/701.
+À droite, une carte par variante et par mode (moyennes, réussite aux doubles, meilleure finition, busts,
+volées à 100, 140 et 180…).
+
+#### Scores
+
+![Onglet Scores](images/profil-scores.png)
+
+Avec le filtre **Tous**, choisissez le mode affiché à droite (le plus joué est proposé d'abord).
+
+- **Moyenne par volée**, avec le nombre de volées et de parties sur lesquelles elle repose.
+- **Régularité** : l'écart type des volées. Plus il est petit, plus les volées se ressemblent.
+- **Meilleure volée** et le nombre de fois où elle a été réalisée.
+- **Volées au-dessus des seuils** : la part des volées à 60, 100 et 140 points ou plus. **Modifier les
+  seuils** change ces trois valeurs ; elles sont gardées sur le PC. Au Cricket, les seuils sont 3, 5 et 7
+  marques.
+- **Répartition des volées** : un histogramme par tranches de 10, 20 ou 30 points (une colonne par nombre de
+  marques au Cricket). Touchez une colonne pour son détail, ou **Voir en tableau**.
+- **Clôture des parties gagnées** (301/501/701) : volées et fléchettes moyennes pour finir, et la partie la plus
+  rapide. Seules les victoires en individuel comptent : en équipe, la fin dépend aussi des partenaires.
+
+Au 301/501/701, une volée en bust compte pour 0. Au Cricket, une volée vaut ses marques.
+
+#### Progression
+
+![Onglet Progression](images/profil-progression.png)
+
+- La **courbe** de la moyenne par volée, par semaine (à partir du lundi), par mois ou par année. Touchez-la pour
+  le détail d'un point.
+- Le tableau **Période actuelle et précédente** compare la période choisie à la période de même durée juste
+  avant : parties, victoires, taux de victoire, moyenne et meilleure volée, avec l'évolution (▲ en hausse,
+  ▼ en baisse). Sans période choisie, il compare les 30 derniers jours aux 30 jours d'avant.
+
+L'Horloge n'a pas d'onglet Scores ni Progression : on n'y saisit que Touché ou Raté. Ses records sont dans le
+Résumé.
+
+#### Historique, export et impression
+
+- **Historique** : toutes les parties, abandonnées comprises.
+- **Exporter CSV** télécharge un fichier avec une ligne par volée (date, mode, manche, fléchettes, valeur,
+  issue), pour les filtres en cours. Il s'ouvre dans Excel.
+- **Imprimer / PDF** imprime l'onglet affiché sur fond blanc. Choisissez « Enregistrer au format PDF » comme
+  imprimante pour obtenir un PDF.
 
 ### Classements
 
 ![Classements](images/classements.png)
 
-Choisissez le mode, la période (depuis le début, 12 mois, 30 jours, 7 jours) et la formule. Les joueurs sont
-classés par taux de victoire, puis par nombre de victoires. Il faut **5 parties terminées** pour être classé.
-En dessous, les joueurs qui n'en ont pas encore assez sont listés à part. L'entraînement ne compte jamais.
+Choisissez le mode, la formule et la période (mêmes choix que sur la fiche joueur), puis **Classer par** :
 
-Quand un mode est choisi, la dernière colonne donne sa statistique clé :
+- **Victoires** : taux de victoire, puis nombre de victoires (tous les modes) ;
+- **Moyenne** : moyenne par volée ;
+- **Record de volée** : meilleure volée ;
+- **Progression** : écart de moyenne avec la période précédente de même durée. Il faut choisir une période.
 
-- au 301/501/701 : la moyenne par volée ;
-- au Cricket : les marques par volée ;
-- à l'Horloge : le record ;
-- au Shanghai : le meilleur score.
+Les trois derniers ne sont possibles qu'avec un mode à score (301/501/701, Cricket ou Shanghai). Il faut
+**5 parties terminées** pour être classé ; les autres joueurs sont listés à part. L'entraînement ne compte
+jamais. Quand une valeur manque, le joueur est placé en fin de liste avec « non disponible ».
 
 Si une partie est corrigée ou rouverte, les statistiques sont recalculées, sans doublon.
 

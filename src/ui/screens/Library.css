@@ -290,3 +290,319 @@
 .lib-filters .segmented + .segmented {
   margin-left: 12px;
 }
+
+/* Fiche joueur en tableau de bord (avenant statistiques). */
+
+.profile-screen {
+  gap: 10px;
+  padding-top: 14px;
+  padding-bottom: 14px;
+}
+
+.profile-screen .profile-head h2 {
+  font-size: 30px;
+}
+
+.profile-screen .profile-head button {
+  min-height: 56px;
+  padding: 0 16px;
+  font-size: 17px;
+}
+
+.profile-screen .lib-filters {
+  justify-content: space-between;
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+
+.profile-screen .lib-filters .segmented button {
+  min-height: 48px;
+  font-size: 17px;
+}
+
+.profile-content {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+.profile-content .profile-body {
+  flex: none;
+  min-height: auto;
+}
+
+.profile-content .profile-stats,
+.profile-content .profile-history {
+  overflow: visible;
+}
+
+.period-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.period-dates {
+  display: flex;
+  gap: 10px;
+}
+
+.period-dates label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 16px;
+}
+
+.period-dates input {
+  min-height: 48px;
+  font-size: 17px;
+  padding: 0 8px;
+  color-scheme: dark;
+}
+
+.tiles-3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.tile-value.nd,
+.record-value.nd {
+  font-size: 18px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.tile-detail {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.record-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.record-card {
+  background: var(--bg-raised);
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.record-title {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.record-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--gold-bright);
+}
+
+.record-when {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.card-head h3 {
+  margin: 0;
+}
+
+.card-head .segmented button,
+button.small {
+  min-height: 44px;
+  font-size: 15px;
+  padding: 0 12px;
+}
+
+.meters {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scores-tab {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.scores-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 17px;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: 6px 8px;
+  text-align: right;
+  border-bottom: 1px solid var(--line);
+  font-variant-numeric: tabular-nums;
+}
+
+.compare-table th {
+  font-size: 13px;
+  color: var(--text-dim);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.compare-table td:first-child {
+  text-align: left;
+  color: var(--text-dim);
+}
+
+.compare-table td.up {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.compare-table td.up::before {
+  content: '▲ ';
+  color: var(--green-bright);
+}
+
+.compare-table td.down::before {
+  content: '▼ ';
+  color: var(--danger);
+}
+
+.threshold-inputs {
+  display: flex;
+  gap: 12px;
+}
+
+.threshold-inputs input {
+  width: 120px;
+  text-align: center;
+}
+
+.print-only {
+  display: none;
+}
+
+/* Impression (ou « Enregistrer en PDF ») de la fiche : fond blanc, sans boutons. */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  :root {
+    --bg: #ffffff;
+    --bg-raised: #ffffff;
+    --text: #111111;
+    --text-dim: #444444;
+    --line: #cccccc;
+    --chart-grid: #dddddd;
+    --gold-bright: #7a6220;
+    --gold: #7a6220;
+    --data: #8a6f2a;
+    --data-strong: #6a5520;
+  }
+
+  html,
+  body,
+  #root {
+    height: auto;
+    overflow: visible;
+  }
+
+  .no-print,
+  .profile-head button,
+  .chart-table summary {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block;
+    color: var(--text-dim);
+  }
+
+  .screen,
+  .profile-content {
+    height: auto;
+    overflow: visible;
+  }
+
+  .chart-table table {
+    display: table;
+  }
+
+  .stat-card,
+  .tile,
+  .record-card {
+    break-inside: avoid;
+  }
+}
+
+.lib-count {
+  font-size: 18px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.rankings-screen {
+  gap: 10px;
+}
+
+.rankings-screen .lib-filters .segmented button {
+  min-height: 48px;
+  font-size: 17px;
+}
+
+.ranking-num.nd {
+  font-size: 15px;
+  color: var(--text-dim);
+}
+
+.ranking-row {
+  flex-shrink: 0;
+}
+
+.compare-table td:not(:first-child),
+.compare-table th,
+.card-head .segmented button {
+  white-space: nowrap;
+}
+
+.closure-table td:first-child {
+  white-space: nowrap;
+}
+
+.card-head .segmented button {
+  padding: 0 10px;
+}
+
+.compare-summary {
+  font-size: 16px;
+  color: var(--text-dim);
+}
