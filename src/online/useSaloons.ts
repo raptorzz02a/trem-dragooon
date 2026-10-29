@@ -34,6 +34,8 @@ export interface SaloonsState {
   joinByInvite: (invite: string) => Promise<Saloon>;
   renewInvite: (id: string) => Promise<Saloon>;
   leave: (id: string) => Promise<void>;
+  /** Relit les saloons du compte (rôle changé, saloon renommé ou supprimé). */
+  refresh: () => Promise<unknown>;
 }
 
 export function useSaloons(accountId: string): SaloonsState {
@@ -78,6 +80,7 @@ export function useSaloons(accountId: string): SaloonsState {
       setSaloons((list) => list.map((s) => (s.id === id ? saloon : s)));
       return saloon;
     },
+    refresh,
     leave: async (id) => {
       await api(`/api/saloons/${encodeURIComponent(id)}/leave`, { method: 'POST' });
       await refresh();

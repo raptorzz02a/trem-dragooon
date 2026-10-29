@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import {
+  canEditSaloon,
   inviteLink,
+  PUBLIC_SALOON_ID,
   MAX_SALOON_MEMBERS,
   SALOON_COLORS,
   SALOON_ICONS,
@@ -9,11 +11,11 @@ import {
   type Saloon,
 } from '../../online/saloons';
 import type { SaloonsState } from '../../online/useSaloons';
+import { ROLE_NAMES, SaloonMembersList, SaloonSettings } from './SaloonManager';
 import './Saloons.css';
 
 // Choix du saloon à l'accueil, façon Discord : une colonne d'icônes sur PC, un menu déroulant sur téléphone.
 
-const ROLE_NAMES: Record<Saloon['role'], string> = { owner: 'Propriétaire', admin: 'Admin', member: 'Membre' };
 
 function SaloonIcon({ saloon, size = 56 }: { saloon: Saloon; size?: number }) {
   return (
@@ -71,8 +73,14 @@ export function SaloonHeader({ state, onAdd, onInfo }: PickerProps & { onInfo: (
         {current.name}
       </span>
       <button className="saloon-header-info" onClick={onInfo}>
-        {current.members} membre{current.members > 1 ? 's' : ''}
-        {current.invite ? ' · Inviter' : ''}
+        {current.public ? (
+          'Saloon public, ouvert à tous'
+        ) : (
+          <>
+            {current.members} membre{current.members > 1 ? 's' : ''}
+            {current.invite ? ' · Inviter' : ''}
+          </>
+        )}
       </button>
       {open && (
         <>
@@ -110,7 +118,7 @@ export function SaloonHeader({ state, onAdd, onInfo }: PickerProps & { onInfo: (
 }
 
 /** Créer un saloon, ou en rejoindre un avec son nom et son mot de passe. */
-export function SaloonDialog({ state, onClose }: { state: SaloonsState; onClose: () => void }) {
+export function SaloonDialog({ state, myId, onClose }: { state: SaloonsState; myId: string; onClose: () => void }) {
   const [tab, setTab] = useState<'join' | 'create'>('join');
   const [name, setName] = useState('');
   const [password, setPassword] = useState('');
@@ -137,7 +145,7 @@ export function SaloonDialog({ state, onClose }: { state: SaloonsState; onClose:
     }
   };
 
-  if (created) return <SaloonInfo saloon={created} state={state} onClose={onClose} welcome />;
+  if (created) return <SaloonInfo saloon={created} state={state} myId={myId} onClose={onClose} welcome />;
 
   return (
     <div className="overlay">
@@ -212,14 +220,20 @@ export function SaloonDialog({ state, onClose }: { state: SaloonsState; onClose:
   );
 }
 
-/** Le saloon ouvert : membres, lien d'invitation (propriétaire et admins), et le quitter. */
-export function SaloonInfo({ saloon, state, onClose, welcome }: { saloon: Saloon; state: SaloonsState; onClose: () => void; welcome?: boolean }) {
-  // Le saloon peut changer pendant que la fenêtre est ouverte (nouveau lien).
+/** Le saloon ouvert : lien d'invitation, membres, réglages (selon le rôle), et le quitter. */
+export function SaloonInfo({ saloon, state, myId, onClose, welcome }: { saloon: Saloon; state: SaloonsState; myId: string; onClose: () => void; welcome?: boolean }) {
+  // Le saloon peut changer pendant que la fenêtre est ouverte (nouveau lien, renommé).
   const current = state.saloons.find((s) => s.id === saloon.id) ?? saloon;
+  const [tab, setTab] = useState<'saloon' | 'members' | 'settings'>('saloon');
   const [copied, setCopied] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const link = current.invite ? inviteLink(location.origin, current.invite) : null;
+  const tabs: [typeof tab, string][] = [
+    ['saloon', 'Saloon'],
+    ['members', 'Membres'],
+    ...(canEditSaloon(current.role) ? ([['settings', 'Réglages']] as [typeof tab, string][]) : []),
+  ];
 
   const run = (action: () => Promise<unknown>) => {
     setError(null);
@@ -232,39 +246,70 @@ export function SaloonInfo({ saloon, state, onClose, welcome }: { saloon: Saloon
         <h2>
           {current.icon} {current.name}
         </h2>
-        {welcome && <div>Ton saloon est prêt. Envoie ce lien à tes amis : il les fait entrer directement, sans mot de passe.</div>}
-        {current.public ? (
-          <div>Le saloon public : tous les joueurs en font partie, et son classement est le classement de tout le monde.</div>
-        ) : (
-          <div className="saloon-info-line">
-            {ROLE_NAMES[current.role]} · {current.members} / {MAX_SALOON_MEMBERS} membres
+        {!current.public && (
+          <div className="segmented saloon-tabs">
+            {tabs.map(([t, label]) => (
+              <button key={t} className={tab === t ? 'selected' : ''} onClick={() => setTab(t)}>
+                {label}
+              </button>
+            ))}
           </div>
         )}
-        {link && (
-          <div className="saloon-invite">
-            <input aria-label="Lien d'invitation" readOnly value={link} onFocus={(e) => e.target.select()} />
-            <div className="dialog-actions">
-              <button
-                type="button"
-                onClick={() =>
-                  run(async () => {
-                    await navigator.clipboard.writeText(link);
-                    setCopied(true);
-                  })
-                }
-              >
-                {copied ? 'Copié' : 'Copier le lien'}
-              </button>
-              <button type="button" onClick={() => run(() => state.renewInvite(current.id).then(() => setCopied(false)))}>
-                Nouveau lien
-              </button>
-            </div>
-            <div className="saloon-hint">« Nouveau lien » rend l'ancien inutilisable. Sans lien, on entre avec le nom et le mot de passe du saloon.</div>
-          </div>
+        {tab === 'members' && <SaloonMembersList saloonId={current.id} actor={current.role} myId={myId} onChanged={() => void state.refresh()} />}
+        {tab === 'settings' && (
+          <SaloonSettings
+            saloonId={current.id}
+            actor={current.role}
+            initial={current}
+            onChanged={() => void state.refresh()}
+            onDeleted={() => {
+              state.select(PUBLIC_SALOON_ID);
+              void state.refresh();
+              onClose();
+            }}
+          />
+        )}
+        {tab === 'saloon' && (
+          <>
+            {welcome && <div>Ton saloon est prêt. Envoie ce lien à tes amis : il les fait entrer directement, sans mot de passe.</div>}
+            {current.public ? (
+              <div>
+                Le saloon public, ouvert à tous : chacun y lance une partie comme il veut, avec un pote, en solo ou chez lui. Tous les
+                joueurs en font partie, et son classement est celui de tout le monde.
+              </div>
+            ) : (
+              <div className="saloon-info-line">
+                {ROLE_NAMES[current.role]} · {current.members} / {MAX_SALOON_MEMBERS} membres
+              </div>
+            )}
+            {link && (
+              <div className="saloon-invite">
+                <input aria-label="Lien d'invitation" readOnly value={link} onFocus={(e) => e.target.select()} />
+                <div className="dialog-actions">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      run(async () => {
+                        await navigator.clipboard.writeText(link);
+                        setCopied(true);
+                      })
+                    }
+                  >
+                    {copied ? 'Copié' : 'Copier le lien'}
+                  </button>
+                  <button type="button" onClick={() => run(() => state.renewInvite(current.id).then(() => setCopied(false)))}>
+                    Nouveau lien
+                  </button>
+                </div>
+                <div className="saloon-hint">« Nouveau lien » rend l'ancien inutilisable. Sans lien, on entre avec le nom et le mot de passe du saloon.</div>
+              </div>
+            )}
+          </>
         )}
         {error && <div className="online-error">{error}</div>}
         <div className="dialog-actions">
           {!current.public &&
+            tab === 'saloon' &&
             (confirmLeave ? (
               <button type="button" className="btn-danger" onClick={() => run(() => state.leave(current.id).then(onClose))}>
                 Confirmer : quitter
@@ -278,6 +323,9 @@ export function SaloonInfo({ saloon, state, onClose, welcome }: { saloon: Saloon
             Fermer
           </button>
         </div>
+        {confirmLeave && current.role === 'owner' && (
+          <div className="saloon-hint">Tu es propriétaire : la propriété passera à l'admin le plus ancien, à défaut au membre le plus ancien.</div>
+        )}
       </div>
     </div>
   );

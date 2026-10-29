@@ -3,6 +3,9 @@ import { createSession } from '../game-session/session';
 import { config } from '../test/helpers';
 import { archiveChange, createRoom } from './room';
 import {
+  canDeleteSaloon,
+  canEditSaloon,
+  canManage,
   cleanSaloonColor,
   cleanSaloonIcon,
   inviteLink,
@@ -57,5 +60,30 @@ describe('saloons', () => {
     expect(change && 'record' in change && change.record.saloonId).toBe('s1');
     const pub = createRoom('ABC234', 'same', undefined, PUBLIC_SALOON_ID);
     expect(pub.saloonId).toBeUndefined();
+  });
+
+  it('rôles : un admin n’agit que sur les simples membres, le propriétaire sur tous, l’administrateur de l’appli partout', () => {
+    expect(canManage('admin', 'member', 'kick')).toBe(true);
+    expect(canManage('admin', 'member', 'ban')).toBe(true);
+    expect(canManage('admin', 'admin', 'kick')).toBe(false);
+    expect(canManage('admin', 'owner', 'ban')).toBe(false);
+    expect(canManage('admin', 'member', 'promote')).toBe(false);
+    expect(canManage('member', 'member', 'kick')).toBe(false);
+    expect(canManage('owner', 'admin', 'ban')).toBe(true);
+    expect(canManage('owner', 'member', 'promote')).toBe(true);
+    expect(canManage('owner', 'admin', 'promote')).toBe(false);
+    expect(canManage('owner', 'admin', 'demote')).toBe(true);
+    expect(canManage('owner', 'member', 'transfer')).toBe(true);
+    expect(canManage('global', 'owner', 'kick')).toBe(true);
+    expect(canManage('global', 'owner', 'transfer')).toBe(false);
+  });
+
+  it('réglages pour les admins, suppression pour le propriétaire et l’administrateur de l’appli', () => {
+    expect(canEditSaloon('member')).toBe(false);
+    expect(canEditSaloon('admin')).toBe(true);
+    expect(canEditSaloon(null)).toBe(false);
+    expect(canDeleteSaloon('admin')).toBe(false);
+    expect(canDeleteSaloon('owner')).toBe(true);
+    expect(canDeleteSaloon('global')).toBe(true);
   });
 });

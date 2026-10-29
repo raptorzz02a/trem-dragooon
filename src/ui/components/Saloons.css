@@ -218,3 +218,94 @@
     gap: 10px;
   }
 }
+
+.saloon-dialog {
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+.saloon-tabs button {
+  font-size: 18px;
+  min-height: 52px;
+}
+
+.saloon-members,
+.saloon-settings,
+.saloon-delete {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saloon-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.saloon-member-name {
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.saloon-role {
+  font-size: 14px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  color: var(--gold-bright);
+}
+
+.saloon-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.saloon-member-actions button {
+  min-height: 44px;
+  padding: 0 12px;
+  font-size: 15px;
+}
+
+.saloon-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--gold);
+  border-radius: var(--radius);
+}
+
+.saloon-delete {
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+
+.saloon-settings input,
+.saloon-delete input {
+  font: inherit;
+  font-size: 20px;
+  min-height: 56px;
+  padding: 0 16px;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  user-select: text;
+}
+
+@media (max-width: 700px) {
+  .saloon-tabs button {
+    font-size: 16px;
+    padding: 0 6px;
+    min-width: 0;
+  }
+}

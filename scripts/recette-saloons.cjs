@@ -2,7 +2,9 @@
 // 1. Ju (borne 1366x768) crée un saloon, l'interface prend sa couleur, il récupère le lien d'invitation ;
 // 2. Pierre (téléphone) ouvre le lien sans compte : il crée son compte et entre directement dans le saloon ;
 // 3. Jacques (PC 13 pouces) rejoint avec le nom et le mot de passe (refusé d'abord avec un mauvais mot de passe) ;
-// 4. une partie créée dans le saloon démarre ; Jacques quitte le saloon ; un nouveau lien rend l'ancien inutilisable.
+// 4. une partie créée dans le saloon démarre ; Jacques quitte le saloon ; un nouveau lien rend l'ancien inutilisable ;
+// 5. rôles : Ju nomme Pierre admin, renomme le saloon, bannit Jacques (revenu), donne la propriété à Pierre,
+//    qui supprime le saloon.
 // Prérequis : npm run online:dev dans un autre terminal (port 8787), Playwright installé.
 // Usage : node scripts/recette-saloons.cjs [dossier-des-captures] [adresse]
 const { chromium } = require('playwright');
@@ -119,6 +121,65 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await laptop.goto(link);
   await laptop.locator('.online-banner-error').waitFor({ timeout: 10000 });
   check('ancien lien refusé', /plus valable/.test(await laptop.locator('.online-banner-error').innerText()));
+
+  // --- 5. Rôles et administration ---
+  check('saloon public : « ouvert à tous »', /ouvert à tous/.test(await laptop.locator('.saloon-header-info').innerText()));
+  const newLink = await borne.getByLabel("Lien d'invitation").inputValue();
+  await laptop.goto(newLink);
+  await laptop.locator('.online-banner').waitFor({ timeout: 10000 });
+  await borne.locator('.saloon-tabs').getByRole('button', { name: 'Membres' }).click();
+  await borne.locator('.saloon-member').first().waitFor();
+  const row = (p, name) => p.locator('.saloon-member', { hasText: name });
+  await row(borne, `Pierre${tag}`).getByRole('button', { name: 'Nommer admin' }).click();
+  await borne.waitForTimeout(600);
+  check('Pierre nommé admin', /Admin/.test(await row(borne, `Pierre${tag}`).innerText()));
+  await shot(borne, '08-membres.png');
+  await row(borne, `Jacques${tag}`).getByRole('button', { name: 'Bannir' }).click();
+  await borne.locator('.saloon-confirm').getByRole('button', { name: 'Bannir' }).click();
+  await borne.waitForTimeout(600);
+  check('Jacques banni', /Bannis/i.test(await borne.locator('.saloon-members').innerText()));
+  await laptop.goto(URL);
+  await laptop.locator('.saloon-rail-add').click();
+  await laptop.getByLabel('Nom du saloon').fill(SALOON);
+  await laptop.getByLabel('Mot de passe du saloon').fill(SALOON_PASS);
+  await laptop.getByText('Entrer', { exact: true }).click();
+  await laptop.locator('.saloon-dialog .online-error').waitFor({ timeout: 10000 });
+  check('banni : refusé même avec le mot de passe', /banni/.test(await laptop.locator('.saloon-dialog .online-error').innerText()));
+  await borne.locator('.saloon-tabs').getByRole('button', { name: 'Réglages' }).click();
+  await borne.getByLabel('Nom du saloon', { exact: true }).fill(`Bar ${tag}`);
+  await borne.getByLabel('Couleur #8e5bd6').click();
+  await borne.getByRole('button', { name: 'Enregistrer' }).click();
+  await borne.waitForTimeout(800);
+  await shot(borne, '09-reglages.png');
+  await borne.getByRole('button', { name: 'Fermer', exact: true }).click();
+  check('saloon renommé', (await header(borne)) === `Bar ${tag}`);
+  check('nouvelle couleur', (await green(borne)) === '#8e5bd6');
+  await phone.reload();
+  await phone.locator('.saloon-header-toggle').click();
+  await phone.locator('.saloon-menu').getByText(`Bar ${tag}`).click();
+  await phone.locator('.saloon-header-info').click();
+  check('Pierre (admin) voit les réglages', await phone.locator('.saloon-tabs').getByRole('button', { name: 'Réglages' }).isVisible());
+  await phone.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await borne.locator('.saloon-header-info').click();
+  await borne.locator('.saloon-tabs').getByRole('button', { name: 'Membres' }).click();
+  await row(borne, `Pierre${tag}`).getByRole('button', { name: 'Donner la propriété' }).click();
+  await borne.locator('.saloon-confirm').getByRole('button', { name: 'Donner la propriété' }).click();
+  await borne.waitForTimeout(600);
+  check('propriété transférée', /Propriétaire/.test(await row(borne, `Pierre${tag}`).innerText()));
+  await borne.locator('.saloon-tabs').getByRole('button', { name: 'Réglages' }).click();
+  check('Ju (admin) ne peut plus supprimer', !(await borne.getByText('Supprimer définitivement').count()));
+  await borne.getByRole('button', { name: 'Fermer', exact: true }).click();
+  await phone.reload();
+  await phone.locator('.saloon-header-info').click();
+  await phone.locator('.saloon-tabs').getByRole('button', { name: 'Réglages' }).click();
+  await phone.getByLabel('Nom du saloon à supprimer').fill(`bar ${tag}`);
+  await shot(phone, '10-supprimer.png');
+  await phone.getByRole('button', { name: 'Supprimer définitivement' }).click();
+  await phone.waitForTimeout(800);
+  check('saloon supprimé, retour au public', (await header(phone)) === 'TREM-DRAGOOON');
+  await borne.reload();
+  await borne.waitForTimeout(800);
+  check('le saloon a disparu chez Ju', (await borne.locator('.saloon-rail-item').count()) === 1);
 
   check('aucune erreur JavaScript', errors.length === 0, errors.join(' | '));
   await browser.close();

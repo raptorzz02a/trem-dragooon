@@ -187,8 +187,8 @@ export function App() {
           {saloonMessage.text}
         </div>
       )}
-      {saloonDialog === 'add' && <SaloonDialog state={saloons} onClose={() => setSaloonDialog(null)} />}
-      {saloonDialog === 'info' && <SaloonInfo saloon={saloons.current} state={saloons} onClose={() => setSaloonDialog(null)} />}
+      {saloonDialog === 'add' && <SaloonDialog state={saloons} myId={account.id} onClose={() => setSaloonDialog(null)} />}
+      {saloonDialog === 'info' && <SaloonInfo saloon={saloons.current} state={saloons} myId={account.id} onClose={() => setSaloonDialog(null)} />}
       {editor}
       {changingPassword && <PasswordDialog onSave={accountState.changePassword} onClose={() => setChangingPassword(false)} />}
     </>

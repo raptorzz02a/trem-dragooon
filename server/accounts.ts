@@ -28,7 +28,14 @@ import {
   saloonKey,
   saloonNameProblem,
   saloonPasswordProblem,
+  canDeleteSaloon,
+  canEditSaloon,
+  canManage,
+  type AdminSaloon,
+  type MemberAction,
   type Saloon,
+  type SaloonActor,
+  type SaloonMembers,
   type SaloonRole,
 } from '../src/online/saloons';
 import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
@@ -150,6 +157,12 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
         account_id TEXT NOT NULL,
         role TEXT NOT NULL,
         joined_at TEXT NOT NULL,
+        PRIMARY KEY (saloon_id, account_id)
+      );
+      CREATE TABLE IF NOT EXISTS saloon_bans (
+        saloon_id TEXT NOT NULL,
+        account_id TEXT NOT NULL,
+        banned_at TEXT NOT NULL,
         PRIMARY KEY (saloon_id, account_id)
       );
       CREATE TABLE IF NOT EXISTS saloon_failures (
@@ -519,6 +532,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     if (!row) throw wrong;
     const already = this.saloonView(row.id, me.id);
     if (already) return already;
+    this.notBanned(row.id, me.id);
     const now = Date.now();
     const fail = this.sql
       .exec<{ failures: number; locked_until: number }>('SELECT failures, locked_until FROM saloon_failures WHERE saloon_id = ? AND account_id = ?', row.id, me.id)
@@ -540,7 +554,16 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     const me = await this.member(token);
     const row = isInviteToken(invite) ? this.sql.exec<{ id: string }>('SELECT id FROM saloons WHERE invite = ?', invite).toArray()[0] : undefined;
     if (!row) throw new Error('Ce lien d’invitation n’est plus valable : demande-en un nouveau.');
-    return this.saloonView(row.id, me.id) ?? this.addMember(row.id, me.id);
+    const already = this.saloonView(row.id, me.id);
+    if (already) return already;
+    this.notBanned(row.id, me.id);
+    return this.addMember(row.id, me.id);
+  }
+
+  private notBanned(saloonId: string, accountId: string): void {
+    if (this.sql.exec('SELECT 1 FROM saloon_bans WHERE saloon_id = ? AND account_id = ?', saloonId, accountId).toArray().length) {
+      throw new Error('Tu as été banni de ce saloon.');
+    }
   }
 
   private addMember(saloonId: string, accountId: string): Saloon {
@@ -581,10 +604,135 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       )
       .toArray()[0];
     if (heir) this.sql.exec("UPDATE saloon_members SET role = 'owner' WHERE saloon_id = ? AND account_id = ?", saloonId, heir.account_id);
-    else {
-      this.sql.exec('DELETE FROM saloon_failures WHERE saloon_id = ?', saloonId);
-      this.sql.exec('DELETE FROM saloons WHERE id = ?', saloonId);
+    else this.dropSaloon(saloonId);
+  }
+
+  /** Rôle de ce compte dans ce saloon ; l'administrateur de l'appli y a tous les pouvoirs. */
+  private actor(saloonId: string, accountId: string): SaloonActor | null {
+    if (this.isAdmin(accountId) && this.saloonExists(saloonId)) return 'global';
+    return this.roleIn(saloonId, accountId);
+  }
+
+  private roleIn(saloonId: string, accountId: string): SaloonRole | null {
+    const row = this.sql.exec<{ role: string }>('SELECT role FROM saloon_members WHERE saloon_id = ? AND account_id = ?', saloonId, accountId).toArray()[0];
+    return (row?.role as SaloonRole | undefined) ?? null;
+  }
+
+  private saloonExists(saloonId: string): boolean {
+    return this.sql.exec('SELECT id FROM saloons WHERE id = ?', saloonId).toArray().length > 0;
+  }
+
+  private async saloonActor(token: string, saloonId: unknown): Promise<{ me: AccountRow; id: string; actor: SaloonActor }> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    const actor = id === PUBLIC_SALOON_ID ? null : this.actor(id, me.id);
+    if (!actor) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
+    return { me, id, actor };
+  }
+
+  private forbidden(): Error {
+    return Object.assign(new Error('Tu n’as pas les droits pour ça dans ce saloon.'), { status: 403 });
+  }
+
+  /** Membres du saloon ; les bannis ne sont listés que pour ceux qui peuvent lever le bannissement. */
+  async saloonMembers(token: string, saloonId: unknown): Promise<SaloonMembers> {
+    const { id, actor } = await this.saloonActor(token, saloonId);
+    const members = this.sql
+      .exec<AccountRow & { role: string; joined_at: string }>(
+        `SELECT a.*, m.role, m.joined_at FROM saloon_members m JOIN accounts a ON a.id = m.account_id WHERE m.saloon_id = ?
+         ORDER BY CASE m.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, a.name_key`,
+        id,
+      )
+      .toArray()
+      .map((r) => {
+        const { id: accountId, name, color, avatar } = publicAccount(r as AccountRow);
+        return { id: accountId, name, color, avatar, role: r.role as SaloonRole, joinedAt: r.joined_at };
+      });
+    const banned = canEditSaloon(actor)
+      ? this.sql
+          .exec<{ id: string; name: string }>('SELECT a.id, a.name FROM saloon_bans b JOIN accounts a ON a.id = b.account_id WHERE b.saloon_id = ? ORDER BY a.name_key', id)
+          .toArray()
+          .map((r) => ({ id: r.id, name: r.name }))
+      : [];
+    return { members, banned };
+  }
+
+  /** Réglages du saloon : nom, couleur, icône, et nouveau mot de passe si fourni (les membres restent membres). */
+  async updateSaloon(token: string, saloonId: unknown, name: unknown, password: unknown, color: unknown, icon: unknown): Promise<void> {
+    const { id, actor } = await this.saloonActor(token, saloonId);
+    if (!canEditSaloon(actor)) throw this.forbidden();
+    const title = String(name ?? '').trim().replace(/\s+/g, ' ');
+    const problem = saloonNameProblem(title);
+    if (problem) throw new Error(problem);
+    const colour = cleanSaloonColor(color);
+    const symbol = cleanSaloonIcon(icon);
+    if (!colour || !symbol) throw new Error('Choisis une couleur et une icône.');
+    const other = this.sql.exec<{ id: string }>('SELECT id FROM saloons WHERE name_key = ?', saloonKey(title)).toArray()[0];
+    if (other && other.id !== id) throw new Error('Ce nom de saloon est déjà pris.');
+    const secret = String(password ?? '');
+    if (secret) {
+      const bad = saloonPasswordProblem(secret);
+      if (bad) throw new Error(bad);
+      const salt = randomHex(16);
+      const hash = await hashPassword(secret, salt);
+      this.sql.exec('UPDATE saloons SET salt = ?, password_hash = ? WHERE id = ?', salt, hash, id);
+      this.sql.exec('DELETE FROM saloon_failures WHERE saloon_id = ?', id);
     }
+    this.sql.exec('UPDATE saloons SET name = ?, name_key = ?, color = ?, icon = ? WHERE id = ?', title, saloonKey(title), colour, symbol, id);
+  }
+
+  /** Exclure, bannir, nommer ou retirer un admin, transférer la propriété ; ou lever un bannissement. */
+  async manageMember(token: string, saloonId: unknown, accountId: unknown, action: unknown): Promise<void> {
+    const { me, id, actor } = await this.saloonActor(token, saloonId);
+    const target = typeof accountId === 'string' ? accountId : '';
+    if (action === 'unban') {
+      if (!canEditSaloon(actor)) throw this.forbidden();
+      this.sql.exec('DELETE FROM saloon_bans WHERE saloon_id = ? AND account_id = ?', id, target);
+      return;
+    }
+    if (!['kick', 'ban', 'promote', 'demote', 'transfer'].includes(action as string)) throw new Error('Action inconnue.');
+    if (target === me.id && actor !== 'global') throw new Error('Pour partir, utilise « Quitter le saloon ».');
+    const role = this.roleIn(id, target);
+    if (!role) throw new Error('Ce joueur n’est pas membre du saloon.');
+    if (!canManage(actor, role, action as MemberAction)) throw this.forbidden();
+    if (action === 'kick' || action === 'ban') {
+      if (action === 'ban') this.sql.exec('INSERT OR IGNORE INTO saloon_bans VALUES (?, ?, ?)', id, target, new Date().toISOString());
+      this.removeMember(id, target);
+    } else if (action === 'promote' || action === 'demote') {
+      this.sql.exec('UPDATE saloon_members SET role = ? WHERE saloon_id = ? AND account_id = ?', action === 'promote' ? 'admin' : 'member', id, target);
+    } else {
+      // L'ancien propriétaire reste admin.
+      this.sql.exec("UPDATE saloon_members SET role = 'admin' WHERE saloon_id = ? AND role = 'owner'", id);
+      this.sql.exec("UPDATE saloon_members SET role = 'owner' WHERE saloon_id = ? AND account_id = ?", id, target);
+    }
+  }
+
+  /** Suppression d'un saloon : il faut retaper son nom. Ses parties restent dans les stats de ceux qui les ont jouées. */
+  async deleteSaloon(token: string, saloonId: unknown, confirm: unknown): Promise<void> {
+    const { id, actor } = await this.saloonActor(token, saloonId);
+    if (!canDeleteSaloon(actor)) throw this.forbidden();
+    const name = this.sql.exec<{ name: string }>('SELECT name FROM saloons WHERE id = ?', id).one().name;
+    if (saloonKey(String(confirm ?? '')) !== saloonKey(name)) throw new Error('Retape exactement le nom du saloon pour confirmer.');
+    this.dropSaloon(id);
+  }
+
+  private dropSaloon(id: string): void {
+    for (const table of ['saloon_members', 'saloon_bans', 'saloon_failures']) this.sql.exec(`DELETE FROM ${table} WHERE saloon_id = ?`, id);
+    this.sql.exec('DELETE FROM saloons WHERE id = ?', id);
+  }
+
+  /** Tous les saloons, pour l'administrateur de l'appli. */
+  async adminSaloons(token: string): Promise<AdminSaloon[]> {
+    await this.admin(token);
+    return this.sql
+      .exec<{ id: string; name: string; color: string; icon: string; created_at: string; members: number; owner: string | null }>(
+        `SELECT s.id, s.name, s.color, s.icon, s.created_at,
+           (SELECT COUNT(*) FROM saloon_members m WHERE m.saloon_id = s.id) AS members,
+           (SELECT a.name FROM saloon_members m JOIN accounts a ON a.id = m.account_id WHERE m.saloon_id = s.id AND m.role = 'owner') AS owner
+         FROM saloons s ORDER BY s.name_key`,
+      )
+      .toArray()
+      .map((r) => ({ id: r.id, name: r.name, color: r.color, icon: r.icon, members: r.members, owner: r.owner, createdAt: r.created_at }));
   }
 
   // Espace administrateur : chaque action vérifie d'abord que le jeton est celui d'un administrateur.
@@ -645,6 +793,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       this.removeMember(saloon_id, row.id);
     }
     this.sql.exec('DELETE FROM saloon_failures WHERE account_id = ?', row.id);
+    this.sql.exec('DELETE FROM saloon_bans WHERE account_id = ?', row.id);
     this.sql.exec('DELETE FROM accounts WHERE id = ?', row.id);
   }
 
