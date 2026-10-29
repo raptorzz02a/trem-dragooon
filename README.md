@@ -27,6 +27,8 @@ npm run typecheck # vérification TypeScript
 | `src/storage` | Anciennes données de la borne (IndexedDB), lues une fois pour reprendre les stats. |
 | `src/ui` | Écrans (connexion, accueil, salle d'attente et réglages, jeu, classements) ; `src/ui/modes` contient ce qui diffère d'un mode à l'autre à l'écran. |
 | `src/online` | Parties à code, comptes, arbitrage par le serveur, connexion. Voir `docs/en-ligne.md`. |
+| `src/light` | Effets lumineux : repère triple, Bull, double, raté, bust et victoire, et les envoie au pont de l'ampoule. |
+| `bridge` | Pont local de l'ampoule Yeelight, lancé sur le PC de la borne. Voir `docs/ampoule.md`. |
 | `server` | Serveur Cloudflare (Worker + Durable Objects) qui sert l'appli et les salons en ligne. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
 | `docs/guide-utilisateur.md` | Guide utilisateur (livrable 05). |

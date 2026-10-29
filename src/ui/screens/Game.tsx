@@ -10,6 +10,7 @@ import type { ViewContext } from '../modes/types';
 import { useTapGuard } from '../useTapGuard';
 import type { Profile } from '../../profiles/types';
 import { Avatar } from '../components/Avatar';
+import { lightEffectFor, lightEnabled, sendLight } from '../../light/light';
 import './Game.css';
 
 interface Props {
@@ -58,6 +59,19 @@ export function Game(props: Props) {
   const mine = !props.myId || current?.playerId === props.myId;
   const canUndo = props.canUndo ?? props.session.events.length > 0;
   const guard = useTapGuard(400);
+
+  // Ampoule de la borne : effet sur triple, Bull, double, raté, bust et victoire.
+  const lastState = useRef<GameState | null>(null);
+  useEffect(() => {
+    const prev = lastState.current;
+    lastState.current = state;
+    if (!lightEnabled()) return;
+    const effect = lightEffectFor(prev, state, (i) => {
+      const side = sides[i]!;
+      return side.color ?? props.profiles?.find((p) => p.id === side.playerIds[0])?.color ?? '#FFD24D';
+    });
+    if (effect) void sendLight(effect);
+  }, [state]);
 
   // Écran de transition : affiché quand le tour avance (pas quand on annule).
   const [transition, setTransition] = useState<TurnRecord | null>(null);

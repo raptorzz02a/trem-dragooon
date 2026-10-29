@@ -8,6 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
 import { PLACE_NAMES } from './Setup';
+import { lightEnabled, sendLight, setLightEnabled } from '../../light/light';
 import './Home.css';
 
 interface Props {
@@ -54,6 +55,16 @@ export function Home(props: Props) {
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [light, setLight] = useState(lightEnabled);
+
+  const toggleLight = async () => {
+    setLightEnabled(!light);
+    setLight(!light);
+    if (light) return;
+    // Effet de test : confirme que le pont tourne sur cet appareil.
+    const ok = await sendLight({ effect: 'victory', color: '#FFD24D' });
+    if (!ok) setError('Pont de l’ampoule injoignable : il doit tourner sur ce PC (npm run pont).');
+  };
 
   const create = async (mode: GameMode) => {
     setBusy(true);
@@ -111,6 +122,7 @@ export function Home(props: Props) {
                   props.saloons.fixed ? 'Ne plus fixer le saloon sur cet appareil' : 'Fixer ce saloon sur cet appareil (borne)',
                   () => props.saloons.setFixed(!props.saloons.fixed),
                 )}
+                {menuItem(light ? 'Couper l’ampoule de la borne' : 'Activer l’ampoule de la borne', () => void toggleLight())}
                 {props.onAdmin && menuItem('Administration', props.onAdmin)}
                 {menuItem('Déconnexion', props.onLogout, 'home-menu-logout')}
               </div>

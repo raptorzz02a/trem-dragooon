@@ -13,7 +13,9 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit && tsc -p server/tsconfig.json",
     "online:dev": "vite build && wrangler dev -c server/wrangler.toml",
-    "deploy": "npm run build && wrangler deploy -c server/wrangler.toml"
+    "deploy": "npm run build && wrangler deploy -c server/wrangler.toml",
+    "pont": "node bridge/pont-yeelight.mjs",
+    "recette:ampoule": "node scripts/recette-ampoule.mjs"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261029.1",
