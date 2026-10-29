@@ -3,7 +3,7 @@ import { D, S, T } from '../game-engine/darts';
 import { sessionState } from '../game-session/session';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
 import { isValidCode, normalizeCode, randomCode } from './protocol';
-import { applyMessage, canUndo, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
+import { applyMessage, archiveChange, canUndo, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
 
 const NOW = '2026-10-29T20:00:00.000Z';
 const who = (name: string) => ({ name, color: '#ff0000', avatar: DEFAULT_AVATAR });
@@ -130,5 +130,45 @@ describe('partie en ligne', () => {
     const room = applyMessage(playing('Ju', 'Max'), 'p2', { type: 'leave' });
     expect(room.players.find((p) => p.id === 'p2')!.connected).toBe(false);
     expect(room.session!.config.sides).toHaveLength(2);
+  });
+});
+
+describe('comptes et parties enregistrées', () => {
+  it('un compte joue sous son identifiant et retrouve sa place depuis un autre appareil', () => {
+    let room = joinRoom(createRoom('ABCDEF'), null, who('Ju'), token, 'acc-ju').room;
+    room = joinRoom(room, null, who('Max'), token, 'acc-max').room;
+    expect(room.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-max']);
+    room = applyMessage(room, 'acc-ju', { type: 'start' }, NOW, first);
+    room = applyMessage(room, 'acc-max', { type: 'leave' });
+    // Autre appareil, sans le jeton du salon, partie déjà lancée : même joueur, nouvel avatar.
+    const back = joinRoom(room, null, { ...who('Maxou'), color: '#00ff00' }, token, 'acc-max');
+    expect(back.player.id).toBe('acc-max');
+    expect(back.player.name).toBe('Maxou');
+    expect(back.room.players).toHaveLength(2);
+    expect(back.room.players.find((p) => p.id === 'acc-max')!.connected).toBe(true);
+  });
+
+  it('enregistre la partie à sa fin et l’oublie si une annulation la rouvre', () => {
+    let room = joinRoom(createRoom('ABCDEF'), null, who('Ju'), token, 'acc-ju').room;
+    room = joinRoom(room, null, who('Max'), token, 'acc-max').room;
+    room = applyMessage(room, 'acc-ju', { type: 'options', options: { startScore: 301, out: 'straight', maxRounds: null } });
+    room = applyMessage(room, 'acc-ju', { type: 'start' }, NOW, first);
+    const play = (id: string, darts: ReturnType<typeof T>[]) => {
+      for (const dart of darts) {
+        const next = applyMessage(room, id, { type: 'dart', dart }, NOW);
+        const change = archiveChange(room, next);
+        room = next;
+        if (change) return change;
+      }
+      return null;
+    };
+    expect(play('acc-ju', [T(20), T(20), T(20)])).toBeNull();
+    expect(play('acc-max', [S(1), S(1), S(1)])).toBeNull();
+    const done = play('acc-ju', [T(20), S(11), D(25)]);
+    expect(done && 'record' in done && done.record.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-max']);
+    expect(done && 'record' in done && done.record.session.status).toBe('finished');
+    const undone = applyMessage(room, 'acc-ju', { type: 'undo' }, NOW);
+    expect(archiveChange(room, undone)).toEqual({ forget: room.session!.id });
+    expect(archiveChange(room, applyMessage(room, 'acc-ju', { type: 'backToLobby' }))).toBeNull();
   });
 });

@@ -13,7 +13,8 @@ fonctionnement hors ligne : le mode en ligne est un bouton de plus sur l'accueil
 
 ## Déroulement
 
-1. Accueil → **Jouer en ligne** → choisir son joueur (un profil de l'appareil, ou « Nouveau joueur »).
+1. Accueil → **Jouer en ligne** → se connecter à son compte (pseudo + mot de passe), ou **Créer un compte**
+   puis choisir son avatar. Le compte reste connecté sur l'appareil.
 2. L'hôte appuie sur **Créer une partie** et partage le code ou le lien (« Partager le lien »).
 3. Les autres tapent le code puis **Rejoindre**. On ne peut plus rejoindre une fois la partie lancée.
 4. L'hôte choisit 301 / 501 / 701 et la sortie (n'importe quoi ou double), puis **Lancer la partie**.
@@ -26,8 +27,20 @@ Coupure réseau : l'appli se reconnecte toute seule. Si la page a été fermée 
 **Revenir dans le salon en ligne**. Si l'hôte part, le joueur suivant devient hôte. Un salon sans activité
 est effacé au bout de 12 heures.
 
-Pas de compte : chaque appareil reçoit un jeton secret qui lui permet de reprendre sa place. Les parties
-en ligne ne sont pas encore archivées dans les statistiques.
+## Comptes et statistiques en ligne
+
+Chaque joueur en ligne a un compte : un pseudo (unique, sans tenir compte des majuscules) et un mot de passe
+d'au moins 6 caractères. On peut se connecter depuis n'importe quel appareil ; si on rejoint un salon où son
+compte est déjà, on reprend sa place (utile pour passer du téléphone au PC en pleine partie).
+
+Chaque partie en ligne terminée est enregistrée pour tous ses joueurs. Le bouton **Stats et classements des
+joueurs en ligne** montre les mêmes classements et fiches que la borne, calculés sur les parties en ligne de
+tout le monde (fiches en lecture seule). Une partie rouverte par une annulation est retirée, puis réenregistrée
+à sa nouvelle fin. Les parties en ligne ne sont pas mélangées aux statistiques de la borne.
+
+Sécurité : le mot de passe n'est jamais stocké, seulement son empreinte (PBKDF2-SHA256, 100 000 tours, sel
+propre à chaque compte). Après 10 essais ratés, le pseudo est bloqué 15 minutes. Pas d'e-mail, donc pas de
+« mot de passe oublié » : un mot de passe perdu se réinitialise à la main dans la base.
 
 ## Fonctionnement technique
 
@@ -38,6 +51,9 @@ en ligne ne sont pas encore archivées dans les statistiques.
 | `src/online/useOnlineRoom.ts` | Connexion de l'appli au salon, reconnexion automatique. |
 | `src/ui/screens/Online.tsx` | Écrans « Jouer en ligne » et salle d'attente ; la partie réutilise l'écran de jeu existant. |
 | `server/worker.ts` | Cloudflare Worker : sert l'appli et crée les salons. Un Durable Object par code garde l'état du salon. |
+| `server/accounts.ts` | Base des comptes et des parties en ligne : un Durable Object unique stocké en SQLite (inclus dans l'offre gratuite). |
+| `src/online/accounts.ts`, `useAccount.ts` | Règles des pseudos et mots de passe, connexion de l'appli au compte. |
+| `src/ui/screens/Community.tsx` | Classements et fiches des joueurs en ligne (réutilise les écrans de la borne). |
 | `scripts/recette-en-ligne.cjs` | Recette automatisée : une borne et un téléphone jouent une partie complète. |
 
 Le serveur applique exactement le même moteur que l'appli : il rejoue chaque fléchette reçue et refuse

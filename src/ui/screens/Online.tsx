@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { sessionState } from '../../game-session/session';
 import type { Profile } from '../../profiles/types';
+import { passwordProblem, pseudoProblem, PSEUDO_MAX, type PublicAccount } from '../../online/accounts';
 import { isValidCode, normalizeCode, CODE_LENGTH, type OnlineIdentity, type RoomView } from '../../online/protocol';
 import { canUndo, MIN_ONLINE_PLAYERS } from '../../online/room';
+import { useAccount, type AccountState } from '../../online/useAccount';
 import { createOnlineRoom, setCurrentOnlineRoom, useOnlineRoom } from '../../online/useOnlineRoom';
 import { loadSettings } from '../../settings/settings';
 import { Avatar } from '../components/Avatar';
@@ -12,41 +14,22 @@ import { Choice } from './Setup';
 import './Online.css';
 
 interface Props {
-  profiles: Profile[];
-  onSaveProfile: (profile: Profile) => void;
   onHome: () => void;
+  /** Classements et fiches des joueurs en ligne. */
+  onCommunity: () => void;
   /** Code reçu par un lien partagé (?salon=…) ou salon à reprendre. */
   initialCode: string | null;
   /** true : reconnexion directe au salon (reprise après rechargement). */
   resume: boolean;
 }
 
-const ME_KEY = 'trem-dragooon.online.me';
+const identityOf = (a: PublicAccount): OnlineIdentity => ({ name: a.name, color: a.color, avatar: a.avatar });
+const asProfile = (a: PublicAccount): Profile => ({ ...a });
 
-function rememberedProfile(profiles: Profile[]): Profile | null {
-  try {
-    const id = localStorage.getItem(ME_KEY);
-    return profiles.find((p) => p.id === id && !p.deleted) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function rememberProfile(id: string): void {
-  try {
-    localStorage.setItem(ME_KEY, id);
-  } catch {
-    // Il faudra simplement rechoisir son profil la prochaine fois.
-  }
-}
-
-const identityOf = (p: Profile): OnlineIdentity => ({ name: p.name, color: p.color, avatar: p.avatar });
-
-/** Jouer en ligne : choisir qui joue sur cet appareil, puis créer un salon ou en rejoindre un avec son code. */
-export function Online({ profiles, onSaveProfile, onHome, initialCode, resume }: Props) {
-  const active = profiles.filter((p) => !p.deleted);
-  const [me, setMe] = useState<Profile | null>(() => rememberedProfile(profiles));
-  const [creating, setCreating] = useState<Profile | null>(null);
+/** Jouer en ligne : se connecter à son compte, puis créer un salon ou en rejoindre un avec son code. */
+export function Online({ onHome, onCommunity, initialCode, resume }: Props) {
+  const accountState = useAccount();
+  const me = accountState.account;
   const [codeText, setCodeText] = useState(initialCode ?? '');
   const [room, setRoom] = useState<string | null>(resume ? initialCode : null);
   const [busy, setBusy] = useState(false);
@@ -55,10 +38,6 @@ export function Online({ profiles, onSaveProfile, onHome, initialCode, resume }:
   const enter = (code: string) => {
     setCurrentOnlineRoom(code);
     setRoom(code);
-  };
-  const choose = (p: Profile) => {
-    rememberProfile(p.id);
-    setMe(p);
   };
 
   if (room && me) {
@@ -96,21 +75,7 @@ export function Online({ profiles, onSaveProfile, onHome, initialCode, resume }:
         <button onClick={onHome}>Accueil</button>
       </header>
 
-      <section className="online-block">
-        <div className="label">Qui joue sur cet appareil ?</div>
-        <div className="online-profiles">
-          {active.map((p) => (
-            <button key={p.id} className={`online-profile ${me?.id === p.id ? 'selected' : ''}`} onClick={() => choose(p)}>
-              <Avatar avatar={p.avatar} color={p.color} size={56} />
-              <span>{p.name}</span>
-            </button>
-          ))}
-          <button className="online-profile online-new" onClick={() => setCreating(newProfile())}>
-            <span className="online-plus">+</span>
-            <span>Nouveau joueur</span>
-          </button>
-        </div>
-      </section>
+      <AccountPanel state={accountState} />
 
       <section className="online-block online-actions">
         <button className="btn-gold online-create" disabled={!me || busy} onClick={create}>
@@ -130,24 +95,126 @@ export function Online({ profiles, onSaveProfile, onHome, initialCode, resume }:
             Rejoindre
           </button>
         </div>
-        {!me && <div className="online-hint">Choisis d’abord ton joueur.</div>}
+        {!me && <div className="online-hint">Connecte-toi d’abord à ton compte.</div>}
         {error && <div className="online-error">{error}</div>}
       </section>
 
-      {creating && (
-        <ProfileEditor
-          title="Nouveau joueur"
-          initial={creating}
-          takenNames={active.map((p) => p.name)}
-          onCancel={() => setCreating(null)}
-          onSave={(profile) => {
-            onSaveProfile(profile);
-            choose(profile);
-            setCreating(null);
-          }}
-        />
-      )}
+      <button className="online-community" onClick={onCommunity}>
+        Stats et classements des joueurs en ligne
+      </button>
     </div>
+  );
+}
+
+/** Connexion, création de compte, ou compte connecté avec son avatar. */
+function AccountPanel({ state }: { state: AccountState }) {
+  const [tab, setTab] = useState<'login' | 'signup'>('login');
+  const [name, setName] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [editing, setEditing] = useState(false);
+  const me = state.account;
+
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setError(null);
+    try {
+      await fn();
+      setPassword('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Action impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (me) {
+    return (
+      <section className="online-block">
+        <div className="label">Ton compte</div>
+        <div className="online-me">
+          <Avatar avatar={me.avatar} color={me.color} size={64} />
+          <span className="online-me-name">{me.name}</span>
+          <button onClick={() => setEditing(true)}>Modifier</button>
+          <button onClick={state.logout}>Se déconnecter</button>
+        </div>
+        {error && <div className="online-error">{error}</div>}
+        {editing && (
+          <ProfileEditor
+            title="Mon joueur en ligne"
+            initial={asProfile(me)}
+            takenNames={[]}
+            onCancel={() => setEditing(false)}
+            onSave={(p) => {
+              setEditing(false);
+              void run(() => state.update({ name: p.name, color: p.color, avatar: p.avatar }));
+            }}
+          />
+        )}
+      </section>
+    );
+  }
+
+  const problem = tab === 'signup' ? (pseudoProblem(name) ?? passwordProblem(password)) : null;
+  const submit = () =>
+    run(() => {
+      if (tab === 'login') return state.login(name, password);
+      const look = newProfile(name);
+      // Compte créé : on passe directement au choix de l'avatar.
+      return state.signup(name.trim(), password, look.color, look.avatar).then(() => setEditing(true));
+    });
+
+  return (
+    <section className="online-block">
+      <div className="label">Ton compte</div>
+      <Choice
+        label=""
+        value={tab}
+        options={[
+          { value: 'login' as const, label: 'Se connecter' },
+          { value: 'signup' as const, label: 'Créer un compte' },
+        ]}
+        onChange={(t) => {
+          setTab(t);
+          setError(null);
+        }}
+      />
+      <form
+        className="online-login"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!busy && !problem) void submit();
+        }}
+      >
+        <input
+          aria-label="Pseudo"
+          placeholder="Pseudo"
+          value={name}
+          maxLength={PSEUDO_MAX}
+          autoComplete="username"
+          autoCapitalize="none"
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          aria-label="Mot de passe"
+          placeholder="Mot de passe"
+          type="password"
+          value={password}
+          autoComplete={tab === 'login' ? 'current-password' : 'new-password'}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <button type="submit" className="btn-primary" disabled={busy || !name.trim() || !password || problem !== null}>
+          {tab === 'login' ? 'Se connecter' : 'Créer mon compte'}
+        </button>
+      </form>
+      {tab === 'signup' && (
+        <div className="online-hint">
+          {problem && (name || password) ? problem : 'Un pseudo et un mot de passe suffisent. Tu choisiras ton avatar ensuite.'}
+        </div>
+      )}
+      {error && <div className="online-error">{error}</div>}
+    </section>
   );
 }
 

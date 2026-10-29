@@ -19,6 +19,7 @@ import { currentOnlineRoom } from '../online/useOnlineRoom';
 import { normalizeCode } from '../online/protocol';
 import { Game } from './screens/Game';
 import { Online } from './screens/Online';
+import { Community } from './screens/Community';
 import { Home } from './screens/Home';
 import { Players } from './screens/Players';
 import { Profile } from './screens/Profile';
@@ -26,7 +27,7 @@ import { Rankings } from './screens/Rankings';
 import { useLibrary } from './useLibrary';
 import { DEFAULT_SETUP, Setup, type GameSetup } from './screens/Setup';
 
-type Screen = 'home' | 'setup' | 'game' | 'players' | 'profile' | 'rankings' | 'online';
+type Screen = 'home' | 'setup' | 'game' | 'players' | 'profile' | 'rankings' | 'online' | 'community';
 
 /** Code reçu par un lien de partage (?salon=ABC234), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
@@ -109,16 +110,19 @@ export function App() {
     setScreen('home');
   };
 
-  if (screen === 'online' && library.ready) {
+  if (screen === 'online') {
     return (
       <Online
         initialCode={online.code}
         resume={online.resume}
-        profiles={library.profiles}
-        onSaveProfile={library.saveProfile}
+        onCommunity={() => setScreen('community')}
         onHome={() => setScreen('home')}
       />
     );
+  }
+
+  if (screen === 'community') {
+    return <Community settings={settings} onSettings={updateSettings} onBack={() => setScreen('online')} />;
   }
 
   if (screen === 'setup' && library.ready) {

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClientMessage, OnlineIdentity, RoomView, ServerMessage } from './protocol';
+import { accountToken } from './useAccount';
 
 // Connexion de l'appli à un salon en ligne, avec reconnexion automatique après une coupure réseau.
 
@@ -80,7 +81,9 @@ export function useOnlineRoom(code: string, identity: OnlineIdentity): OnlineRoo
       socket.current = ws;
       ws.onopen = () => {
         attempt = 0;
-        ws.send(JSON.stringify({ type: 'hello', token: storedToken(code), identity: identityRef.current } satisfies ClientMessage));
+        ws.send(
+          JSON.stringify({ type: 'hello', token: storedToken(code), identity: identityRef.current, account: accountToken() } satisfies ClientMessage),
+        );
       };
       ws.onmessage = (event) => {
         const message = JSON.parse(String(event.data)) as ServerMessage;

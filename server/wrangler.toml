@@ -18,3 +18,12 @@ class_name = "RoomObject"
 [[migrations]]
 tag = "v1"
 new_sqlite_classes = ["RoomObject"]
+
+# Base des comptes et des parties en ligne (pseudo + mot de passe, statistiques partagées).
+[[durable_objects.bindings]]
+name = "ACCOUNTS"
+class_name = "AccountsObject"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AccountsObject"]

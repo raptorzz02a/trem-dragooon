@@ -1,4 +1,5 @@
-// Recette du mode en ligne : deux appareils (une borne 1366x768 et un téléphone) jouent une partie de 301.
+// Recette du mode en ligne : deux appareils (une borne 1366x768 et un téléphone) créent leur compte,
+// jouent une partie de 301, puis la retrouvent dans les stats des joueurs en ligne.
 // Prérequis : npm run online:dev dans un autre terminal (serveur local sur le port 8787), Playwright installé.
 // Usage : node scripts/recette-en-ligne.cjs [dossier-des-captures] [adresse]
 const { chromium } = require('playwright');
@@ -23,28 +24,37 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const host = await device({ width: 1366, height: 768 }, 'borne');
   const guest = await device({ width: 390, height: 844 }, 'téléphone');
   const shot = (p, file) => p.screenshot({ path: path.join(out, file) });
-  const newPlayer = async (p, name) => {
-    await p.getByText('Nouveau joueur').click();
-    await p.locator('.profile-editor input').fill(name);
-    await p.getByText('Enregistrer').click();
+  // Pseudos uniques à chaque recette : la base locale garde les comptes d'une fois sur l'autre.
+  const tag = Date.now().toString(36).slice(-4);
+  const JU = `Ju${tag}`;
+  const MAX = `Max${tag}`;
+  const login = async (p, name, password, signup) => {
+    if (signup) await p.getByText('Créer un compte').click();
+    await p.getByLabel('Pseudo').fill(name);
+    await p.getByLabel('Mot de passe').fill(password);
+    await p.locator('.online-login button').click();
+    if (signup) await p.getByText('Enregistrer').click(); // avatar proposé à la création
+    await p.locator('.online-me-name').waitFor({ timeout: 10000 });
   };
+  const newPlayer = (p, name) => login(p, name, 'secret123', true);
 
-  // Hôte : crée son joueur puis un salon.
+  // Hôte : crée son compte puis un salon.
   await host.goto(URL);
   await host.getByText('Jouer en ligne').click();
-  await newPlayer(host, 'Ju');
+  await newPlayer(host, JU);
+  check('compte créé et connecté', (await host.locator('.online-me-name').innerText()).trim() === JU);
   await host.getByText('Créer une partie').click();
   const code = (await host.locator('.online-code').innerText({ timeout: 10000 })).trim();
   check('code affiché', /^[A-Z2-9]{6}$/.test(code), code);
 
   // Invité : arrive par le lien partagé, sans retaper le code.
   await guest.goto(`${URL}?salon=${code}`);
-  await newPlayer(guest, 'Max');
+  await newPlayer(guest, MAX);
   check('code prérempli', (await guest.locator('.online-join input').inputValue()) === code);
   await shot(guest, '1-rejoindre-telephone.png');
   await guest.getByText('Rejoindre', { exact: true }).click();
   await host.locator('.online-players li').nth(1).waitFor();
-  check('l’hôte voit l’invité', (await host.locator('.online-players').innerText()).includes('Max'));
+  check('l’hôte voit l’invité', (await host.locator('.online-players').innerText()).includes(MAX));
   check('l’invité attend l’hôte', await guest.getByText('En attente du lancement').isVisible());
 
   await host.getByText('301', { exact: true }).click();
@@ -65,12 +75,12 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.locator('.pad-num').nth(n - 1).click();
     await p.waitForTimeout(450);
   };
-  const devices = { Ju: host, Max: guest };
+  const devices = { [JU]: host, [MAX]: guest };
   const first = await active();
-  const other = first === 'Ju' ? 'Max' : 'Ju';
+  const other = first === JU ? MAX : JU;
   check('le pavé est bloqué pour celui qui attend', await devices[other].locator('.pad-num').first().isDisabled());
   await skip(devices[first]);
-  await shot(devices.Max, '4-partie-telephone.png');
+  await shot(guest, '4-partie-telephone.png');
   await tap(devices[first], 3, 20);
   await devices[other].waitForTimeout(300);
   check('la fléchette apparaît chez l’autre', (await devices[other].locator('.active-remaining').innerText()).trim() === '241');
@@ -98,11 +108,30 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await guest.getByText('En attente du lancement').waitFor({ timeout: 10000 });
   check('reprise après rechargement', (await host.locator('.online-players li').count()) === 2);
 
-  // Mauvais code.
+  // La partie terminée est enregistrée : elle apparaît dans les stats des joueurs en ligne.
   const third = await device({ width: 390, height: 844 }, 'intrus');
   await third.goto(URL);
   await third.getByText('Jouer en ligne').click();
-  await newPlayer(third, 'Léo');
+  await third.getByText('Stats et classements des joueurs en ligne').click();
+  await third.locator('.ranking-row', { hasText: JU }).click();
+  await third.locator('.profile-head').waitFor();
+  check('fiche d’un autre joueur sans modification', (await third.getByText('Supprimer').count()) === 0);
+  check('partie en ligne dans ses stats', (await third.locator('.profile-content').innerText()).includes('1'));
+  await shot(third, '6-stats-en-ligne.png');
+  await third.getByText('← Classements').click();
+  await third.getByText('← Retour').click();
+
+  // Mauvais mot de passe, puis connexion depuis un autre appareil.
+  await third.getByLabel('Pseudo').fill(MAX);
+  await third.getByLabel('Mot de passe').fill('mauvais');
+  await third.locator('.online-login button').click();
+  await third.getByText('Pseudo ou mot de passe incorrect').waitFor({ timeout: 10000 });
+  check('mauvais mot de passe refusé', true);
+  await third.getByText('Se déconnecter').count();
+  const leo = `Leo${tag}`;
+  await newPlayer(third, leo);
+
+  // Mauvais code.
   await third.locator('.online-join input').fill('ZZZZZZ');
   await third.getByText('Rejoindre', { exact: true }).click();
   await third.getByText('Aucune partie avec ce code').waitFor({ timeout: 10000 });

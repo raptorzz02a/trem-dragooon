@@ -5,7 +5,7 @@ import type { AvatarConfig } from '../profiles/types';
 
 // Messages échangés entre l'appli et le serveur de salons (WebSocket, JSON).
 
-/** Ce qu'un joueur montre aux autres : pas de compte, juste un surnom et un avatar. */
+/** Ce qu'un joueur montre aux autres : un surnom et un avatar (ceux de son compte). */
 export interface OnlineIdentity {
   name: string;
   color: string;
@@ -32,8 +32,11 @@ export interface RoomView {
 }
 
 export type ClientMessage =
-  /** Premier message : token pour reprendre sa place après une coupure, sinon nouvelle arrivée. */
-  | { type: 'hello'; token: string | null; identity: OnlineIdentity }
+  /**
+   * Premier message : token pour reprendre sa place après une coupure, sinon nouvelle arrivée.
+   * account : jeton de connexion du compte ; le pseudo et l'avatar du compte remplacent identity.
+   */
+  | { type: 'hello'; token: string | null; identity: OnlineIdentity; account: string | null }
   | { type: 'options'; options: X01Options }
   | { type: 'start' }
   | { type: 'dart'; dart: Dart }
