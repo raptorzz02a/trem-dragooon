@@ -131,17 +131,34 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
   /**
    * Un pseudo administrateur (variable ADMINS) est attaché pour de bon au premier compte qui le porte : si ce compte
    * change de pseudo ensuite, personne d'autre ne devient administrateur en prenant l'ancien.
+   * Retirer un pseudo de la variable retire l'accès à son compte.
    */
   private bindAdmins(): void {
-    for (const pseudo of (this.env.ADMINS ?? '').split(',').map(pseudoKey).filter(Boolean)) {
+    for (const pseudo of this.adminPseudos()) {
       const row = this.row('name_key', pseudo);
       if (row) this.sql.exec('INSERT OR IGNORE INTO admins VALUES (?, ?)', pseudo, row.id);
     }
   }
 
-  private isAdmin(accountId: string): boolean {
+  private adminPseudos(): string[] {
+    return (this.env.ADMINS ?? '').split(',').map(pseudoKey).filter(Boolean);
+  }
+
+  /** Comptes administrateurs : attachés à un pseudo encore présent dans la variable ADMINS. */
+  private adminIds(): Set<string> {
     this.bindAdmins();
-    return this.sql.exec('SELECT 1 FROM admins WHERE account_id = ?', accountId).toArray().length > 0;
+    const current = new Set(this.adminPseudos());
+    return new Set(
+      this.sql
+        .exec<{ pseudo_key: string; account_id: string }>('SELECT pseudo_key, account_id FROM admins')
+        .toArray()
+        .filter((r) => current.has(r.pseudo_key))
+        .map((r) => r.account_id),
+    );
+  }
+
+  private isAdmin(accountId: string): boolean {
+    return this.adminIds().has(accountId);
   }
 
   /** Note que le compte vient d'être utilisé (connexion, ouverture de l'appli, partie). */
@@ -370,7 +387,7 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     for (const { record } of this.sql.exec<{ record: string }>('SELECT record FROM games').toArray()) {
       for (const p of (JSON.parse(record) as GameRecord).players) counts.set(p.id, (counts.get(p.id) ?? 0) + 1);
     }
-    const admins = new Set(this.sql.exec<{ account_id: string }>('SELECT account_id FROM admins').toArray().map((r) => r.account_id));
+    const admins = this.adminIds();
     return this.sql
       .exec<AccountRow>('SELECT * FROM accounts ORDER BY name_key')
       .toArray()

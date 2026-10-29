@@ -55,6 +55,7 @@ sont alors déconnectés.
 Le bouton **Administration** (accueil) n'apparaît que pour les pseudos listés dans `ADMINS`
 (`server/wrangler.toml`, séparés par des virgules). Un pseudo administrateur est attaché pour de bon au
 compte qui le porte : changer de pseudo ensuite ne donne pas l'accès à celui qui reprendrait l'ancien.
+Retirer un pseudo de `ADMINS` (puis remettre en ligne) retire l'accès à son compte.
 
 - liste de tous les comptes : date de création, date de dernière utilisation (connexion, ouverture de
   l'appli ou partie terminée, à 10 minutes près ; pour les comptes d'avant le suivi, dernière connexion
