@@ -11,7 +11,7 @@ import {
   undoLast,
   type GameSession,
 } from '../game-session/session';
-import { loadSettings } from '../settings/settings';
+import { loadSettings, saveSettings, type AppSettings } from '../settings/settings';
 import { loadCurrentGame, saveCurrentGame, type SavedGame } from '../storage/currentGame';
 import type { GameConfig } from '../game-engine/types';
 import type { GameMode } from '../game-engine/types';
@@ -50,7 +50,13 @@ export function App() {
   const [profileId, setProfileId] = useState<string | null>(null);
   /** Écran à retrouver en quittant une fiche joueur. */
   const [profileFrom, setProfileFrom] = useState<Screen>('players');
-  const settings = useMemo(loadSettings, []);
+  const [settings, setSettings] = useState<AppSettings>(loadSettings);
+  const updateSettings = (patch: Partial<AppSettings>) =>
+    setSettings((s) => {
+      const next = { ...s, ...patch };
+      saveSettings(next);
+      return next;
+    });
   const library = useLibrary();
   const state = useMemo(() => (game ? sessionState(game.session) : null), [game]);
 
@@ -140,6 +146,8 @@ export function App() {
         profile={profile}
         profiles={library.profiles}
         games={library.games}
+        settings={settings}
+        onSettings={updateSettings}
         onSave={library.saveProfile}
         onDelete={library.deleteProfile}
         onBack={() => setScreen(profileFrom)}

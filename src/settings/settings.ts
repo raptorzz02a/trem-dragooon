@@ -3,9 +3,18 @@ export interface AppSettings {
   transitionMs: number;
   /** false : pas d'écran de transition ni d'animation. */
   animations: boolean;
+  /** Seuils de volée suivis dans les statistiques (part des volées au moins égales à chaque seuil). */
+  statThresholds: number[];
+  /** Largeur des tranches de l'histogramme des volées, en points. */
+  histogramStep: number;
 }
 
-export const DEFAULT_SETTINGS: AppSettings = { transitionMs: 1500, animations: true };
+export const DEFAULT_SETTINGS: AppSettings = {
+  transitionMs: 1500,
+  animations: true,
+  statThresholds: [60, 100, 140],
+  histogramStep: 20,
+};
 
 const KEY = 'trem-dragooon.settings';
 

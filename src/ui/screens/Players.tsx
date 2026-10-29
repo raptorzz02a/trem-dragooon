@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { playerGames, summary } from '../../profiles/stats';
-import type { GameRecord, Profile } from '../../profiles/types';
+import { MAX_PROFILES, type GameRecord, type Profile } from '../../profiles/types';
 import { Avatar } from '../components/Avatar';
 import { newProfile, ProfileEditor } from '../components/ProfileEditor';
 import { pct } from '../format';
@@ -26,8 +26,11 @@ export function Players({ profiles, games, onSaveProfile, onOpen, onBack }: Prop
     <div className="screen library">
       <header className="lib-header">
         <button onClick={onBack}>← Accueil</button>
-        <h2>Joueurs</h2>
-        <button className="btn-primary" onClick={() => setCreating(newProfile())}>
+        <h2>
+          Joueurs <span className="lib-count">{active.length}/{MAX_PROFILES}</span>
+        </h2>
+        {active.length >= MAX_PROFILES && <span className="tile-label">Maximum atteint : supprimez un profil pour en créer un.</span>}
+        <button className="btn-primary" disabled={active.length >= MAX_PROFILES} onClick={() => setCreating(newProfile())}>
           ＋ Nouveau joueur
         </button>
       </header>
