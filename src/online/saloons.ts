@@ -146,6 +146,8 @@ export interface AdminSaloon {
 export interface LiveGame {
   /** Clé pour la regarder en spectateur ; le code reste nécessaire pour y jouer. */
   watchKey: string;
+  /** Code de la partie, seulement pour un compte qui y joue déjà : il peut la reprendre. */
+  code?: string;
   mode: GameMode;
   place: RoomPlace;
   status: 'lobby' | 'playing';
@@ -155,7 +157,10 @@ export interface LiveGame {
 }
 
 /** Résumé qu'une partie envoie à la base des saloons quand il change (null : partie finie ou effacée). */
-export type LiveSummary = Omit<LiveGame, 'watchKey' | 'updatedAt'>;
+export type LiveSummary = Omit<LiveGame, 'watchKey' | 'updatedAt' | 'code'> & {
+  /** Comptes présents dans la partie (jamais envoyés à la liste). */
+  playerIds?: string[];
+};
 
 /** Une partie qui ne donne plus de nouvelles depuis ce délai sort de la liste (même durée que l'effacement d'une partie). */
 export const LIVE_GAME_TTL_MS = 12 * 60 * 60 * 1000;

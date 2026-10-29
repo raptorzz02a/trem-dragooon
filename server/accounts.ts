@@ -942,7 +942,12 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     const me = await this.member(token);
     const id = typeof saloonId === 'string' ? saloonId : '';
     if (!this.isMember(me.id, id)) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
-    return this.liveRows(id).map((r) => ({ ...(JSON.parse(r.summary) as LiveSummary), watchKey: r.watch_key, updatedAt: new Date(r.updated_at).toISOString() }));
+    return this.liveRows(id).map((r) => {
+      const { playerIds, ...summary } = JSON.parse(r.summary) as LiveSummary;
+      // Les parties signalées avant l'ajout des comptes se reconnaissent au pseudo (unique).
+      const mine = playerIds ? playerIds.includes(me.id) : summary.players.some((n) => pseudoKey(n) === pseudoKey(me.name));
+      return { ...summary, ...(mine ? { code: r.code } : {}), watchKey: r.watch_key, updatedAt: new Date(r.updated_at).toISOString() };
+    });
   }
 
   /** Code de la partie à regarder : seulement pour un membre du saloon. */

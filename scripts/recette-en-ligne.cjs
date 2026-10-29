@@ -126,12 +126,26 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await shot(phone, '07-cricket-telephone.png');
   await borne.getByText('Quitter', { exact: true }).click();
   await borne.getByText('Arrêter la partie', { exact: true }).click();
-  await borne.getByText('Lancer la partie').waitFor({ timeout: 10000 });
-  check('partie arrêtée : retour à la salle d’attente', true);
+  await phone.getByText('L’hôte a supprimé la partie.').waitFor({ timeout: 10000 });
+  await borne.locator('.home-account-name').waitFor({ timeout: 10000 });
+  check('partie arrêtée : supprimée pour tout le monde', true);
 
-  // --- Même cible : 301 jusqu'à la victoire ---
-  await borne.locator('.setup-rules button', { hasText: '301 · 501 · 701' }).click();
+  // --- Même cible : 301 jusqu'à la victoire (nouvelle partie, mêmes joueurs) ---
+  await phone.getByText('Retour à l’accueil').click();
+  await borne.locator('.home-mode', { hasText: '301' }).click();
+  await borne.locator('.lobby-code-value').waitFor({ timeout: 10000 });
+  const code301 = (await borne.locator('.lobby-code-value').innerText()).trim();
+  for (const name of [PIERRE, JACQUES]) {
+    await borne.getByText('＋ Ajouter un joueur').click();
+    await borne.locator('.picker-tile', { hasText: name }).click();
+    await borne.getByLabel('Mot de passe').fill(PASS);
+    await borne.getByText('Ajouter à la partie').click();
+    await borne.locator('.setup-list li', { hasText: name }).waitFor({ timeout: 10000 });
+  }
+  await joinWith(phone, code301);
+  await phone.getByText(/En attente du lancement/).waitFor({ timeout: 10000 });
   await borne.getByText('301', { exact: true }).click();
+  await borne.getByText('Ordre de la liste').click();
   await borne.locator('.setup-rules .segmented button', { hasText: /^Simple$/ }).click();
   await borne.waitForTimeout(300);
   await borne.getByText('Lancer la partie').click();

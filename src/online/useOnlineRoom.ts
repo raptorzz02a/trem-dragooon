@@ -45,7 +45,7 @@ export async function createOnlineRoom(place: RoomPlace, setup: GameSetup, saloo
 }
 
 /** Codes de fermeture envoyés par le serveur quand il ne sert à rien de se reconnecter. */
-const FINAL_CLOSE = new Set([4404, 4410, 1000]);
+const FINAL_CLOSE = new Set([4404, 4410, 4411, 1000]);
 
 export interface OnlineRoom {
   connection: Connection;
@@ -112,7 +112,15 @@ export function useOnlineRoom(code: string, identity: OnlineIdentity): OnlineRoo
         if (stopped) return;
         joined = false;
         if (FINAL_CLOSE.has(event.code)) {
-          fail(event.code === 4410 ? 'Cette partie a expiré.' : event.code === 1000 ? 'Tu as quitté la partie.' : 'Aucune partie avec ce code.');
+          fail(
+            event.code === 4410
+              ? 'Cette partie a expiré.'
+              : event.code === 4411
+                ? 'L’hôte a supprimé la partie.'
+                : event.code === 1000
+                  ? 'Tu as quitté la partie.'
+                  : 'Aucune partie avec ce code.',
+          );
           return;
         }
         // Coupure réseau : nouvel essai de plus en plus espacé, sans dépasser 10 secondes.

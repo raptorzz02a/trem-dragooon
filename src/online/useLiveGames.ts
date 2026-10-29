@@ -57,7 +57,7 @@ export function useWatch(saloonId: string, watchKey: string): Watching {
       ws.onclose = (event) => {
         if (stopped) return;
         // Partie effacée, ou refusée avant tout envoi : inutile d'insister ; coupure réseau : on réessaie.
-        if (event.code === 4404 || event.code === 4410 || !received) {
+        if (event.code === 4404 || event.code === 4410 || event.code === 4411 || !received) {
           setClosed(true);
           return;
         }

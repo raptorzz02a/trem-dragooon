@@ -186,7 +186,7 @@ export function Home(props: Props) {
         {error && <div className="home-warning">{error}</div>}
       </section>
 
-      <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} />
+      <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} onJoin={props.onJoin} />
 
       <div className="home-links">
         <button onClick={props.onMyStats}>Mes stats</button>
@@ -198,8 +198,8 @@ export function Home(props: Props) {
 
 const MODE_TITLES: Record<GameMode, string> = { x01: 'X01', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire' };
 
-/** Parties en cours dans le saloon : on peut les regarder ; pour y jouer, il faut leur code. */
-function LiveGames({ saloonId, onWatch }: { saloonId: string; onWatch: (watchKey: string) => void }) {
+/** Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code. */
+function LiveGames({ saloonId, onWatch, onJoin }: { saloonId: string; onWatch: (watchKey: string) => void; onJoin: (code: string) => void }) {
   const games = useLiveGames(saloonId);
   if (games.length === 0) return null;
   return (
@@ -213,10 +213,16 @@ function LiveGames({ saloonId, onWatch }: { saloonId: string; onWatch: (watchKey
           </span>
           <span className="home-live-players">{g.players.join(', ')}</span>
           {g.watchers > 0 && <span className="home-live-watchers">👁 {g.watchers}</span>}
-          <button onClick={() => onWatch(g.watchKey)}>Regarder</button>
+          {g.code ? (
+            <button className="btn-gold" onClick={() => onJoin(g.code!)}>
+              Reprendre
+            </button>
+          ) : (
+            <button onClick={() => onWatch(g.watchKey)}>Regarder</button>
+          )}
         </div>
       ))}
-      <div className="home-live-hint">Pour jouer dans une partie, demande son code à l’hôte.</div>
+      <div className="home-live-hint">Pour rejoindre une autre partie, demande son code à l’hôte.</div>
     </section>
   );
 }

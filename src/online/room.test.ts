@@ -3,7 +3,7 @@ import { D, S, T } from '../game-engine/darts';
 import { sessionState } from '../game-session/session';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
 import { isValidCode, normalizeCode, randomCode } from './protocol';
-import { addLocalPlayer, applyMessage, archiveChange, canThrow, canUndo, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
+import { addLocalPlayer, applyMessage, archiveChange, canThrow, canUndo, closesRoom, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
 
 const NOW = '2026-10-29T20:00:00.000Z';
 const who = (name: string) => ({ name, color: '#ff0000', avatar: DEFAULT_AVATAR });
@@ -257,12 +257,20 @@ describe('même cible', () => {
     expect(room.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-jacques']);
   });
 
-  it('une partie arrêtée par l’hôte est enregistrée comme abandonnée', () => {
+  it('l’hôte qui quitte ou arrête la partie la supprime ; un autre joueur ne la supprime pas', () => {
+    const lobby = borne();
+    expect(closesRoom(lobby, ju.id, { type: 'leave' })).toBe(true);
+    const room = applyMessage(lobby, ju.id, { type: 'start' }, NOW, first);
+    expect(closesRoom(room, ju.id, { type: 'abandon' })).toBe(true);
+    expect(closesRoom(room, ju.id, { type: 'leave' })).toBe(true);
+    expect(closesRoom(room, 'acc-jacques', { type: 'leave' })).toBe(false);
+    expect(closesRoom(room, ju.id, { type: 'endTurn' })).toBe(false);
+  });
+
+  it('une partie arrêtée en cours de route n’est pas enregistrée', () => {
     let room = applyMessage(borne(), ju.id, { type: 'start' }, NOW, first);
     room = applyMessage(room, ju.id, { type: 'dart', dart: S(5) }, NOW);
     const next = applyMessage(room, ju.id, { type: 'abandon' }, NOW);
-    expect(next.status).toBe('lobby');
-    const change = archiveChange(room, next);
-    expect(change && 'record' in change && change.record.session.status).toBe('abandoned');
+    expect(archiveChange(room, next)).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
 import { cleanSetup } from '../src/game-setup/setup';
-import { addLocalPlayer, applyMessage, archiveChange, createRoom, joinRoom, liveSummary, roomView, setConnected, type Room } from '../src/online/room';
+import { addLocalPlayer, applyMessage, archiveChange, closesRoom, createRoom, joinRoom, liveSummary, roomView, setConnected, type Room } from '../src/online/room';
 import { PUBLIC_SALOON_ID } from '../src/online/saloons';
 import { AccountsObject, type AccountsEnv } from './accounts';
 
@@ -154,6 +154,10 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
 
 /** Un salon sans activité est effacé au bout de ce délai (le code redevient libre). */
 const ROOM_TTL_MS = 12 * 60 * 60 * 1000;
+/** Partie sans aucun joueur connecté : effacée après 30 minutes en salle d'attente, 2 heures en pleine partie. */
+const emptyRoomDelay = (room: Room) => (room.status === 'playing' && room.session?.status === 'in_progress' ? 2 : 0.5) * 60 * 60 * 1000;
+/** Code de fermeture envoyé quand l'hôte supprime la partie. */
+const ROOM_DELETED = 4411;
 /** Taille maximale d'un message reçu : bien au-dessus de tout message légitime. */
 const MAX_MESSAGE_BYTES = 4096;
 
@@ -312,6 +316,7 @@ export class RoomObject extends DurableObject<Env> {
         await this.commit(addLocalPlayer(latest, playerId, account, () => crypto.randomUUID()));
         return;
       }
+      if (closesRoom(room, playerId, message)) return void (await this.destroy(ROOM_DELETED, 'Partie supprimée par l’hôte'));
       const next = applyMessage(room, playerId, message);
       await this.commit(next);
       await this.archive(room, next);
@@ -334,14 +339,23 @@ export class RoomObject extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     const last = (await this.ctx.storage.get<number>('touched')) ?? 0;
-    if (Date.now() - last >= ROOM_TTL_MS) {
-      const room = await this.load();
-      for (const s of this.ctx.getWebSockets()) s.close(4410, 'Partie expirée');
-      if (room) await this.report(room, true);
-      await this.ctx.storage.deleteAll();
-    } else {
-      await this.ctx.storage.setAlarm(last + ROOM_TTL_MS);
+    const room = await this.load();
+    // Salle vide ou abandonnée : plus aucun joueur connecté depuis un moment, on la supprime sans attendre.
+    const empty = !this.ctx.getWebSockets().some((s) => (s.deserializeAttachment() as Attachment | null)?.playerId);
+    const limit = empty && room ? emptyRoomDelay(room) : ROOM_TTL_MS;
+    if (!room || Date.now() - last >= limit) await this.destroy(4410, 'Partie expirée');
+    else await this.ctx.storage.setAlarm(empty ? last + limit : Math.min(last + ROOM_TTL_MS, Date.now() + emptyRoomDelay(room)));
+  }
+
+  /** Efface la partie : tout le monde est déconnecté, elle sort de la liste « Parties en cours », rien n'est enregistré. */
+  private async destroy(code: number, reason: string): Promise<void> {
+    const room = await this.load();
+    for (const s of this.ctx.getWebSockets()) {
+      s.serializeAttachment({ playerId: null } satisfies Attachment);
+      s.close(code, reason);
     }
+    if (room) await this.report(room, true);
+    await this.ctx.storage.deleteAll();
   }
 
   private async disconnected(socket: WebSocket): Promise<void> {
@@ -381,7 +395,8 @@ export class RoomObject extends DurableObject<Env> {
   private async save(room: Room): Promise<void> {
     const now = Date.now();
     await this.ctx.storage.put({ room, touched: now });
-    await this.ctx.storage.setAlarm(now + ROOM_TTL_MS);
+    // Premier réveil au plus tôt : une salle restée vide sera vite nettoyée.
+    await this.ctx.storage.setAlarm(now + emptyRoomDelay(room));
   }
 
   /** Enregistre la partie et envoie son nouvel état à tous les joueurs et spectateurs connectés. */

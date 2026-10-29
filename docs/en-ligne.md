@@ -31,8 +31,11 @@ la partie sans le déconnecter.
    sort ou ordre de la liste, modifiable avec ▲ ▼). Seul, c'est une partie d'entraînement.
 4. **Lancer la partie**. Annuler une fléchette : l'hôte peut toujours ; à distance, le joueur peut aussi
    annuler la sienne.
-5. **Quitter** : l'hôte peut **Arrêter la partie** (elle compte comme abandonnée dans les stats). En fin de
-   partie : **Rejouer** ou **Changer les réglages**.
+5. **Quitter** : l'hôte qui quitte (**Fermer** la salle d'attente, **Arrêter la partie** en cours) la
+   supprime pour tout le monde : elle sort des **Parties en cours** et ne compte pas dans les stats. Une
+   partie déjà terminée reste enregistrée. En fin de partie : **Rejouer** ou **Changer les réglages**.
+   Une partie sans plus aucun joueur connecté est effacée d'elle-même (30 minutes en salle d'attente,
+   2 heures en pleine partie).
 
 Coupure réseau : l'appli se reconnecte seule. Page fermée ou rechargée : l'accueil propose **Reprendre la
 partie**. Si l'hôte part, le joueur suivant devient hôte. Une partie sans activité est effacée au bout de
@@ -100,7 +103,8 @@ L'interface prend la couleur du saloon ouvert.
 - **Parties d'un saloon** : seuls ses membres y jouent (un compte non membre est refusé, même avec le
   code ; un **Nouveau joueur** créé sur l'appareil de l'hôte entre dans le saloon). L'accueil du saloon
   liste les **Parties en cours** (sans leur code) : on peut les **Regarder** en spectateur, l'hôte et les
-  joueurs voient l'œil et le nombre de spectateurs. Pour jouer, il faut toujours le code. Un point vert
+  joueurs voient l'œil et le nombre de spectateurs. Pour jouer, il faut toujours le code, sauf dans une
+  partie où l'on est déjà : **Reprendre**, depuis n'importe quel appareil connecté au compte. Un point vert
   sur l'icône du saloon signale une partie lancée.
 - **Réglages par défaut** : dans la salle d'attente, l'hôte admin du saloon (pour le saloon public :
   l'administrateur de l'appli et les pseudos de `PUBLIC_ADMINS`) peut garder les réglages pour les prochaines parties du saloon ; le mode
