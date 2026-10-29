@@ -31,4 +31,4 @@ new_sqlite_classes = ["AccountsObject"]
 [vars]
 # Pseudo(s) administrateur(s), séparés par des virgules : accès à l'espace administrateur dans l'appli.
 # Le pseudo est attaché au compte qui le porte au moment du déploiement (ou de sa création s'il n'existe pas encore).
-ADMINS = "admin,Ju"
+ADMINS = "admin"
