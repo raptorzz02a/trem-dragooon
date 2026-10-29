@@ -1,10 +1,11 @@
 import { DEFAULT_OPTIONS, MAX_TEAMS, MIN_TEAMS, validateConfig } from '../game-engine/engine';
+import { drawTargets } from '../game-engine/modes/random';
 import type {
   ClockOptions,
   CricketOptions,
   GameConfig,
   GameMode,
-  ShanghaiOptions,
+  RandomOptions,
   X01Options,
 } from '../game-engine/types';
 import { emptyTeams, individualSides, randomOrder, randomTeams, type Rng } from '../teams/teams';
@@ -17,7 +18,8 @@ export interface GameSetup {
   x01: X01Options;
   cricket: CricketOptions;
   clock: ClockOptions;
-  shanghai: ShanghaiOptions;
+  /** Les numéros sont tirés au lancement : seuls les réglages comptent ici. */
+  random: RandomOptions;
   teamMode: boolean;
   teamCount: number;
   /** Ordre tiré au sort au lancement ; sinon, ordre de la liste des joueurs. */
@@ -31,20 +33,20 @@ export const DEFAULT_SETUP: GameSetup = {
   x01: { ...DEFAULT_OPTIONS.x01 },
   cricket: { ...DEFAULT_OPTIONS.cricket },
   clock: { ...DEFAULT_OPTIONS.clock },
-  shanghai: { ...DEFAULT_OPTIONS.shanghai },
+  random: { ...DEFAULT_OPTIONS.random },
   teamMode: false,
   teamCount: 2,
   randomizeOrder: true,
   teamOf: {},
 };
 
-export const MODES: GameMode[] = ['x01', 'cricket', 'clock', 'shanghai'];
+export const MODES: GameMode[] = ['x01', 'cricket', 'clock', 'random'];
 
 export const MODE_NAMES: Record<GameMode, string> = {
   x01: '301 / 501 / 701',
   cricket: 'Cricket',
   clock: 'Horloge',
-  shanghai: 'Shanghai',
+  random: 'Chiffre aléatoire',
 };
 
 /** Convention d'équipe à afficher avant le départ. */
@@ -52,10 +54,10 @@ export const TEAM_NOTES: Record<GameMode, string> = {
   x01: 'Le score est commun à l’équipe.',
   cricket: 'Marques et points sont communs à l’équipe.',
   clock: 'La progression est commune : le numéro à viser est partagé par l’équipe.',
-  shanghai: 'Le total est commun ; le Shanghai doit être réussi dans une même volée.',
+  random: 'Le total est commun : tous visent le même numéro tiré au sort.',
 };
 
-function modeOptions(setup: GameSetup) {
+function modeOptions(setup: GameSetup, rng: Rng) {
   switch (setup.mode) {
     case 'x01':
       return { mode: 'x01' as const, options: setup.x01 };
@@ -63,8 +65,8 @@ function modeOptions(setup: GameSetup) {
       return { mode: 'cricket' as const, options: setup.cricket };
     case 'clock':
       return { mode: 'clock' as const, options: setup.clock };
-    case 'shanghai':
-      return { mode: 'shanghai' as const, options: setup.shanghai };
+    case 'random':
+      return { mode: 'random' as const, options: { rounds: setup.random.rounds, targets: drawTargets(setup.random.rounds, rng) } };
   }
 }
 
@@ -76,7 +78,7 @@ export function buildConfig(setup: GameSetup, players: readonly { id: string; na
     for (const p of players) sides[setup.teamOf[p.id] ?? 0]!.playerIds.push(p.id);
   }
   if (setup.randomizeOrder) sides = randomOrder(sides, rng);
-  return { ...modeOptions(setup), teamMode: setup.teamMode, training: players.length === 1, sides };
+  return { ...modeOptions(setup, rng), teamMode: setup.teamMode, training: players.length === 1, sides };
 }
 
 /** Pourquoi la partie ne peut pas être lancée avec ces réglages, ou null si tout va bien. */
@@ -115,7 +117,7 @@ export function cleanSetup(input: unknown, base: GameSetup = DEFAULT_SETUP): Gam
   const x = obj(v.x01);
   const c = obj(v.cricket);
   const h = obj(v.clock);
-  const s = obj(v.shanghai);
+  const r = obj(v.random);
   const required = pick(h.required, ['any', 'double', 'triple'] as const, base.clock.required);
   const teamCount = pick(v.teamCount, [2, 3, 4, 5], base.teamCount);
   const teamOf: Record<string, number> = {};
@@ -140,9 +142,9 @@ export function cleanSetup(input: unknown, base: GameSetup = DEFAULT_SETUP): Gam
       advanceByMultiplier: required === 'any' && pick(h.advanceByMultiplier, [true, false], base.clock.advanceByMultiplier),
       bullFinish: pick(h.bullFinish, ['none', 'any', 'both'] as const, base.clock.bullFinish),
     },
-    shanghai: {
-      rounds: pick(s.rounds, [7, 15, 20] as const, base.shanghai.rounds),
-      shanghaiWins: pick(s.shanghaiWins, [true, false], base.shanghai.shanghaiWins),
+    random: {
+      rounds: pick(r.rounds, [10, 15, 20] as const, base.random.rounds),
+      targets: [],
     },
     teamMode: pick(v.teamMode, [true, false], base.teamMode),
     teamCount: Math.max(MIN_TEAMS, teamCount),

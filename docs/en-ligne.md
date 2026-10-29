@@ -8,7 +8,7 @@ Adresse : https://trem-dragooon.julien-charrier01.workers.dev (borne, PC ou tél
 
 | Salle d'attente sur la borne (même cible) | Suivi sur un téléphone | À distance sur un PC 13 pouces |
 | --- | --- | --- |
-| ![](images/en-ligne/1-salle-attente-borne.png) | ![](images/en-ligne/2-cricket-telephone.png) | ![](images/en-ligne/3-shanghai-pc13.png) |
+| ![](images/en-ligne/1-salle-attente-borne.png) | ![](images/en-ligne/2-cricket-telephone.png) | ![](images/en-ligne/3-aleatoire-pc13.png) |
 
 ## Deux façons de jouer
 

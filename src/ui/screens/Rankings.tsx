@@ -13,7 +13,7 @@ const KEY_LABEL: Record<GameMode, string> = {
   x01: 'Moy. volée',
   cricket: 'Marques/volée',
   clock: 'Record (fl.)',
-  shanghai: 'Meilleur score',
+  random: 'Meilleur score',
 };
 
 const SORTS: { value: RankingSort; label: string }[] = [
@@ -108,7 +108,7 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
         </div>
         <span className="tile-label">
           {!scored
-            ? 'Choisissez 301/501/701, Cricket ou Shanghai pour classer par moyenne, record ou progression.'
+            ? 'Choisissez 301/501/701, Cricket ou Chiffre aléatoire pour classer par moyenne, record ou progression.'
             : sort === 'progression'
               ? range.from
                 ? 'Écart de moyenne avec la période précédente de même durée.'

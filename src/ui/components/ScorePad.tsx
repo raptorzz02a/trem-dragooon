@@ -16,7 +16,7 @@ interface Props {
   onDart: (dart: Dart) => void;
   /** Numéros proposés (1 à 20 par défaut ; 20 à 15 pour le Cricket). */
   numbers?: number[];
-  /** Numéro mis en surbrillance (cible de l'Horloge ou du Shanghai). */
+  /** Numéro mis en surbrillance (cible de l'Horloge ou du Chiffre aléatoire). */
   highlight?: number | null;
   /** Bull à viser (fin de parcours de l'Horloge). */
   highlightBull?: 25 | 50 | 'any' | null;

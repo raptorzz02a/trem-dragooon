@@ -1,6 +1,8 @@
 import { computeState } from '../game-engine/engine';
-import { isDouble } from '../game-engine/darts';
-import type { GameMode, GameState, TurnRecord, X01Options } from '../game-engine/types';
+import { BULL, isDouble } from '../game-engine/darts';
+import { targetOf } from '../game-engine/modes/random';
+import { MODES } from '../game-setup/setup';
+import type { GameMode, GameState, RandomOptions, TurnRecord, X01Options } from '../game-engine/types';
 import type { CricketState } from '../game-engine/modes/cricket';
 import type { ClockState } from '../game-engine/modes/clock';
 import { isFinished as clockFinished } from '../game-engine/modes/clock';
@@ -37,6 +39,7 @@ export function playerGames(records: GameRecord[], playerId: string, filter: Sta
     const { session } = record;
     if (session.status !== 'finished') continue; // abandonnées et annulées : ni victoire ni défaite
     const { config } = session;
+    if (!MODES.includes(config.mode)) continue; // jeu retiré (ancien Shanghai) : plus compté
     if (filter.mode && config.mode !== filter.mode) continue;
     if (filter.format === 'solo' && config.teamMode) continue;
     if (filter.format === 'team' && !config.teamMode) continue;
@@ -224,25 +227,35 @@ export function clockStats(games: PlayerGame[]): ClockStats {
   };
 }
 
-export interface ShanghaiStats {
+export interface RandomStats {
   games: number;
   bestScore: number | null;
   avgScore: number | null;
   bestVolley: number | null;
-  shanghais: number;
+  /** Fléchettes sur le numéro tiré / fléchettes lancées × 100. */
+  hitRate: number | null;
+  /** Manches du Bull jouées et points pris sur le Bull. */
+  bullRounds: number;
+  bullPoints: number;
   avgDurationMs: number | null;
 }
 
-export function shanghaiStats(games: PlayerGame[]): ShanghaiStats {
-  const list = games.filter((g) => g.state.config.mode === 'shanghai');
+export function randomStats(games: PlayerGame[]): RandomStats {
+  const list = games.filter((g) => g.state.config.mode === 'random');
   const scores = list.map((g) => (g.state.mode as { scores: number[] }).scores[g.sideIndex]!);
   const volleys = list.flatMap((g) => g.turns.map(turnPoints));
+  const darts = list.flatMap((g) => g.turns.flatMap((t) => t.darts));
+  const bullTurns = list.flatMap((g) =>
+    g.turns.filter((t) => targetOf(g.state.config.options as RandomOptions, t.round) === BULL),
+  );
   return {
     games: list.length,
     bestScore: scores.length ? Math.max(...scores) : null,
     avgScore: scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : null,
     bestVolley: volleys.length ? Math.max(...volleys) : null,
-    shanghais: list.reduce((n, g) => n + g.turns.filter((t) => t.outcome === 'win').length, 0),
+    hitRate: darts.length ? (100 * darts.filter((d) => d.points > 0).length) / darts.length : null,
+    bullRounds: bullTurns.length,
+    bullPoints: bullTurns.reduce((a, t) => a + turnPoints(t), 0),
     avgDurationMs: avgDuration(list),
   };
 }
@@ -282,7 +295,7 @@ export interface RankingRow {
   games: number;
   wins: number;
   winRate: number;
-  /** Statistique clé du mode : moyenne (X01), MPR (Cricket), meilleur parcours (Horloge), meilleur score (Shanghai). */
+  /** Statistique clé du mode : moyenne (X01), MPR (Cricket), meilleur parcours (Horloge), meilleur score (Chiffre aléatoire). */
   key: number | null;
 }
 
@@ -323,8 +336,8 @@ function keyStat(games: PlayerGame[], mode: GameMode | undefined): number | null
       const best = clockStats(games).best.map((b) => b.darts);
       return best.length ? Math.min(...best) : null;
     }
-    case 'shanghai':
-      return shanghaiStats(games).bestScore;
+    case 'random':
+      return randomStats(games).bestScore;
     default:
       return null;
   }

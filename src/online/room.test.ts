@@ -84,7 +84,7 @@ describe('salle d’attente', () => {
   });
 
   it('lance les quatre jeux, en individuel ou en équipes', () => {
-    for (const mode of ['x01', 'cricket', 'clock', 'shanghai'] as const) {
+    for (const mode of ['x01', 'cricket', 'clock', 'random'] as const) {
       let room = lobby('Ju', 'Max', 'Léo', 'Zoé');
       room = applyMessage(room, 'p1', { type: 'setup', setup: { ...room.setup, mode, teamMode: true, teamCount: 2 } });
       room = applyMessage(room, 'p1', { type: 'drawTeams' }, NOW, first);

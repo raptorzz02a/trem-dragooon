@@ -1,6 +1,6 @@
 import type { Dart } from './darts';
 
-export type GameMode = 'x01' | 'cricket' | 'clock' | 'shanghai';
+export type GameMode = 'x01' | 'cricket' | 'clock' | 'random';
 
 export interface X01Options {
   startScore: 301 | 501 | 701;
@@ -27,17 +27,17 @@ export interface ClockOptions {
   bullFinish: 'none' | 'any' | 'both';
 }
 
-export interface ShanghaiOptions {
-  rounds: 7 | 15 | 20;
-  /** Simple + double + triple du numéro cible dans la même volée = victoire immédiate. */
-  shanghaiWins: boolean;
+export interface RandomOptions {
+  rounds: 10 | 15 | 20;
+  /** Numéro tiré pour chaque manche (25 = Bull), fixé au lancement de la partie. */
+  targets: number[];
 }
 
 export type ModeOptions =
   | { mode: 'x01'; options: X01Options }
   | { mode: 'cricket'; options: CricketOptions }
   | { mode: 'clock'; options: ClockOptions }
-  | { mode: 'shanghai'; options: ShanghaiOptions };
+  | { mode: 'random'; options: RandomOptions };
 
 /**
  * Un « côté » est ce qui porte un score : un joueur seul en individuel,

@@ -11,7 +11,7 @@ L'application s'ouvre sur l'accueil.
 
 ![Accueil](images/accueil.png)
 
-- **Les quatre grandes tuiles** lancent une nouvelle partie : 301 / 501 / 701, Cricket, Horloge ou Shanghai.
+- **Les quatre grandes tuiles** lancent une nouvelle partie : 301 / 501 / 701, Cricket, Horloge ou Chiffre aléatoire.
 - **Reprendre la partie en cours** apparaît si une partie n'est pas terminée. Elle est retrouvée telle quelle,
   même après une coupure de courant ou un redémarrage.
 - **Joueurs** ouvre la liste des profils, **Classements** les classements.
@@ -163,13 +163,14 @@ et les records se comptent en nombre de fléchettes.
 
 ![Horloge](images/horloge.png)
 
-### Shanghai
+### Chiffre aléatoire
 
-Chaque manche a son numéro : le 1 à la première, le 2 à la deuxième, et ainsi de suite. Seul ce numéro
-rapporte, en simple, double ou triple. On joue 7, 15 ou 20 manches, et le plus gros total gagne.
+On joue 10, 15 ou 20 tours. À chaque tour, la borne tire au sort un numéro à viser, de 1 à 20 ou le Bull,
+jamais deux fois de suite le même. Seules les fléchettes sur ce numéro rapportent : simple, double ou triple
+(25 ou 50 pour le Bull). Après le dernier tour, le plus gros total gagne.
 
-Avec l'option **Shanghai**, toucher le simple, le double et le triple du numéro dans la même volée fait gagner
-immédiatement. L'écran rappelle les zones qui manquent encore.
+Comme à l'Horloge, la cible est dessinée avec le numéro à viser allumé en or. On touche **Simple**,
+**Double**, **Triple** (ou **25**, **50** pour le Bull) quand la fléchette est sur le numéro, **Raté** sinon.
 
 ### En équipes
 
@@ -188,7 +189,7 @@ elle ne donne donc ni précision sur une cible, ni taux de ratés, ni carte de c
 
 Depuis **Joueurs**, touchez un joueur pour ouvrir sa fiche. Les filtres en haut s'appliquent à tous les onglets :
 
-- le **mode** (Tous, 301/501/701, Cricket, Horloge, Shanghai) ;
+- le **mode** (Tous, 301/501/701, Cricket, Horloge, Chiffre aléatoire) ;
 - la **formule** (Tout, Individuel, Équipes) ;
 - la **période** : Tout, 30 jours, 90 jours, 1 an, ou **Dates…** pour choisir le début et la fin.
 
@@ -252,7 +253,7 @@ Choisissez le mode, la formule et la période (mêmes choix que sur la fiche jou
 - **Record de volée** : meilleure volée ;
 - **Progression** : écart de moyenne avec la période précédente de même durée. Il faut choisir une période.
 
-Les trois derniers ne sont possibles qu'avec un mode à score (301/501/701, Cricket ou Shanghai). Il faut
+Les trois derniers ne sont possibles qu'avec un mode à score (301/501/701, Cricket ou Chiffre aléatoire). Il faut
 **5 parties terminées** pour être classé ; les autres joueurs sont listés à part. L'entraînement ne compte
 jamais. Quand une valeur manque, le joueur est placé en fin de liste avec « non disponible ».
 

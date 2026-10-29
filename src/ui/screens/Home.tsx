@@ -28,7 +28,7 @@ const MODES: { mode: GameMode; title: string; sub: string }[] = [
   { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions' },
   { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull' },
   { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre' },
-  { mode: 'shanghai', title: 'Shanghai', sub: 'Un numéro par manche' },
+  { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche' },
 ];
 
 type RemoteAction = 'create' | 'join';

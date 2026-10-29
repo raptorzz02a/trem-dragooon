@@ -84,7 +84,7 @@
   font-size: 44px;
 }
 
-/* Numéro à viser (Horloge, Shanghai). */
+/* Numéro à viser (Horloge, Chiffre aléatoire). */
 .pad-num.pad-target {
   background: var(--gold);
   color: #1a1a12;

@@ -7,16 +7,16 @@ import type { GameRecord, Profile } from './types';
 // Elles ne reposent que sur ce qui est enregistré : les volées, leurs points et l'issue des parties.
 // Une valeur incalculable vaut null (affichée « non disponible »), jamais 0.
 
-/** Modes où une volée a une valeur chiffrée : points (301/501/701, Shanghai) ou marques (Cricket). */
+/** Modes où une volée a une valeur chiffrée : points (301/501/701, Chiffre aléatoire) ou marques (Cricket). */
 export type ScoredMode = Exclude<GameMode, 'clock'>;
 
 export const isScoredMode = (mode: GameMode | undefined): mode is ScoredMode =>
-  mode === 'x01' || mode === 'cricket' || mode === 'shanghai';
+  mode === 'x01' || mode === 'cricket' || mode === 'random';
 
 /** Unité d'une volée, selon le mode. */
 export const VOLLEY_UNIT: Record<ScoredMode, { one: string; many: string }> = {
   x01: { one: 'point', many: 'points' },
-  shanghai: { one: 'point', many: 'points' },
+  random: { one: 'point', many: 'points' },
   cricket: { one: 'marque', many: 'marques' },
 };
 

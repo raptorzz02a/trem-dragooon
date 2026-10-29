@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { MAX_TEAMS, MIN_TEAMS } from '../../game-engine/engine';
-import type { ClockOptions, CricketOptions, ShanghaiOptions, X01Options } from '../../game-engine/types';
+import type { ClockOptions, CricketOptions, RandomOptions, X01Options } from '../../game-engine/types';
 import { MODE_NAMES, MODES, TEAM_NOTES, type GameSetup } from '../../game-setup/setup';
 import type { RoomPlace } from '../../online/protocol';
 import './Setup.css';
@@ -147,29 +147,16 @@ function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Upda
         </>
       );
     }
-    case 'shanghai': {
-      const o = setup.shanghai;
-      const set = (p: Partial<ShanghaiOptions>) => update({ shanghai: { ...o, ...p } });
+    case 'random': {
+      const o = setup.random;
       return (
-        <>
-          <Choice
-            disabled={disabled}
-            label="Nombre de manches"
-            value={o.rounds}
-            options={[7, 15, 20].map((v) => ({ value: v as ShanghaiOptions['rounds'], label: v }))}
-            onChange={(rounds) => set({ rounds })}
-          />
-          <Choice
-            disabled={disabled}
-            label="Shanghai (simple + double + triple) = victoire"
-            value={o.shanghaiWins}
-            options={[
-              { value: true, label: 'Oui' },
-              { value: false, label: 'Non' },
-            ]}
-            onChange={(shanghaiWins) => set({ shanghaiWins })}
-          />
-        </>
+        <Choice
+          disabled={disabled}
+          label="Nombre de tours"
+          value={o.rounds}
+          options={[10, 15, 20].map((v) => ({ value: v as RandomOptions['rounds'], label: v }))}
+          onChange={(rounds) => update({ random: { ...o, rounds } })}
+        />
       );
     }
   }
