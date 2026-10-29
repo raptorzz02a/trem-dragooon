@@ -14,9 +14,57 @@
 }
 
 .home-account {
+  position: relative;
+}
+
+.home-account-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
+  min-height: 60px;
+  padding: 4px 16px 4px 6px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+}
+
+.home-account-caret {
+  font-size: 18px;
+  color: var(--text-dim);
+}
+
+.home-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 19;
+}
+
+.home-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  min-width: 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5);
+}
+
+.home-menu button {
+  min-height: 52px;
+  padding: 0 16px;
+  font-size: 18px;
+  text-align: left;
+  background: var(--bg);
+  border: 1px solid var(--line);
+}
+
+.home-menu .home-menu-logout {
+  color: var(--danger);
 }
 
 .home-account-name {
@@ -27,14 +75,6 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.home-account button {
-  min-height: 48px;
-  padding: 0 14px;
-  font-size: 16px;
-  background: var(--bg-raised);
-  border: 1px solid var(--line);
 }
 
 .home-resume {
@@ -103,8 +143,11 @@
 }
 
 .home-join {
+  align-self: center;
   display: flex;
   gap: 10px;
+  min-height: 150px;
+  align-items: center;
 }
 
 .home-join input {
@@ -156,17 +199,22 @@
   .home-logo .logo {
     font-size: 7.4vw !important;
   }
-  .home-account {
+  .home-account,
+  .home-account-toggle {
     width: 100%;
-    flex-wrap: wrap;
   }
   .home-account-name {
-    flex: 1 1 50%;
+    flex: 1;
     max-width: none;
     font-size: 20px;
+    text-align: left;
   }
-  .home-account button {
-    flex: 1;
+  .home-menu {
+    left: 0;
+  }
+  .home-join {
+    align-self: stretch;
+    min-height: 0;
   }
   .home-resume {
     width: 100%;

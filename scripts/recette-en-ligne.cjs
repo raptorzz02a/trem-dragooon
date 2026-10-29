@@ -35,6 +35,14 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const JACQUES = `Jacques${tag}`;
   const PASS = 'secret123';
 
+  // Rejoindre avec un code : « À distance », puis « Rejoindre ».
+  const joinWith = async (p, code) => {
+    await p.getByText('À distance', { exact: true }).click();
+    await p.locator('.home-remote').getByText('Rejoindre', { exact: true }).click();
+    await p.locator('.home-join input').fill(code);
+    await p.locator('.home-join button').click();
+  };
+
   const signup = async (p, name) => {
     await p.getByText('Créer un compte').click();
     await p.getByLabel('Pseudo').fill(name);
@@ -97,8 +105,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   check('Jacques créé sur la borne et ajouté', true);
 
   // Pierre suit la partie sur son téléphone avec le code.
-  await phone.locator('.home-join input').fill(code);
-  await phone.getByText('Rejoindre', { exact: true }).click();
+  await joinWith(phone, code);
   await phone.getByText(/En attente du lancement/).waitFor({ timeout: 10000 });
   await shot(borne, '04-salle-attente-borne.png');
   await shot(phone, '05-salle-attente-telephone.png');
@@ -181,8 +188,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   // --- Refus ---
   await laptop.getByText('Quitter', { exact: true }).click();
   await laptop.getByText('Accueil', { exact: true }).last().click();
-  await laptop.locator('.home-join input').fill('ZZZZZZ');
-  await laptop.getByText('Rejoindre', { exact: true }).click();
+  await joinWith(laptop, 'ZZZZZZ');
   await laptop.getByText('Aucune partie avec ce code').waitFor({ timeout: 10000 });
   check('code inconnu refusé', true);
 
