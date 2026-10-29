@@ -4,14 +4,10 @@ Livrable 06 · version 0.1.0 · octobre 2026
 
 ## 1. Vue d'ensemble
 
-TREM-DRAGOOON est une application web monopage (React 18 + TypeScript, construite avec Vite). Elle tourne
-entièrement dans le navigateur du PC de jeu :
-
-- pas de serveur applicatif ;
-- pas de compte ;
-- aucun appel réseau pendant le jeu.
-
-Une fois les fichiers servis en local, une coupure d'Internet n'a aucun effet.
+TREM-DRAGOOON est une application web monopage (React 18 + TypeScript, construite avec Vite), servie par un
+Cloudflare Worker qui garde les comptes, les parties en cours et les parties archivées. Elle demande Internet
+pendant le jeu. Le fonctionnement en ligne est décrit dans `en-ligne.md` ; les sections 5 (données locales)
+et 3 (serveur local) ne servent plus qu'à reprendre les stats d'avant le passage en ligne.
 
 | Élément | Choix |
 | --- | --- |
@@ -20,7 +16,7 @@ Une fois les fichiers servis en local, une coupure d'Internet n'a aucun effet.
 | Interface | React 18, TypeScript strict, CSS simple (pas de framework CSS) |
 | Construction | Vite 6, sortie statique dans `dist/` avec chemins relatifs (`base: './'`) |
 | Tests | Vitest 3 (moteur, sessions, statistiques) ; script Playwright pour la recette de l'interface |
-| Stockage | `localStorage` pour la partie en cours et les réglages ; IndexedDB pour les profils et les parties archivées |
+| Stockage | Serveur (Durable Objects, SQLite) pour les comptes et les parties ; `localStorage` pour la session et les réglages d'affichage |
 
 ## 2. Architecture
 
@@ -34,7 +30,7 @@ Une fois les fichiers servis en local, une coupure d'Internet n'a aucun effet.
 | `src/settings` | Réglages d'affichage (durée de la transition, animations) et des statistiques (seuils, tranches de l'histogramme). |
 | `src/ui` | Écrans React. `src/ui/modes` contient ce qui change d'un mode à l'autre à l'écran ; `src/ui/components` les éléments partagés (pavé de saisie, avatar, cible de l'Horloge, éditeur de profil, graphiques des statistiques `Charts.tsx`, filtre de période `PeriodFilter.tsx`). |
 | `docs` | Règles appliquées (`regles.md`), guide utilisateur, cette documentation, procès-verbal de recette. |
-| `scripts/recette-ui.cjs` | Recette automatisée de l'interface dans Chromium. |
+| `scripts/recette-en-ligne.cjs` | Recette automatisée dans Chromium : borne, téléphone, PC 13 pouces. |
 
 ### 2.1 Principe du moteur : tout est recalculé
 
@@ -124,21 +120,20 @@ sert à modifier le code, pas au jeu au quotidien.
 > **État : à livrer au lot 5.** Le lot 5 fournira un script de démarrage et l'installation de l'application.
 > La procédure ci-dessous est celle qui sera automatisée. Elle peut déjà servir à la main.
 
-1. **Servir l'application** au démarrage de la session : un raccourci dans le dossier de démarrage
+1. **Ouvrir l'application** au démarrage de la session : un raccourci dans le dossier de démarrage
    (`Win + R`, `shell:startup`) vers un fichier `trem-dragooon.bat` qui contient :
 
    ```bat
-   cd /d %USERPROFILE%\trem-dragooon
-   start "" /min cmd /c npm.cmd run preview
-   timeout /t 5
-   start "" msedge --kiosk http://localhost:4173 --edge-kiosk-type=fullscreen --no-first-run
+   start "" msedge --kiosk https://trem-dragooon.julien-charrier01.workers.dev --edge-kiosk-type=fullscreen --no-first-run
    ```
+
+   Plus besoin de serveur local, sauf une fois pour reprendre les anciennes stats (`en-ligne.md`).
 
 2. **Mode kiosque Edge** : `--kiosk` ouvre Edge en plein écran, sans barre d'adresse ni onglets. Pour en
    sortir, `Alt + F4`, ou fermer la session Windows.
 3. **Verrouillage complet** (optionnel) : Paramètres Windows > Comptes > Autres utilisateurs > « Configurer un
    kiosque » (accès attribué), avec Microsoft Edge en mode « Affichage numérique / interactif » sur l'adresse
-   http://localhost:4173. Dans ce cas, le serveur local doit tourner en tâche planifiée au démarrage du PC.
+   l'adresse en ligne ci-dessus.
 4. **Éviter les interruptions** : désactiver la mise en veille de l'écran (Paramètres > Système >
    Alimentation) et les notifications. Laisser le clavier tactile activé pour la saisie des surnoms.
 
@@ -231,16 +226,16 @@ en cours peut être reprise après la mise à jour.
 
 - `npm test` lance 109 tests. L'identifiant du cahier des charges (A01, B03, G08…) figure dans le nom des
   tests : `src/game-engine/**/*.test.ts`, `src/game-session/*.test.ts`, `src/profiles/stats.test.ts`.
-- Recette de l'interface : `npm run build`, puis `npm run preview` dans un terminal. Dans un autre terminal :
+- Recette de l'interface : `npm run online:dev` dans un terminal. Dans un autre terminal :
 
   ```bash
   npm install --no-save playwright
   npx playwright install chromium
-  node scripts/recette-ui.cjs
+  node scripts/recette-en-ligne.cjs
   ```
 
-  Le script rejoue 24 critères d'acceptation au tactile. Il écrit les captures et `recette.json` dans le
-  dossier temporaire, et sort en erreur si un critère échoue.
+  Le script joue sur trois appareils simulés (borne, téléphone, PC 13 pouces), écrit les captures dans le
+  dossier temporaire et sort en erreur si une vérification échoue.
 
 ### 7.2 Ajouter ou modifier une règle
 

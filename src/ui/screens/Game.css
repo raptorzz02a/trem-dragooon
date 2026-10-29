@@ -546,6 +546,14 @@
 
 /* Téléphone en portrait (mode en ligne) : une seule colonne, joueur actif puis pavé, scores en bas. */
 @media (max-width: 700px) {
+  .hint-chips {
+    gap: 4px;
+    margin-left: 8px;
+  }
+  .hint-chip {
+    font-size: 13px;
+    padding: 2px 7px;
+  }
   .game {
     padding: 8px 10px;
     gap: 8px;

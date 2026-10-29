@@ -3,7 +3,7 @@ import { D, S, T } from '../game-engine/darts';
 import { sessionState } from '../game-session/session';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
 import { isValidCode, normalizeCode, randomCode } from './protocol';
-import { applyMessage, archiveChange, canUndo, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
+import { addLocalPlayer, applyMessage, archiveChange, canThrow, canUndo, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
 
 const NOW = '2026-10-29T20:00:00.000Z';
 const who = (name: string) => ({ name, color: '#ff0000', avatar: DEFAULT_AVATAR });
@@ -18,6 +18,10 @@ function lobby(...names: string[]): Room {
 function playing(...names: string[]): Room {
   return applyMessage(lobby(...names), 'p1', { type: 'start' }, NOW, first);
 }
+
+/** Règle le 301 (sortie simple ou double) comme le ferait l'hôte. */
+const x01 = (room: Room, host: string, out: 'straight' | 'double') =>
+  applyMessage(room, host, { type: 'setup', setup: { ...room.setup, x01: { startScore: 301, out, maxRounds: null } } });
 
 const current = (room: Room) => sessionState(room.session!).current!.playerId;
 
@@ -62,14 +66,32 @@ describe('salle d’attente', () => {
     expect(back.room.players).toHaveLength(2);
   });
 
-  it('seul l’hôte règle la partie et la lance, à partir de 2 joueurs', () => {
-    const solo = lobby('Ju');
-    expect(() => applyMessage(solo, 'p1', { type: 'start' }, NOW)).toThrow(/au moins 2/);
+  it('seul l’hôte règle la partie et la lance ; seul, c’est un entraînement', () => {
+    const solo = applyMessage(lobby('Ju'), 'p1', { type: 'start' }, NOW);
+    expect(solo.session!.config.training).toBe(true);
     const room = lobby('Ju', 'Max');
     expect(() => applyMessage(room, 'p2', { type: 'start' }, NOW)).toThrow(/hôte/);
-    const set = applyMessage(room, 'p1', { type: 'options', options: { startScore: 301, out: 'straight', maxRounds: null } });
-    expect(set.options.startScore).toBe(301);
-    expect(() => applyMessage(room, 'p1', { type: 'options', options: { startScore: 123 as 301, out: 'double', maxRounds: null } })).toThrow();
+    expect(() => x01(room, 'p2', 'straight')).toThrow(/hôte/);
+    expect(x01(room, 'p1', 'straight').setup.x01).toEqual({ startScore: 301, out: 'straight', maxRounds: null });
+  });
+
+  it('n’accepte que les réglages proposés à l’écran', () => {
+    const room = lobby('Ju', 'Max');
+    const bad = { ...room.setup, mode: 'golf', x01: { startScore: 123, out: 'double', maxRounds: null } } as never;
+    const set = applyMessage(room, 'p1', { type: 'setup', setup: bad });
+    expect(set.setup.mode).toBe('x01');
+    expect(set.setup.x01.startScore).toBe(501);
+  });
+
+  it('lance les quatre jeux, en individuel ou en équipes', () => {
+    for (const mode of ['x01', 'cricket', 'clock', 'shanghai'] as const) {
+      let room = lobby('Ju', 'Max', 'Léo', 'Zoé');
+      room = applyMessage(room, 'p1', { type: 'setup', setup: { ...room.setup, mode, teamMode: true, teamCount: 2 } });
+      room = applyMessage(room, 'p1', { type: 'drawTeams' }, NOW, first);
+      room = applyMessage(room, 'p1', { type: 'start' }, NOW, first);
+      expect(room.session!.config.mode).toBe(mode);
+      expect(room.session!.config.sides.map((s) => s.playerIds.length)).toEqual([2, 2]);
+    }
   });
 
   it('si l’hôte s’en va, le joueur suivant devient hôte', () => {
@@ -110,7 +132,7 @@ describe('partie en ligne', () => {
   });
 
   it('va jusqu’à la victoire puis revient à la salle d’attente', () => {
-    let room = applyMessage(lobby('Ju', 'Max'), 'p1', { type: 'options', options: { startScore: 301, out: 'double', maxRounds: null } });
+    let room = x01(lobby('Ju', 'Max'), 'p1', 'double');
     room = applyMessage(room, 'p1', { type: 'start' }, NOW, first);
     const volley = (id: string, darts: ReturnType<typeof T>[]) => {
       for (const dart of darts) room = applyMessage(room, id, { type: 'dart', dart }, NOW);
@@ -151,7 +173,7 @@ describe('comptes et parties enregistrées', () => {
   it('enregistre la partie à sa fin et l’oublie si une annulation la rouvre', () => {
     let room = joinRoom(createRoom('ABCDEF'), null, who('Ju'), token, 'acc-ju').room;
     room = joinRoom(room, null, who('Max'), token, 'acc-max').room;
-    room = applyMessage(room, 'acc-ju', { type: 'options', options: { startScore: 301, out: 'straight', maxRounds: null } });
+    room = x01(room, 'acc-ju', 'straight');
     room = applyMessage(room, 'acc-ju', { type: 'start' }, NOW, first);
     const play = (id: string, darts: ReturnType<typeof T>[]) => {
       for (const dart of darts) {
@@ -170,5 +192,77 @@ describe('comptes et parties enregistrées', () => {
     const undone = applyMessage(room, 'acc-ju', { type: 'undo' }, NOW);
     expect(archiveChange(room, undone)).toEqual({ forget: room.session!.id });
     expect(archiveChange(room, applyMessage(room, 'acc-ju', { type: 'backToLobby' }))).toBeNull();
+  });
+});
+
+describe('même cible', () => {
+  const ju = { id: 'acc-ju', ...who('Ju') };
+  const pierre = { id: 'acc-pierre', ...who('Pierre') };
+  const jacques = { id: 'acc-jacques', ...who('Jacques') };
+
+  function borne(): Room {
+    let room = joinRoom(createRoom('ABCDEF', 'same'), null, ju, token, ju.id).room;
+    room = addLocalPlayer(room, ju.id, pierre, token);
+    return addLocalPlayer(room, ju.id, jacques, token);
+  }
+
+  it('l’hôte ajoute les joueurs sans téléphone, une seule fois chacun', () => {
+    const room = borne();
+    expect(room.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-pierre', 'acc-jacques']);
+    expect(room.players[1]!.local).toBe(true);
+    expect(() => addLocalPlayer(room, ju.id, pierre, token)).toThrow(/déjà/);
+    expect(() => addLocalPlayer(room, 'acc-pierre', { id: 'x', ...who('X') }, token)).toThrow(/hôte/);
+  });
+
+  it('l’appareil de l’hôte saisit pour tout le monde', () => {
+    let room = applyMessage(borne(), ju.id, { type: 'start' }, NOW, first);
+    expect(room.session!.config.sides).toHaveLength(3);
+    for (let i = 0; i < 3; i++) {
+      expect(canThrow(room, ju.id)).toBe(true);
+      room = applyMessage(room, ju.id, { type: 'endTurn' }, NOW);
+    }
+    expect(room.session!.events).toHaveLength(3);
+    // Pierre suit sur son téléphone, sans saisir : pas de double saisie avec la borne.
+    room = joinRoom(room, null, pierre, token, pierre.id).room;
+    room = applyMessage(room, ju.id, { type: 'endTurn' }, NOW);
+    expect(current(room)).toBe('acc-pierre');
+    expect(canThrow(room, 'acc-pierre')).toBe(false);
+    expect(canUndo(room, 'acc-pierre')).toBe(false);
+  });
+
+  it('« Je ne joue pas » : l’hôte saisit sans faire partie de la partie', () => {
+    let room = applyMessage(borne(), ju.id, { type: 'setPlaying', playing: false });
+    room = applyMessage(room, ju.id, { type: 'start' }, NOW, first);
+    expect(room.session!.config.sides.flatMap((s) => s.playerIds)).toEqual(['acc-pierre', 'acc-jacques']);
+    expect(current(room)).toBe('acc-pierre');
+    room = applyMessage(room, ju.id, { type: 'dart', dart: T(20) }, NOW);
+    expect(room.session!.events).toHaveLength(1);
+  });
+
+  it('à distance, l’hôte ne saisit pas pour un joueur connecté', () => {
+    let room = joinRoom(createRoom('ABCDEF', 'remote'), null, ju, token, ju.id).room;
+    room = joinRoom(room, null, who('Max'), token, 'acc-max').room;
+    room = applyMessage(room, ju.id, { type: 'start' }, NOW, first);
+    room = applyMessage(room, ju.id, { type: 'endTurn' }, NOW);
+    expect(canThrow(room, ju.id)).toBe(false);
+    expect(() => applyMessage(room, ju.id, { type: 'endTurn' }, NOW)).toThrow(/pas ton tour/);
+    // Connexion coupée : l'hôte peut finir la volée pour lui.
+    expect(canThrow(setConnected(room, 'acc-max', false), ju.id)).toBe(true);
+  });
+
+  it('l’hôte range la liste et retire un joueur avant le lancement', () => {
+    let room = applyMessage(borne(), ju.id, { type: 'movePlayer', playerId: 'acc-jacques', delta: -1 });
+    expect(room.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-jacques', 'acc-pierre']);
+    room = applyMessage(room, ju.id, { type: 'removePlayer', playerId: 'acc-pierre' });
+    expect(room.players.map((p) => p.id)).toEqual(['acc-ju', 'acc-jacques']);
+  });
+
+  it('une partie arrêtée par l’hôte est enregistrée comme abandonnée', () => {
+    let room = applyMessage(borne(), ju.id, { type: 'start' }, NOW, first);
+    room = applyMessage(room, ju.id, { type: 'dart', dart: S(5) }, NOW);
+    const next = applyMessage(room, ju.id, { type: 'abandon' }, NOW);
+    expect(next.status).toBe('lobby');
+    const change = archiveChange(room, next);
+    expect(change && 'record' in change && change.record.session.status).toBe('abandoned');
   });
 });

@@ -1,20 +1,61 @@
 .home {
   align-items: center;
   justify-content: center;
-  gap: 36px;
+  gap: 26px;
+  overflow-y: auto;
 }
 
-.home-logo {
-  padding-bottom: 12px;
+.home-top {
+  width: min(100%, 1150px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.home-account {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.home-account-name {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--gold-bright);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-account button {
+  min-height: 48px;
+  padding: 0 14px;
+  font-size: 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
 }
 
 .home-resume {
   min-height: 72px;
 }
 
+.home-new {
+  width: min(100%, 1150px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.home-place {
+  align-self: center;
+  width: min(100%, 560px);
+}
+
 .home-modes {
   display: grid;
-  grid-template-columns: repeat(4, 270px);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 18px;
 }
 
@@ -44,34 +85,88 @@
 }
 
 .home-links {
+  width: min(100%, 1150px);
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 18px;
 }
 
-.home-links button {
-  min-width: 270px;
+.home-links > button,
+.home-join button {
+  min-width: 250px;
   min-height: 72px;
-  font-size: 24px;
+  font-size: 22px;
   background: var(--bg-raised);
   border: 1px solid var(--gold);
   color: var(--gold-bright);
 }
 
+.home-join {
+  display: flex;
+  gap: 10px;
+}
+
+.home-join input {
+  width: 190px;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+  user-select: text;
+}
+
+.home-join button {
+  min-width: 150px;
+}
+
 .home-warning {
   color: var(--danger);
   font-size: 18px;
+  text-align: center;
 }
 
-/* Téléphone (mode en ligne) : logo à la largeur de l'écran, modes sur deux colonnes, l'écran défile. */
+/* PC 13 pouces : tout tient sans défiler à partir de 720 px de haut. */
+@media (max-height: 820px) and (min-width: 701px) {
+  .home {
+    gap: 18px;
+  }
+  .home-mode {
+    height: 120px;
+  }
+  .home-links > button,
+  .home-join button,
+  .home-resume {
+    min-height: 62px;
+  }
+}
+
+/* Téléphone : une colonne, modes sur deux colonnes, l'écran défile. */
 @media (max-width: 700px) {
   .screen.home {
     justify-content: flex-start;
-    gap: 20px;
-    padding: 24px 16px;
-    overflow-y: auto;
+    gap: 18px;
+    padding: 18px 16px;
+  }
+  .home-top {
+    flex-direction: column;
+    gap: 12px;
   }
   .home-logo .logo {
     font-size: 7.4vw !important;
+  }
+  .home-account {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .home-account-name {
+    flex: 1 1 50%;
+    max-width: none;
+    font-size: 20px;
+  }
+  .home-account button {
+    flex: 1;
   }
   .home-resume {
     width: 100%;
@@ -79,12 +174,11 @@
     font-size: 18px;
   }
   .home-modes {
-    width: 100%;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 12px;
   }
   .home-mode {
-    height: 110px;
+    height: 104px;
     padding: 8px;
   }
   .home-mode-title {
@@ -97,13 +191,21 @@
     text-align: center;
   }
   .home-links {
-    width: 100%;
     flex-direction: column;
+    flex-wrap: nowrap;
     gap: 12px;
   }
-  .home-links button {
+  .home-links > button,
+  .home-join button {
     min-width: 0;
     min-height: 60px;
-    font-size: 20px;
+    font-size: 19px;
+  }
+  .home-join input {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+    font-size: 22px;
+    letter-spacing: 0.12em;
   }
 }

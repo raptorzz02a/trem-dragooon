@@ -67,3 +67,32 @@ export function cleanAvatar(value: unknown): AvatarConfig | null {
 export function cleanColor(value: unknown): string | null {
   return typeof value === 'string' && /^#[0-9a-fA-F]{6}$/.test(value) ? value : null;
 }
+
+/** Nombre maximal de parties envoyées par requête lors de la reprise des stats de la borne. */
+export const IMPORT_BATCH = 50;
+
+/** Une partie de la borne reprise en ligne garde son identifiant d'origine, préfixé. */
+export const importedGameId = (localGameId: string) => `local-${localGameId}`;
+
+/**
+ * Reprise des stats de la borne : dans une partie archivée sur la borne, le profil local `from` devient le compte `to`.
+ * Les autres joueurs de la partie gardent leur profil local tant qu'ils ne l'ont pas rattaché à leur compte.
+ */
+export function claimRecord(record: GameRecord, from: string, to: PublicAccount): GameRecord {
+  const swap = (id: string) => (id === from ? to.id : id);
+  const { session } = record;
+  return {
+    ...record,
+    session: { ...session, config: { ...session.config, sides: session.config.sides.map((s) => ({ ...s, playerIds: s.playerIds.map(swap) })) } },
+    players: record.players.map((p) => (p.id === from ? { id: to.id, name: to.name } : p)),
+  };
+}
+
+/** La partie concerne-t-elle ce profil local ? (Seules les parties terminées ou abandonnées sont reprises.) */
+export function involves(record: GameRecord, localId: string): boolean {
+  const { session } = record;
+  return (
+    (session.status === 'finished' || session.status === 'abandoned') &&
+    session.config.sides.some((s) => s.playerIds.includes(localId))
+  );
+}

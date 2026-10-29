@@ -1,5 +1,5 @@
 import type { Dart } from '../game-engine/darts';
-import type { X01Options } from '../game-engine/types';
+import type { GameSetup } from '../game-setup/setup';
 import type { GameSession } from '../game-session/session';
 import type { AvatarConfig } from '../profiles/types';
 
@@ -13,19 +13,30 @@ export interface OnlineIdentity {
 }
 
 export interface OnlinePlayer extends OnlineIdentity {
-  /** Identifiant attribué par le salon (p1, p2…), utilisé dans la configuration de la partie. */
+  /** Identifiant du compte du joueur, utilisé dans la configuration de la partie et les statistiques. */
   id: string;
   connected: boolean;
+  /** Ajouté par l'hôte avec son mot de passe : il joue sur la cible de l'hôte, sans téléphone. */
+  local?: boolean;
+  /** L'appareil de l'hôte reste connecté à un compte ; « Je ne joue pas » le met de côté pour la partie. */
+  spectator?: boolean;
 }
 
 export type RoomStatus = 'lobby' | 'playing';
+
+/**
+ * same : tout le monde joue sur la même cible, l'appareil de l'hôte saisit pour tous.
+ * remote : chacun sur sa cible, chacun saisit ses fléchettes pendant son tour.
+ */
+export type RoomPlace = 'same' | 'remote';
 
 /** État du salon tel que tous les joueurs le reçoivent. */
 export interface RoomView {
   code: string;
   hostId: string;
   status: RoomStatus;
-  options: X01Options;
+  place: RoomPlace;
+  setup: GameSetup;
   players: OnlinePlayer[];
   /** Partie en cours ou terminée (null dans la salle d'attente). */
   session: GameSession | null;
@@ -37,13 +48,25 @@ export type ClientMessage =
    * account : jeton de connexion du compte ; le pseudo et l'avatar du compte remplacent identity.
    */
   | { type: 'hello'; token: string | null; identity: OnlineIdentity; account: string | null }
-  | { type: 'options'; options: X01Options }
+  | { type: 'setup'; setup: GameSetup }
+  | { type: 'place'; place: RoomPlace }
+  /** Ajout d'un joueur sans téléphone : il tape son mot de passe sur l'appareil de l'hôte. */
+  | { type: 'addPlayer'; name: string; password: string }
+  /** Nouveau joueur sans compte : son compte est créé sur l'appareil de l'hôte, puis il est ajouté. */
+  | { type: 'createPlayer'; name: string; password: string; color: string; avatar: AvatarConfig }
+  /** L'hôte joue ou non la partie (sur la borne, l'appareil reste connecté au compte de son propriétaire). */
+  | { type: 'setPlaying'; playing: boolean }
+  | { type: 'removePlayer'; playerId: string }
+  | { type: 'movePlayer'; playerId: string; delta: number }
+  | { type: 'drawTeams' }
   | { type: 'start' }
   | { type: 'dart'; dart: Dart }
   | { type: 'endTurn' }
   | { type: 'undo' }
   /** Retour à la salle d'attente après une partie, avec les mêmes joueurs. */
   | { type: 'backToLobby' }
+  /** L'hôte arrête la partie en cours : elle est enregistrée comme abandonnée. */
+  | { type: 'abandon' }
   | { type: 'leave' };
 
 export type ServerMessage =

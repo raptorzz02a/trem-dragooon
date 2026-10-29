@@ -32,7 +32,10 @@ interface Props {
   myId?: string;
   /** En ligne : l'arbitre autorise-t-il cet appareil à annuler la dernière fléchette ? */
   canUndo?: boolean;
+  /** En ligne : cet appareil peut-il saisir pour le joueur actif (son tour, ou l'hôte sur une même cible) ? */
+  canPlay?: boolean;
   quitMessage?: string;
+  quitLabel?: string;
   /** Message affiché à la fin de partie à la place des boutons absents. */
   endNote?: string;
 }
@@ -50,7 +53,9 @@ export function Game(props: Props) {
     return p && !p.deleted ? <Avatar avatar={p.avatar} color={p.color} size={size} /> : null;
   };
   const current = state.current;
-  const myTurn = !props.myId || current?.playerId === props.myId;
+  const myTurn = props.canPlay ?? (!props.myId || current?.playerId === props.myId);
+  /** Le joueur actif tient l'appareil (sinon c'est l'hôte qui saisit pour lui, ou un autre qui attend). */
+  const mine = !props.myId || current?.playerId === props.myId;
   const canUndo = props.canUndo ?? props.session.events.length > 0;
   const guard = useTapGuard(400);
 
@@ -180,7 +185,7 @@ export function Game(props: Props) {
           <div className="transition-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
             <div className={`transition-result ${result.bad ? 'bust' : ''}`}>{result.text}</div>
             {avatarOf(current.playerId, 130)}
-            <div className="label">{myTurn ? 'À toi de jouer' : 'Au tour de'}</div>
+            <div className="label">{mine ? 'À toi de jouer' : 'Au tour de'}</div>
             <div className="transition-name">{nameOf(current.playerId)}</div>
             {state.config.teamMode && (
               <div className="transition-team" style={{ color: activeSide.color }}>
@@ -245,7 +250,7 @@ export function Game(props: Props) {
             <div className="dialog-actions">
               <button onClick={() => setConfirmQuit(false)}>Continuer à jouer</button>
               <button className="btn-danger" onClick={props.onQuit}>
-                Quitter
+                {props.quitLabel ?? 'Quitter'}
               </button>
             </div>
           </div>

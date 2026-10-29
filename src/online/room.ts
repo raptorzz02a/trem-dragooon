@@ -1,7 +1,8 @@
-import { DEFAULT_OPTIONS, MAX_PLAYERS } from '../game-engine/engine';
-import type { GameConfig, X01Options } from '../game-engine/types';
+import { MAX_PLAYERS } from '../game-engine/engine';
+import { buildConfig, cleanSetup, DEFAULT_SETUP, drawTeams, setupProblem, smallestTeam, type GameSetup } from '../game-setup/setup';
 import type { GameRecord } from '../profiles/types';
 import {
+  abandonSession,
   createSession,
   endTurn,
   sessionState,
@@ -10,8 +11,8 @@ import {
   undoLast,
   type GameSession,
 } from '../game-session/session';
-import { individualSides, randomOrder, type Rng } from '../teams/teams';
-import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomView } from './protocol';
+import type { Rng } from '../teams/teams';
+import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomPlace, RoomView } from './protocol';
 
 // Règles d'un salon en ligne, sans réseau ni stockage : le serveur les applique, les tests les vérifient.
 // Le serveur est l'arbitre : il refuse une fléchette saisie par un joueur dont ce n'est pas le tour.
@@ -25,18 +26,18 @@ export interface Room {
   code: string;
   hostId: string;
   status: RoomView['status'];
-  options: X01Options;
+  place: RoomPlace;
+  setup: GameSetup;
   players: RoomPlayer[];
   session: GameSession | null;
   /** Compteur des identifiants de joueurs (p1, p2…), jamais réutilisés. */
   nextPlayer: number;
 }
 
-export const MIN_ONLINE_PLAYERS = 2;
 export const MAX_NAME_LENGTH = 20;
 
-export function createRoom(code: string): Room {
-  return { code, hostId: '', status: 'lobby', options: { ...DEFAULT_OPTIONS.x01 }, players: [], session: null, nextPlayer: 1 };
+export function createRoom(code: string, place: RoomPlace = 'remote', setup: GameSetup = DEFAULT_SETUP): Room {
+  return { code, hostId: '', status: 'lobby', place, setup, players: [], session: null, nextPlayer: 1 };
 }
 
 export function roomView(room: Room): RoomView {
@@ -44,7 +45,8 @@ export function roomView(room: Room): RoomView {
     code: room.code,
     hostId: room.hostId,
     status: room.status,
-    options: room.options,
+    place: room.place,
+    setup: room.setup,
     players: room.players.map(({ token: _token, ...p }) => p),
     session: room.session,
   };
@@ -86,15 +88,32 @@ export function joinRoom(
     connected: true,
     token: newToken(),
   };
+  return { room: addPlayer(room, player), player };
+}
+
+/** Nouveau joueur en bas de la liste ; en équipes, il rejoint la moins nombreuse. */
+function addPlayer(room: Room, player: RoomPlayer): Room {
+  const team = smallestTeam(room.setup, room.players.map((p) => p.id));
   return {
-    room: {
-      ...room,
-      players: [...room.players, player],
-      hostId: room.hostId || player.id,
-      nextPlayer: room.nextPlayer + 1,
-    },
-    player,
+    ...room,
+    players: [...room.players, player],
+    hostId: room.hostId || player.id,
+    nextPlayer: room.nextPlayer + 1,
+    setup: { ...room.setup, teamOf: { ...room.setup.teamOf, [player.id]: team } },
   };
+}
+
+/**
+ * Joueur ajouté par l'hôte sur son appareil, après vérification de son mot de passe par le serveur :
+ * il joue sur la même cible et c'est l'hôte qui saisit pour lui.
+ */
+export function addLocalPlayer(room: Room, hostId: string, account: OnlineIdentity & { id: string }, newToken: () => string): Room {
+  assertHost(room, hostId);
+  if (room.status !== 'lobby') throw new Error('La partie a déjà commencé.');
+  if (room.players.some((p) => p.id === account.id)) throw new Error(`${account.name} est déjà dans la partie.`);
+  if (room.players.length >= MAX_PLAYERS) throw new Error(`Le salon est complet (${MAX_PLAYERS} joueurs).`);
+  const player: RoomPlayer = { id: account.id, ...cleanIdentity(account, room.players), connected: false, local: true, token: newToken() };
+  return addPlayer(room, player);
 }
 
 function replacePlayer(room: Room, player: RoomPlayer): Room {
@@ -110,12 +129,19 @@ export function archiveChange(before: Room, next: Room): { record: GameRecord } 
   const now = next.session;
   const sameGame = was && now && was.id === now.id;
   if (now?.status === 'finished' && !(sameGame && was.status === 'finished')) {
-    const ids = new Set(now.config.sides.flatMap((s) => s.playerIds));
-    const players = next.players.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name }));
-    return { record: { id: now.id, session: now, players } };
+    return { record: { id: now.id, session: now, players: playersOf(next, now) } };
+  }
+  // Une partie arrêtée en cours de route compte dans l'historique, ni en victoire ni en défaite.
+  if (now?.status === 'abandoned' && !(sameGame && was.status === 'abandoned') && now.events.length > 0) {
+    return { record: { id: now.id, session: now, players: playersOf(next, now) } };
   }
   if (sameGame && was.status === 'finished' && now.status !== 'finished') return { forget: now.id };
   return null;
+}
+
+function playersOf(room: Room, session: GameSession) {
+  const ids = new Set(session.config.sides.flatMap((s) => s.playerIds));
+  return room.players.filter((p) => ids.has(p.id)).map((p) => ({ id: p.id, name: p.name }));
 }
 
 /** Si l'hôte n'est plus là, le premier joueur connecté prend la main. */
@@ -145,24 +171,35 @@ export function canUndo(room: Room | RoomView, playerId: string): boolean {
   if (room.status !== 'playing' || !session) return false;
   if (session.status !== 'in_progress' && session.status !== 'finished') return false;
   const actor = lastActor(session);
-  return actor !== null && (actor === playerId || room.hostId === playerId);
+  if (room.hostId === playerId) return actor !== null;
+  return actor === playerId && room.place !== 'same';
 }
 
-export function onlineConfig(players: readonly OnlinePlayer[], options: X01Options, rng: Rng = Math.random): GameConfig {
-  return {
-    mode: 'x01',
-    options,
-    teamMode: false,
-    training: false,
-    sides: randomOrder(individualSides(players), rng),
-  };
+/**
+ * Qui peut saisir les fléchettes du joueur actif : sur la même cible, l'appareil de l'hôte ; à distance, le joueur
+ * lui-même, ou l'hôte pour un joueur sans téléphone ou dont la connexion est coupée.
+ */
+export function canThrow(room: Room | RoomView, playerId: string): boolean {
+  const session = room.session;
+  if (room.status !== 'playing' || !session || session.status !== 'in_progress') return false;
+  const current = sessionState(session).current;
+  if (!current) return false;
+  // Sur la même cible, seul l'appareil de l'hôte saisit : les téléphones suivent, sans risque de double saisie.
+  if (room.place === 'same') return room.hostId === playerId;
+  if (current.playerId === playerId) return true;
+  if (room.hostId !== playerId) return false;
+  const player = room.players.find((p) => p.id === current.playerId);
+  return !player || player.local === true || !player.connected;
 }
 
-function validOptions(options: X01Options): X01Options {
-  const startScore = [301, 501, 701].includes(options?.startScore) ? options.startScore : null;
-  const out = options?.out === 'straight' || options?.out === 'double' ? options.out : null;
-  if (!startScore || !out) throw new Error('Réglages de partie invalides.');
-  return { startScore, out, maxRounds: null };
+/** Joueurs embarqués au lancement : à distance, ceux qui sont là ; sur la même cible, toute la liste. */
+export function startingPlayers(room: Room | RoomView): OnlinePlayer[] {
+  const playing = room.players.filter((p) => !p.spectator);
+  return room.place === 'same' ? playing : playing.filter((p) => p.connected || p.local);
+}
+
+function assertLobby(room: Room): void {
+  if (room.status !== 'lobby') throw new Error('La partie a déjà commencé.');
 }
 
 function assertHost(room: Room, playerId: string): void {
@@ -180,30 +217,77 @@ export function applyMessage(
   if (!room.players.some((p) => p.id === playerId)) throw new Error('Joueur inconnu dans ce salon.');
 
   switch (message.type) {
-    case 'options':
+    case 'setup': {
       assertHost(room, playerId);
-      if (room.status !== 'lobby') throw new Error('La partie a déjà commencé.');
-      return { ...room, options: validOptions(message.options) };
+      assertLobby(room);
+      const setup = cleanSetup(message.setup, room.setup);
+      return { ...room, setup: { ...setup, teamOf: { ...room.setup.teamOf, ...setup.teamOf } } };
+    }
+
+    case 'place':
+      assertHost(room, playerId);
+      assertLobby(room);
+      if (message.place !== 'same' && message.place !== 'remote') throw new Error('Choix invalide.');
+      return { ...room, place: message.place };
+
+    case 'removePlayer': {
+      assertHost(room, playerId);
+      assertLobby(room);
+      if (message.playerId === room.hostId) throw new Error('L’hôte ne peut pas se retirer : il peut quitter le salon.');
+      return { ...room, players: room.players.filter((p) => p.id !== message.playerId) };
+    }
+
+    case 'movePlayer': {
+      assertHost(room, playerId);
+      assertLobby(room);
+      const from = room.players.findIndex((p) => p.id === message.playerId);
+      const to = from + Math.sign(Number(message.delta) || 0);
+      if (from < 0 || to < 0 || to >= room.players.length || to === from) return room;
+      const players = room.players.slice();
+      const [moved] = players.splice(from, 1);
+      players.splice(to, 0, moved!);
+      return { ...room, players };
+    }
+
+    case 'drawTeams': {
+      assertHost(room, playerId);
+      assertLobby(room);
+      const ids = room.players.map((p) => p.id);
+      if (ids.length < room.setup.teamCount) throw new Error('Pas assez de joueurs pour ce nombre d’équipes.');
+      return { ...room, setup: { ...room.setup, teamOf: drawTeams(ids, room.setup.teamCount, rng) } };
+    }
+
+    case 'addPlayer':
+    case 'createPlayer':
+      // Le mot de passe est vérifié (ou le compte créé) par le serveur, qui appelle ensuite addLocalPlayer.
+      throw new Error('Ajout de joueur impossible ici.');
+
+    case 'setPlaying': {
+      assertHost(room, playerId);
+      assertLobby(room);
+      const me = room.players.find((p) => p.id === playerId)!;
+      return replacePlayer(room, { ...me, spectator: !message.playing });
+    }
 
     case 'start': {
       assertHost(room, playerId);
-      if (room.status !== 'lobby') throw new Error('La partie a déjà commencé.');
-      const present = room.players.filter((p) => p.connected);
-      if (present.length < MIN_ONLINE_PLAYERS) throw new Error(`Il faut au moins ${MIN_ONLINE_PLAYERS} joueurs connectés.`);
-      // Les joueurs déconnectés dans la salle d'attente ne sont pas embarqués dans la partie.
-      const players = room.players.filter((p) => p.connected);
-      const config = onlineConfig(players, room.options, rng);
+      assertLobby(room);
+      const players = startingPlayers(room);
+      const problem = setupProblem(room.setup, players);
+      if (problem) throw new Error(problem);
+      const config = buildConfig(room.setup, players, rng);
       const session = startSession(createSession(`online-${room.code}-${Date.parse(now) || 0}`, config, now), now);
-      return { ...room, players, status: 'playing', session };
+      // À distance, les absents ne sont pas embarqués ; l'hôte spectateur reste dans le salon pour saisir.
+      const kept = room.place === 'same' ? room.players : room.players.filter((p) => p.id === room.hostId || players.some((x) => x.id === p.id));
+      return { ...room, players: kept, status: 'playing', session };
     }
 
     case 'dart':
     case 'endTurn': {
       const session = room.session;
       if (room.status !== 'playing' || !session) throw new Error('Aucune partie en cours.');
-      const current = sessionState(session).current;
-      if (!current) throw new Error('La partie est terminée.');
-      if (current.playerId !== playerId) throw new Error('Ce n’est pas ton tour.');
+      if (!sessionState(session).current) throw new Error('La partie est terminée.');
+      if (!canThrow(room, playerId)) throw new Error('Ce n’est pas ton tour.');
       const next = message.type === 'dart' ? throwDart(session, message.dart, now) : endTurn(session, now);
       return { ...room, session: next };
     }
@@ -216,6 +300,12 @@ export function applyMessage(
       assertHost(room, playerId);
       if (room.session?.status === 'in_progress') throw new Error('La partie n’est pas terminée.');
       return { ...room, status: 'lobby', session: null };
+
+    case 'abandon':
+      assertHost(room, playerId);
+      if (room.status !== 'playing' || room.session?.status !== 'in_progress') throw new Error('Aucune partie en cours.');
+      // La partie arrêtée reste dans le salon le temps d'être enregistrée ; on revient à la salle d'attente.
+      return { ...room, status: 'lobby', session: abandonSession(room.session, now) };
 
     case 'leave': {
       // Dans la salle d'attente, le joueur disparaît ; en pleine partie, sa place reste (il peut revenir).
