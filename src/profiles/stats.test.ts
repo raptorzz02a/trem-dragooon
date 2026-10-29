@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { computeState } from '../game-engine/engine';
-import type { GameConfig, X01Options } from '../game-engine/types';
-import { config, events, players, teams } from '../test/helpers';
+import type { X01Options } from '../game-engine/types';
+import { config, players, teams } from '../test/helpers';
+import { profile, record } from '../test/records';
 import { memoryStore } from '../storage/db';
-import type { GameRecord, Profile } from './types';
 import {
   clockStats,
   cricketStats,
@@ -15,37 +14,7 @@ import {
   x01Stats,
 } from './stats';
 
-let n = 0;
-/** Archive une partie jouée avec le script donné (voir helpers.events). */
-function record(cfg: GameConfig, script: string, endedAt = `2026-10-${String(10 + (n % 18)).padStart(2, '0')}T20:00:00.000Z`): GameRecord {
-  const evs = events(script);
-  const state = computeState(cfg, evs);
-  n++;
-  return {
-    id: `g${n}`,
-    session: {
-      id: `g${n}`,
-      config: cfg,
-      status: state.status === 'finished' ? 'finished' : 'abandoned',
-      events: evs,
-      corrections: [],
-      createdAt: endedAt,
-      startedAt: '2026-10-01T20:00:00.000Z',
-      endedAt,
-    },
-    players: cfg.sides.flatMap((s) => s.playerIds.map((id) => ({ id, name: id }))),
-  };
-}
-
 const x01 = (o: Partial<X01Options> = {}, sides = players(2)) => config('x01', { startScore: 301, ...o }, sides);
-
-const profile = (id: string, name = id): Profile => ({
-  id,
-  name,
-  color: '#1E5535',
-  avatar: { skin: 0, hair: 0, hairColor: 0, facialHair: 0, glasses: 0, hat: 0 },
-  createdAt: '2026-10-01T00:00:00.000Z',
-});
 
 // 301 Double Out : p1 finit en 3 volées (180 + 81 + 40), p2 joue des 1.
 const x01Win = 'T20 T20 T20 S1 S1 S1 T20 T7 / S1 S1 S1 D20';
