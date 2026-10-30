@@ -128,7 +128,8 @@ sert à modifier le code, pas au jeu au quotidien.
    ```
 
    Plus besoin de serveur local, sauf une fois pour reprendre les anciennes stats (`en-ligne.md`).
-   Avec l'ampoule Yeelight, le `.bat` lance aussi le pont local : voir `ampoule.md`.
+   Avec l'ampoule Yeelight, le `.bat` lance aussi le pont local : voir `ampoule.md`. Avec la caméra, il lance
+   aussi Dart Sense : voir `dart-sense.md`.
 
 2. **Plein écran Edge** : `--app` ouvre Edge sans barre d'adresse ni onglets. Pour en sortir, `Alt + F4`, ou
    fermer la session Windows. Ne pas utiliser `--kiosk` ni l'accès attribué de Windows (« Configurer un

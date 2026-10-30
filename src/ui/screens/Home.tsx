@@ -9,6 +9,7 @@ import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
 import { PLACE_NAMES } from './Setup';
 import { lightEnabled, sendLight, setLightEnabled } from '../../light/light';
+import { senseEnabled, senseState, setSenseEnabled } from '../../sense/sense';
 import './Home.css';
 
 interface Props {
@@ -56,6 +57,7 @@ export function Home(props: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [light, setLight] = useState(lightEnabled);
+  const [camera, setCamera] = useState(senseEnabled);
 
   const toggleLight = async () => {
     setLightEnabled(!light);
@@ -64,6 +66,13 @@ export function Home(props: Props) {
     // Effet de test : confirme que le pont tourne sur cet appareil.
     const ok = await sendLight({ effect: 'victory', color: '#FFD24D' });
     if (!ok) setError('Pont de l’ampoule injoignable : il doit tourner sur ce PC (npm run pont).');
+  };
+
+  const toggleCamera = async () => {
+    setSenseEnabled(!camera);
+    setCamera(!camera);
+    if (camera) return;
+    if ((await senseState()).status === 'off') setError('Dart Sense injoignable : lance trem_sense.py sur ce PC (voir docs/dart-sense.md).');
   };
 
   const create = async (mode: GameMode) => {
@@ -123,6 +132,7 @@ export function Home(props: Props) {
                   () => props.saloons.setFixed(!props.saloons.fixed),
                 )}
                 {menuItem(light ? 'Couper l’ampoule de la borne' : 'Activer l’ampoule de la borne', () => void toggleLight())}
+                {menuItem(camera ? 'Couper la caméra Dart Sense' : 'Activer la caméra Dart Sense', () => void toggleCamera())}
                 {props.onAdmin && menuItem('Administration', props.onAdmin)}
                 {menuItem('Déconnexion', props.onLogout, 'home-menu-logout')}
               </div>
