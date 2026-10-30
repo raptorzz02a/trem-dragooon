@@ -40,8 +40,14 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const post = (body, origin = ORIGIN) =>
   fetch(`${base}/effet`, { method: 'POST', headers: { 'Content-Type': 'text/plain', Origin: origin }, body: JSON.stringify(body) });
 
-for (const effect of ['strobe', 'wave', 'red']) check(`effet ${effect} défini`, flowFor({ effect })?.length > 0);
-check('victoire : 10 flashs', flowFor({ effect: 'victory', color: '#3DA5FF' }).filter((s) => s.endsWith(',1')).length === 10);
+// La Color 1S ignore sans répondre une suite d'états trop longue : on en garde au plus 8.
+for (const effect of ['strobe', 'wave', 'red', 'victory']) {
+  const flow = flowFor({ effect, color: '#3DA5FF' });
+  check(`effet ${effect} court (${flow?.states.length} états)`, flow?.states.length > 0 && flow.states.length <= 8);
+}
+const victory = flowFor({ effect: 'victory', color: '#3DA5FF' });
+check('victoire : 10 flashs puis couleur tenue', victory.count === 20 && victory.hold?.color === '#3DA5FF');
+check('stroboscope : environ 2 s', Math.abs(flowDuration(flowFor({ effect: 'strobe' })) - 1920) < 1);
 check('rouge : environ 1 s', Math.abs(flowDuration(flowFor({ effect: 'red' })) - 1050) < 1);
 
 const pre = await fetch(`${base}/effet`, { method: 'OPTIONS', headers: { Origin: ORIGIN } });
@@ -61,6 +67,15 @@ check('enchaînement sans relire l’état', received.length === 3 && received[2
 await wait(flowDuration(flowFor({ effect: 'wave' })) + 400);
 const last = received.at(-1);
 check('remise en blanc 2700 K à 80 %', received.length === 4 && last.method === 'set_scene' && last.params.join() === 'ct,2700,80');
+
+// Victoire : flashs en boucle courte, couleur tenue, puis remise en état.
+const before = received.length;
+check('victoire acceptée', (await post({ effect: 'victory', color: '#3DA5FF' })).status === 202);
+await wait(flowDuration(victory) + 400);
+const held = received.at(-1);
+check('couleur du gagnant tenue après les flashs', held.method === 'set_scene' && held.params.join() === `color,${0x3da5ff},100`);
+await wait(victory.hold.ms + 300);
+check('puis remise en état', received.length === before + 4 && received.at(-1).params.join() === 'ct,2700,80');
 
 const state = await (await fetch(`${base}/etat`, { headers: { Origin: ORIGIN } })).json();
 check('état du pont', state.ok === true);
