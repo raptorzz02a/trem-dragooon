@@ -5,9 +5,11 @@
 // Aucune dépendance : Node 18 ou plus suffit.
 
 import dgram from 'node:dgram';
+import fs from 'node:fs';
 import http from 'node:http';
 import net from 'node:net';
-import { pathToFileURL } from 'node:url';
+import os from 'node:os';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const DEFAULT_PORT = 55444;
 const BULB_PORT = 55443;
@@ -123,30 +125,112 @@ export class Bulb {
   }
 }
 
-/** Cherche une ampoule Yeelight sur le réseau local (SSDP, port 1982). Résout son adresse IP ou null. */
-export function discover(timeoutMs = 3000) {
+/** Adresses IPv4 de ce PC sur le réseau local (cartes virtuelles comprises). */
+function localAddresses() {
+  return Object.values(os.networkInterfaces())
+    .flat()
+    .filter((a) => a && a.family === 'IPv4' && !a.internal)
+    .map((a) => a.address);
+}
+
+/**
+ * Cherche une ampoule Yeelight par SSDP (port 1982), en interrogeant depuis chaque carte réseau :
+ * sous Windows, une carte virtuelle (VPN, Hyper-V, WSL) peut sinon capter la requête.
+ */
+function discoverSsdp(timeoutMs) {
+  const search = 'M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1982\r\nMAN: "ssdp:discover"\r\nST: wifi_bulb\r\n\r\n';
   return new Promise((resolve) => {
-    const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+    const sockets = [];
     const done = (ip) => {
       clearTimeout(timer);
-      try {
-        socket.close();
-      } catch {
-        // déjà fermée
+      for (const socket of sockets) {
+        try {
+          socket.close();
+        } catch {
+          // déjà fermée
+        }
       }
       resolve(ip);
     };
     const timer = setTimeout(() => done(null), timeoutMs);
-    socket.on('message', (msg) => {
-      const match = /Location:\s*yeelight:\/\/([\d.]+):\d+/i.exec(msg.toString());
-      if (match) done(match[1]);
-    });
-    socket.on('error', () => done(null));
-    socket.bind(() => {
-      const search = 'M-SEARCH * HTTP/1.1\r\nHOST: 239.255.255.250:1982\r\nMAN: "ssdp:discover"\r\nST: wifi_bulb\r\n\r\n';
-      socket.send(search, 1982, '239.255.255.250');
-    });
+    for (const address of localAddresses()) {
+      const socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
+      sockets.push(socket);
+      socket.on('message', (msg) => {
+        const match = /Location:\s*yeelight:\/\/([\d.]+):\d+/i.exec(msg.toString());
+        if (match) done(match[1]);
+      });
+      socket.on('error', () => {});
+      socket.bind(0, address, () => {
+        try {
+          socket.setMulticastInterface(address);
+          socket.send(search, 1982, '239.255.255.250');
+        } catch {
+          // carte sans multicast
+        }
+      });
+    }
   });
+}
+
+/** Le port de contrôle Yeelight répond-il à cette adresse ? */
+export function probe(ip, port = BULB_PORT, timeoutMs = 600) {
+  return new Promise((resolve) => {
+    const socket = net.createConnection({ host: ip, port });
+    const done = (ok) => {
+      socket.destroy();
+      resolve(ok);
+    };
+    socket.setTimeout(timeoutMs, () => done(false));
+    socket.on('connect', () => done(true));
+    socket.on('error', () => done(false));
+  });
+}
+
+/**
+ * Plan B quand le pare-feu bloque les réponses SSDP : essaie le port 55443 sur tout le réseau
+ * local (adresses x.y.z.1 à 254 de chaque carte). Seules des connexions sortantes, que Windows laisse passer.
+ */
+async function discoverScan() {
+  const candidates = [];
+  for (const address of localAddresses()) {
+    const prefix = address.split('.').slice(0, 3).join('.');
+    for (let i = 1; i < 255; i++) {
+      const ip = `${prefix}.${i}`;
+      if (ip !== address && !candidates.includes(ip)) candidates.push(ip);
+    }
+  }
+  let found = null;
+  let next = 0;
+  const worker = async () => {
+    while (!found && next < candidates.length) {
+      const ip = candidates[next++];
+      if (await probe(ip)) found ??= ip;
+    }
+  };
+  await Promise.all(Array.from({ length: 64 }, worker));
+  return found;
+}
+
+const LAST_IP_FILE = fileURLToPath(new URL('./.ampoule-ip', import.meta.url));
+
+/** Trouve l'ampoule : dernière adresse connue, puis SSDP, puis balayage du réseau local. Résout son IP ou null. */
+export async function discover(timeoutMs = 3000) {
+  let last = null;
+  try {
+    last = fs.readFileSync(LAST_IP_FILE, 'utf8').trim();
+  } catch {
+    // premier lancement
+  }
+  const ip = (last && (await probe(last)) ? last : null) ?? (await discoverSsdp(timeoutMs)) ?? (await discoverScan());
+  if (ip && ip !== last) {
+    try {
+      fs.writeFileSync(LAST_IP_FILE, ip);
+    } catch {
+      // adresse non mémorisée, on cherchera de nouveau au prochain lancement
+    }
+  }
+  return ip;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +342,7 @@ async function main() {
     console.log('Recherche de l’ampoule Yeelight sur le réseau…');
     ip = await discover();
     if (!ip) {
-      console.log('Aucune ampoule trouvée. Vérifie le « Contrôle LAN » dans l’appli Yeelight. Nouvel essai dans 10 s.');
+      console.log('Aucune ampoule trouvée. Vérifie le « Contrôle LAN » dans l’appli Yeelight, ou donne son adresse : --ip 192.168.x.y. Nouvel essai dans 10 s.');
       await new Promise((r) => setTimeout(r, 10_000));
     }
   }
