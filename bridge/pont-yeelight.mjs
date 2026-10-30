@@ -23,32 +23,37 @@ const rgb = (hex) => parseInt(hex.replace('#', ''), 16);
 const step = (ms, color, bright) => `${ms},1,${rgb(color)},${bright}`;
 const pause = (ms) => `${ms},7,0,0`;
 
-const STROBE_COLORS = ['#FF0000', '#0000FF', '#00FF00', '#FFFF00', '#FF00FF', '#00FFFF'];
+const STROBE_COLORS = ['#FF0000', '#0000FF', '#00FF00', '#FF00FF'];
 const WAVE_COLORS = ['#00BFFF', '#8A2BE2', '#FF1493', '#FFA500', '#00FF7F', '#00BFFF'];
 
-/** Liste des états de l'effet, ou null si l'effet est inconnu. */
+/**
+ * Effet demandé : quelques états (l'ampoule ignore sans répondre une suite trop longue, au-delà d'une
+ * dizaine d'états), rejoués en boucle jusqu'à count changements, puis éventuellement une couleur tenue.
+ * null si l'effet est inconnu.
+ */
 export function flowFor(request) {
   switch (request?.effect) {
     case 'strobe':
-      // Deux tours de six couleurs, chacune allumée puis presque éteinte : environ 2 s.
-      return [...STROBE_COLORS, ...STROBE_COLORS].flatMap((c) => [step(50, c, 100), step(50, c, 1), pause(60)]);
+      // Quatre couleurs, chacune allumée puis presque éteinte, quatre tours : environ 2 s.
+      return { states: STROBE_COLORS.flatMap((c) => [step(60, c, 100), step(60, c, 1)]), count: 32 };
     case 'wave':
-      return WAVE_COLORS.map((c) => step(400, c, 100));
+      return { states: WAVE_COLORS.map((c) => step(400, c, 100)), count: WAVE_COLORS.length };
     case 'red':
-      return [step(50, '#FF0000', 100), pause(1000)];
+      return { states: [step(50, '#FF0000', 100), pause(1000)], count: 2 };
     case 'victory': {
       const color = /^#[0-9a-f]{6}$/i.test(request.color ?? '') ? request.color : '#FFD24D';
-      const flashes = Array.from({ length: 10 }, () => [step(150, color, 100), pause(100), step(150, color, 1), pause(100)]);
-      return [...flashes.flat(), step(200, color, 100), pause(4000)];
+      // Dix flashs, puis la couleur du gagnant tenue 4 s.
+      return { states: [step(200, color, 100), step(200, color, 1)], count: 20, hold: { color, ms: 4000 } };
     }
     default:
       return null;
   }
 }
 
-/** Durée totale de l'effet, en millisecondes. */
+/** Durée de la boucle d'états, en millisecondes (sans la couleur tenue). */
 export function flowDuration(flow) {
-  return flow.reduce((ms, s) => ms + Number(s.split(',')[0]), 0);
+  const loop = flow.states.reduce((ms, s) => ms + Number(s.split(',')[0]), 0);
+  return (loop * flow.count) / flow.states.length;
 }
 
 // ---------------------------------------------------------------------------
@@ -243,6 +248,7 @@ export class Player {
     this.log = log;
     this.saved = null;
     this.restoreTimer = null;
+    this.runs = 0;
     this.queue = Promise.resolve();
   }
 
@@ -261,12 +267,27 @@ export class Player {
       this.saved = { power, bright: Number(bright), mode: Number(mode), rgb: Number(color), ct: Number(ct), hue: Number(hue), sat: Number(sat) };
     }
     clearTimeout(this.restoreTimer);
+    const run = ++this.runs;
     // set_scene « cf » allume l'ampoule si elle est éteinte, contrairement à start_cf.
-    await this.bulb.send('set_scene', ['cf', flow.length, 1, flow.join(',')]);
+    await this.bulb.send('set_scene', ['cf', flow.count, 1, flow.states.join(',')]);
     this.log(`Effet ${name}`);
-    this.restoreTimer = setTimeout(() => {
-      this.queue = this.queue.then(() => this.restore()).catch((e) => this.log(`Ampoule : ${e.message}`));
-    }, flowDuration(flow) + 100);
+    const later = (ms, task) => {
+      this.restoreTimer = setTimeout(() => {
+        this.queue = this.queue.then(task).catch((e) => this.log(`Ampoule : ${e.message}`));
+      }, ms);
+    };
+    const end = flowDuration(flow);
+    if (!flow.hold) {
+      later(end + 100, () => this.restore());
+      return;
+    }
+    const { color, ms } = flow.hold;
+    later(end + 50, async () => {
+      // Un effet plus récent a pris la main : il s'occupera de la remise en état.
+      if (run !== this.runs) return;
+      await this.bulb.send('set_scene', ['color', rgb(color), 100]);
+      later(ms, () => this.restore());
+    });
   }
 
   async restore() {
