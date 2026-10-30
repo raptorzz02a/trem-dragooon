@@ -3,3 +3,4 @@ dist/
 coverage/
 *.log
 .wrangler/
+bridge/.ampoule-ip
