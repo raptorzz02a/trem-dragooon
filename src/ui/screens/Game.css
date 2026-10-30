@@ -21,6 +21,33 @@
   font-size: 18px;
 }
 
+.game-sense {
+  min-height: 48px;
+  padding: 0 16px;
+  font-size: 16px;
+  background: var(--bg-raised);
+  border: 1px solid var(--line);
+}
+
+.game-sense.sense-ok {
+  border-color: var(--green-bright);
+  box-shadow: var(--glow-green);
+}
+
+.game-sense.sense-cible {
+  border-color: var(--gold);
+  color: var(--gold-bright);
+}
+
+.game-sense.sense-off {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.game-sense.sense-paused {
+  color: var(--text-dim);
+}
+
 .game-quit {
   min-height: 48px;
   padding: 0 20px;
@@ -566,6 +593,11 @@
     font-size: 16px;
   }
   .game-round {
+    font-size: 14px;
+  }
+  .game-sense {
+    min-height: 40px;
+    padding: 0 10px;
     font-size: 14px;
   }
   .game-quit {

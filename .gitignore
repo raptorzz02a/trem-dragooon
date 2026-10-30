@@ -4,3 +4,4 @@ coverage/
 *.log
 .wrangler/
 bridge/.ampoule-ip
+__pycache__/

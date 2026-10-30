@@ -11,6 +11,7 @@ import { useTapGuard } from '../useTapGuard';
 import type { Profile } from '../../profiles/types';
 import { Avatar } from '../components/Avatar';
 import { lightEffectFor, lightEnabled, sendLight } from '../../light/light';
+import { useDartSense } from '../../sense/useDartSense';
 import './Game.css';
 
 interface Props {
@@ -59,6 +60,8 @@ export function Game(props: Props) {
   const mine = !props.myId || current?.playerId === props.myId;
   const canUndo = props.canUndo ?? props.session.events.length > 0;
   const guard = useTapGuard(400);
+  // Caméra Dart Sense (borne) : saisit les fléchettes du joueur dont c'est le tour sur cet appareil.
+  const sense = useDartSense(state, myTurn, props.onDart);
 
   // Ampoule de la borne : effet sur triple, Bull, double, raté, bust et victoire.
   const lastState = useRef<GameState | null>(null);
@@ -115,6 +118,11 @@ export function Game(props: Props) {
           {state.config.teamMode ? ' · Équipes' : ''}
         </span>
         <span className="game-round">Manche {round}</span>
+        {sense.enabled && (
+          <button className={`game-sense sense-${sense.active ? sense.status : 'paused'}`} onClick={sense.toggle}>
+            📷 {!sense.active ? 'Saisie manuelle' : sense.status === 'ok' ? 'Caméra' : sense.status === 'cible' ? 'Cible non repérée' : 'Caméra éteinte'}
+          </button>
+        )}
         <button className="game-quit" onClick={() => setConfirmQuit(true)}>
           Quitter
         </button>
