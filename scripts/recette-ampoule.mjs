@@ -14,6 +14,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Fausse ampoule : allumée en blanc chaud, répond « ok » à tout et envoie des notifications parasites.
 const received = [];
+let quota = false;
 const fake = net.createServer((socket) => {
   socket.setEncoding('utf8');
   let buf = '';
@@ -25,6 +26,10 @@ const fake = net.createServer((socket) => {
       buf = buf.slice(end + 1);
       received.push(cmd);
       socket.write(JSON.stringify({ method: 'props', params: { power: 'on' } }) + '\r\n');
+      if (quota) {
+        socket.write(JSON.stringify({ id: cmd.id, error: { code: -1, message: 'client quota exceeded' } }) + '\r\n');
+        continue;
+      }
       const result = cmd.method === 'get_prop' ? ['on', '80', '2', '16777215', '2700', '0', '0'] : ['ok'];
       socket.write(JSON.stringify({ id: cmd.id, result }) + '\r\n');
     }
@@ -92,6 +97,17 @@ check('effet accepté près du plafond', (await post({ effect: 'strobe' })).stat
 await wait(300);
 check('effet sauté près du plafond', received.length === beforeQuota);
 bulb.sent = [];
+
+// L'ampoule refuse (« client quota exceeded ») : une minute de pause sans rien lui envoyer.
+quota = true;
+await post({ effect: 'wave' });
+await wait(300);
+const afterRefusal = received.length;
+quota = false;
+await post({ effect: 'strobe' });
+await wait(300);
+check('après un refus de quota, pause : rien n’est envoyé', received.length === afterRefusal && player.pausedUntil > Date.now());
+player.pausedUntil = 0;
 
 const state = await (await fetch(`${base}/etat`, { headers: { Origin: ORIGIN } })).json();
 check('état du pont', state.ok === true);

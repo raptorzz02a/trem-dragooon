@@ -264,6 +264,16 @@ export class Player {
     this.runs = 0;
     this.queue = Promise.resolve();
     this.last = { key: '', at: 0 };
+    // Après un refus « quota exceeded », plus rien n'est envoyé jusqu'à cette heure : insister prolonge le blocage.
+    this.pausedUntil = 0;
+  }
+
+  fail(e) {
+    if (/quota/i.test(e.message)) {
+      this.pausedUntil = Date.now() + 60_000;
+      this.saved = null;
+      this.log('Ampoule : quota dépassé, effets en pause 1 minute');
+    } else this.log(`Ampoule : ${e.message}`);
   }
 
   play(request) {
@@ -275,11 +285,12 @@ export class Player {
     if (key === this.last.key && now - this.last.at < 1000) return true;
     this.last = { key, at: now };
     // Trop d'effets dans la minute : on saute celui-ci plutôt que de faire refuser les suivants et la remise en état.
+    if (now < this.pausedUntil) return true;
     if (this.bulb.budget(now) < EFFECT_COST) {
       this.log(`Effet ${request.effect} sauté (plus de ${QUOTA} commandes dans la minute)`);
       return true;
     }
-    this.queue = this.queue.then(() => this.run(flow, request.effect)).catch((e) => this.log(`Ampoule : ${e.message}`));
+    this.queue = this.queue.then(() => this.run(flow, request.effect)).catch((e) => this.fail(e));
     return true;
   }
 
@@ -297,7 +308,7 @@ export class Player {
     this.log(`Effet ${name}`);
     const later = (ms, task) => {
       this.restoreTimer = setTimeout(() => {
-        this.queue = this.queue.then(task).catch((e) => this.log(`Ampoule : ${e.message}`));
+        this.queue = this.queue.then(task).catch((e) => this.fail(e));
       }, ms);
     };
     const end = flowDuration(flow);
