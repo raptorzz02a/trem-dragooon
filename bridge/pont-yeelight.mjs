@@ -13,6 +13,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const DEFAULT_PORT = 55444;
 const BULB_PORT = 55443;
+/** Commandes par minute que le pont s'autorise (l'ampoule en accepte 60). */
+const QUOTA = 50;
+/** Au plus ce que coûte un effet : lecture de l'état, effet, couleur tenue, remise en état. */
+const EFFECT_COST = 4;
 const DEFAULT_ORIGINS = ['https://trem-dragooon.julien-charrier01.workers.dev'];
 
 // ---------------------------------------------------------------------------
@@ -67,6 +71,14 @@ export class Bulb {
     this.nextId = 1;
     this.pending = new Map();
     this.buffer = '';
+    // Heures d'envoi des commandes de la dernière minute : l'ampoule refuse au-delà de 60 par minute.
+    this.sent = [];
+  }
+
+  /** Commandes encore permises sur la minute glissante, avec une marge sous le plafond de 60. */
+  budget(now = Date.now()) {
+    this.sent = this.sent.filter((t) => now - t < 60_000);
+    return QUOTA - this.sent.length;
   }
 
   connect() {
@@ -120,6 +132,7 @@ export class Bulb {
         resolve: (v) => (clearTimeout(timer), resolve(v)),
         reject: (e) => (clearTimeout(timer), reject(e)),
       });
+      this.sent.push(Date.now());
       this.connect().write(JSON.stringify({ id, method, params }) + '\r\n');
     });
   }
@@ -250,11 +263,22 @@ export class Player {
     this.restoreTimer = null;
     this.runs = 0;
     this.queue = Promise.resolve();
+    this.last = { key: '', at: 0 };
   }
 
   play(request) {
     const flow = flowFor(request);
     if (!flow) return false;
+    // Même effet reçu deux fois de suite (deux fenêtres de l'appli ouvertes sur ce PC) : joué une fois.
+    const key = JSON.stringify(request);
+    const now = Date.now();
+    if (key === this.last.key && now - this.last.at < 1000) return true;
+    this.last = { key, at: now };
+    // Trop d'effets dans la minute : on saute celui-ci plutôt que de faire refuser les suivants et la remise en état.
+    if (this.bulb.budget(now) < EFFECT_COST) {
+      this.log(`Effet ${request.effect} sauté (plus de ${QUOTA} commandes dans la minute)`);
+      return true;
+    }
     this.queue = this.queue.then(() => this.run(flow, request.effect)).catch((e) => this.log(`Ampoule : ${e.message}`));
     return true;
   }
