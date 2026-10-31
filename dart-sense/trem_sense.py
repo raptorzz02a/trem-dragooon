@@ -8,6 +8,7 @@ un evenement « retrait » termine la volee.
 
 A copier dans le dossier de Dart Sense (a cote de get_scores.py et weights.pt), puis :
     python trem_sense.py --camera 1
+Dans la fenetre : q pour quitter, s pour enregistrer l'image de la camera (dossier captures).
 """
 
 import argparse
@@ -250,7 +251,7 @@ def run(args):
         x0, y0 = (w - size) // 2, (h - size) // 2
         # Le modele a ete entraine sur des images carrees ou la cible remplit le cadre.
         square = frame[y0:y0 + size, x0:x0 + size]
-        result = model(square, verbose=False)[0]
+        result = model(square, conf=args.confiance, verbose=False)[0]
         calibration, darts = scorer.process_yolo_output(result)
         now = time.time()
         fps = round(1 / max(now - last_time, 1e-3), 1)
@@ -271,15 +272,24 @@ def run(args):
         if not args.sans_fenetre:
             view = square.copy()
             th = max(1, size // 400)
-            for box, k in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist()):
+            for box, k, c in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist()):
                 color = (0, 200, 255) if int(k) == 4 else (0, 255, 0)
                 cv2.circle(view, (int(box[0]), int(box[1])), 6 * th, color, th)
+                if int(k) == 4:
+                    cv2.putText(view, f'{c:.2f}', (int(box[0]) + 8 * th, int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.8 * th, color, 2 * th)
             text = ' '.join(tracker.codes) if coords is not None else 'Cible non reperee : remplis le cadre'
             cv2.putText(view, f'{text}  ({fps} img/s)', (10, 40 * th), cv2.FONT_HERSHEY_SIMPLEX, th, (0, 0, 255), 2 * th)
             scale = 600 / size
             cv2.imshow('Dart Sense - TREM-DRAGOOON', cv2.resize(view, None, fx=scale, fy=scale))
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            key = cv2.waitKey(1) & 0xFF
+            if key == ord('q'):
                 break
+            if key == ord('s'):
+                # Image brute de la camera, pour analyser une flechette mal lue.
+                os.makedirs('captures', exist_ok=True)
+                name = os.path.join('captures', time.strftime('%Y%m%d-%H%M%S') + '.png')
+                cv2.imwrite(name, frame)
+                print('Image enregistree :', os.path.abspath(name))
     events.set_status(camera='arretee')
 
 
@@ -289,6 +299,7 @@ def main():
     parser.add_argument('--port', type=int, default=PORT)
     parser.add_argument('--modele', default='weights.pt')
     parser.add_argument('--origine', help='adresse de l appli si ce n est pas celle de Cloudflare (ex. http://192.168.1.20:4173)')
+    parser.add_argument('--confiance', type=float, default=0.15, help='confiance minimale d une detection (0.25 dans Dart Sense) : plus bas = plus de flechettes vues, plus de fausses')
     parser.add_argument('--sans-fenetre', action='store_true', help='pas de fenetre de controle')
     run(parser.parse_args())
 
