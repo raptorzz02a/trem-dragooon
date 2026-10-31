@@ -225,6 +225,31 @@
   color: var(--text);
 }
 
+.board-last {
+  display: flex;
+  gap: 4px;
+}
+
+.board-last span {
+  min-width: 40px;
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.board-last span.zero {
+  color: var(--text-dim);
+}
+
+.board-last.bust span {
+  color: var(--danger);
+  text-decoration: line-through;
+}
+
 .board-avg {
   font-size: 14px;
   color: var(--text-dim);
@@ -594,6 +619,11 @@
   }
   .game-round {
     font-size: 14px;
+  }
+  .board-last span {
+    min-width: 30px;
+    padding: 1px 4px;
+    font-size: 12px;
   }
   .game-sense {
     min-height: 40px;
