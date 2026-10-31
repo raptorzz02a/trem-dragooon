@@ -1,0 +1,30 @@
+# Déploiement Cloudflare : l'appli (dossier dist) et le serveur de salons en ligne, en un seul Worker.
+# Voir docs/en-ligne.md pour la mise en ligne.
+name = "trem-dragooon"
+main = ".deploy/wrapper.ts"
+compatibility_date = "2025-09-01"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "RoomObject"
+
+# Durable Objects stockés en SQLite : seule forme disponible dans l'offre gratuite.
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomObject"]
+
+# Base des comptes et des parties en ligne (pseudo + mot de passe, statistiques partagées).
+[[durable_objects.bindings]]
+name = "ACCOUNTS"
+class_name = "AccountsObject"
+
+[[migrations]]
+tag = "v2"
+new_sqlite_classes = ["AccountsObject"]
+
+[vars]
+# Pseudo(s) administrateur(s), séparés par des virgules : accès à l'espace administrateur dans l'appli.
+# Le pseudo est attaché au compte qui le porte au moment du déploiement (ou de sa création s'il n'existe pas encore).
+ADMINS = "admin"
+# Pseudo(s) qui administrent aussi le saloon public TREM-DRAGOOON (réglages par défaut, classement), séparés par des virgules.
+PUBLIC_ADMINS = "Ju"
