@@ -183,7 +183,7 @@ def serve(events, port, origins):
     return server
 
 
-def frames_from(source):
+def frames_from(source, size=None):
     """Images de la camera (numero de webcam, adresse IP Webcam, URL rtsp/http) ou d'un dossier d'images (essai)."""
     import cv2
 
@@ -203,6 +203,13 @@ def frames_from(source):
         cap = cv2.VideoCapture(source if '://' in source else 'http://' + source + '/video')
     if not cap.isOpened():
         raise ConnectionError(f'Impossible d ouvrir la camera : {source}')
+    if size:
+        # Demande une definition plus fine a la webcam (elle donne la plus proche qu'elle sait faire).
+        w, h = (int(v) for v in size.lower().split('x'))
+        cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    print(f'Camera : {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}')
     # Lecture dans un thread : on analyse toujours l'image la plus recente (pas de retard qui s'accumule).
     latest = {'frame': None, 'id': 0, 'running': True, 'time': time.time()}
 
@@ -245,7 +252,7 @@ def run(args):
     print(f'Dart Sense pret pour TREM-DRAGOOON : http://127.0.0.1:{args.port} (q dans la fenetre pour quitter)')
 
     last_time = time.time()
-    for frame in frames_from(args.camera):
+    for frame in frames_from(args.camera, args.definition):
         h, w = frame.shape[:2]
         size = min(h, w)
         x0, y0 = (w - size) // 2, (h - size) // 2
@@ -299,6 +306,7 @@ def main():
     parser.add_argument('--port', type=int, default=PORT)
     parser.add_argument('--modele', default='weights.pt')
     parser.add_argument('--origine', help='adresse de l appli si ce n est pas celle de Cloudflare (ex. http://192.168.1.20:4173)')
+    parser.add_argument('--definition', help='definition demandee a la webcam, ex. 1920x1080 (sinon celle par defaut, souvent 640x480)')
     parser.add_argument('--confiance', type=float, default=0.15, help='confiance minimale d une detection (0.25 dans Dart Sense) : plus bas = plus de flechettes vues, plus de fausses')
     parser.add_argument('--sans-fenetre', action='store_true', help='pas de fenetre de controle')
     run(parser.parse_args())
