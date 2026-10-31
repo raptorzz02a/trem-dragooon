@@ -77,6 +77,22 @@ check('couleur du gagnant tenue après les flashs', held.method === 'set_scene' 
 await wait(victory.hold.ms + 300);
 check('puis remise en état', received.length === before + 4 && received.at(-1).params.join() === 'ct,2700,80');
 
+// Deux fenêtres de l'appli ouvertes : le même effet arrive deux fois, il n'est joué qu'une fois.
+const beforeDouble = received.length;
+await post({ effect: 'red' });
+await post({ effect: 'red' });
+await wait(300);
+check('effet en double joué une seule fois', received.length === beforeDouble + 2);
+await wait(flowDuration(flowFor({ effect: 'red' })) + 400);
+
+// Plafond de l'ampoule (60 commandes/minute) : au-delà de 50, les effets sont sautés.
+bulb.sent = Array.from({ length: 47 }, () => Date.now());
+const beforeQuota = received.length;
+check('effet accepté près du plafond', (await post({ effect: 'strobe' })).status === 202);
+await wait(300);
+check('effet sauté près du plafond', received.length === beforeQuota);
+bulb.sent = [];
+
 const state = await (await fetch(`${base}/etat`, { headers: { Origin: ORIGIN } })).json();
 check('état du pont', state.ok === true);
 
