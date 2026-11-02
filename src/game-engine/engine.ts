@@ -2,8 +2,9 @@ import { assertValidDart } from './darts';
 import { clockRules } from './modes/clock';
 import { cricketRules } from './modes/cricket';
 import { randomRules } from './modes/random';
+import { trainingRules } from './modes/training';
 import { x01Rules } from './modes/x01';
-import type { ModeRules } from './rules';
+import { topRanked, type ModeRules } from './rules';
 import type {
   ClockOptions,
   CricketOptions,
@@ -16,6 +17,7 @@ import type {
   RankEntry,
   ThrownDart,
   TurnOutcome,
+  TrainingOptions,
   TurnRecord,
   X01Options,
 } from './types';
@@ -30,6 +32,7 @@ export const DEFAULT_OPTIONS = {
   cricket: { bull: true, variant: 'standard', maxRounds: 20 } satisfies CricketOptions,
   clock: { order: 'asc', required: 'any', advanceByMultiplier: false, bullFinish: 'any' } satisfies ClockOptions,
   random: { rounds: 20, targets: [] } satisfies RandomOptions,
+  training: {} satisfies TrainingOptions,
 } as const;
 
 const RULES: Record<GameMode, ModeRules<any>> = {
@@ -37,6 +40,7 @@ const RULES: Record<GameMode, ModeRules<any>> = {
   cricket: cricketRules,
   clock: clockRules,
   random: randomRules,
+  training: trainingRules,
 };
 
 /** Vérifie la composition de la partie. Lève une erreur explicite si elle est invalide. */
@@ -111,6 +115,14 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
     }
     if (event.type === 'endTurn') {
       closeTurn('ended');
+      return;
+    }
+    if (event.type === 'finish') {
+      // Fin demandée : la volée entamée est gardée, la partie s'arrête là, classée sur les points du moment.
+      const { round, sideIndex } = ctx();
+      if (darts.length > 0) turns.push({ turnIndex, round, sideIndex, playerId: playerFor(config, sideIndex, round), darts, outcome: 'ended' });
+      game.status = 'finished';
+      game.winners = topRanked(rules.ranking(modeState));
       return;
     }
     assertValidDart(event.dart);

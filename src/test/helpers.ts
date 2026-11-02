@@ -27,16 +27,16 @@ export function config<M extends ModeOptions['mode']>(
     options: { ...DEFAULT_OPTIONS[mode], ...options },
     sides,
     teamMode: sides.some((s) => s.playerIds.length > 1) || sides[0]?.id.startsWith('t') === true,
-    training: sides.flatMap((s) => s.playerIds).length === 1,
+    training: mode === 'training' || sides.flatMap((s) => s.playerIds).length === 1,
   } as GameConfig;
 }
 
-/** Fléchettes en notation courte ; « / » termine la volée. Ex. : "T20 T20 / S1". */
+/** Fléchettes en notation courte ; « / » termine la volée, « ! » termine la partie. Ex. : "T20 T20 / S1". */
 export function events(script: string): GameEvent[] {
   return script
     .split(/\s+/)
     .filter(Boolean)
-    .map((t) => (t === '/' ? { type: 'endTurn' } : { type: 'dart', dart: parseDart(t) }));
+    .map((t): GameEvent => (t === '/' ? { type: 'endTurn' } : t === '!' ? { type: 'finish' } : { type: 'dart', dart: parseDart(t) }));
 }
 
 export function play(cfg: GameConfig, script: string): GameState {

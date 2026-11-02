@@ -260,6 +260,44 @@ export function randomStats(games: PlayerGame[]): RandomStats {
   };
 }
 
+export interface TrainingStats {
+  games: number;
+  darts: number;
+  points: number;
+  avgDart: number | null;
+  avgVolley: number | null;
+  bestVolley: number | null;
+  /** Meilleur total sur une partie. */
+  bestScore: number | null;
+  over100: number;
+  over140: number;
+  max180: number;
+  avgDurationMs: number | null;
+}
+
+/** Entraînement : volume de fléchettes et points, sans victoire ni défaite. */
+export function trainingStats(games: PlayerGame[]): TrainingStats {
+  const list = games.filter((g) => g.state.config.mode === 'training');
+  const volleys = list.flatMap((g) => g.turns.map(turnPoints));
+  const darts = list.reduce((n, g) => n + g.turns.reduce((m, t) => m + t.darts.length, 0), 0);
+  const points = volleys.reduce((a, b) => a + b, 0);
+  const scores = list.map((g) => (g.state.mode as { scores: number[] }).scores[g.sideIndex]!);
+  // Les volées incomplètes (fin d'entraînement en cours de volée) comptent dans la moyenne : elles ont été jouées.
+  return {
+    games: list.length,
+    darts,
+    points,
+    avgDart: darts ? points / darts : null,
+    avgVolley: volleys.length ? points / volleys.length : null,
+    bestVolley: volleys.length ? Math.max(...volleys) : null,
+    bestScore: scores.length ? Math.max(...scores) : null,
+    over100: volleys.filter((v) => v >= 100 && v < 140).length,
+    over140: volleys.filter((v) => v >= 140 && v < 180).length,
+    max180: volleys.filter((v) => v === 180).length,
+    avgDurationMs: avgDuration(list),
+  };
+}
+
 function avgDuration(list: PlayerGame[]): number | null {
   const d = list.map((g) => g.durationMs).filter((x): x is number => x !== null);
   return d.length ? d.reduce((a, b) => a + b, 0) / d.length : null;
@@ -295,7 +333,7 @@ export interface RankingRow {
   games: number;
   wins: number;
   winRate: number;
-  /** Statistique clé du mode : moyenne (X01), MPR (Cricket), meilleur parcours (Horloge), meilleur score (Chiffre aléatoire). */
+  /** Statistique clé du mode : moyenne (X01), MPR (Cricket), meilleur parcours (Horloge), meilleur score (Chiffre aléatoire, Entraînement). */
   key: number | null;
 }
 
@@ -338,6 +376,8 @@ function keyStat(games: PlayerGame[], mode: GameMode | undefined): number | null
     }
     case 'random':
       return randomStats(games).bestScore;
+    case 'training':
+      return trainingStats(games).bestScore;
     default:
       return null;
   }

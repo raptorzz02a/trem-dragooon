@@ -159,6 +159,13 @@ function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Upda
         />
       );
     }
+    case 'training':
+      return (
+        <div className="setup-note">
+          Chaque fléchette rapporte sa valeur, sans bust ni limite. L’hôte termine l’entraînement quand il veut : la partie
+          compte dans les statistiques, pas dans les victoires.
+        </div>
+      );
   }
 }
 

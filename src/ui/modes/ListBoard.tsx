@@ -7,7 +7,7 @@ interface Row {
   detail?: string;
 }
 
-/** Tableau en lignes, un côté par ligne : utilisé par 301/501/701, Horloge et Chiffre aléatoire. */
+/** Tableau en lignes, un côté par ligne : utilisé par 301/501/701, Horloge, Chiffre aléatoire et Entraînement. */
 export function ListBoard({ ctx, row }: { ctx: ViewContext; row: (sideIndex: number) => Row }) {
   const { state } = ctx;
   const current = state.current;

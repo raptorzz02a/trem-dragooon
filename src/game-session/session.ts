@@ -73,6 +73,20 @@ export function endTurn(session: GameSession, now: string = nowIso()): GameSessi
   return withEvents(session, [...session.events, { type: 'endTurn' }], now);
 }
 
+/** Modes sans fin imposée : la partie se termine quand on le demande. */
+export const canFinish = (session: GameSession) => session.config.mode === 'training';
+
+/**
+ * Termine un entraînement : la partie est enregistrée avec les points du moment.
+ * Une annulation la rouvre, comme après une victoire.
+ */
+export function finishGame(session: GameSession, now: string = nowIso()): GameSession {
+  assertPlaying(session);
+  if (!canFinish(session)) throw new Error('Cette partie se termine toute seule.');
+  if (!session.events.some((e) => e.type === 'dart')) throw new Error('Aucune fléchette lancée : rien à enregistrer.');
+  return withEvents(session, [...session.events, { type: 'finish' }], now);
+}
+
 /**
  * Annule la dernière action, y compris si elle a fait passer au joueur suivant
  * ou si elle a donné la victoire (la partie est alors rouverte).

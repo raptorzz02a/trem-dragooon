@@ -5,6 +5,8 @@ import {
   abandonSession,
   createSession,
   endTurn,
+  canFinish as sessionCanFinish,
+  finishGame,
   sessionState,
   startSession,
   throwDart,
@@ -204,6 +206,12 @@ export function canUndo(room: Room | RoomView, playerId: string): boolean {
   return actor === playerId && room.place !== 'same';
 }
 
+/** Seul l'hôte termine un entraînement, pendant la partie. */
+export function canFinish(room: Room | RoomView, playerId: string): boolean {
+  const session = room.session;
+  return room.status === 'playing' && !!session && session.status === 'in_progress' && sessionCanFinish(session) && room.hostId === playerId;
+}
+
 /**
  * Qui peut saisir les fléchettes du joueur actif : sur la même cible, l'appareil de l'hôte ; à distance, le joueur
  * lui-même, ou l'hôte pour un joueur sans téléphone ou dont la connexion est coupée.
@@ -320,6 +328,10 @@ export function applyMessage(
       const next = message.type === 'dart' ? throwDart(session, message.dart, now) : endTurn(session, now);
       return { ...room, session: next };
     }
+
+    case 'finish':
+      if (!canFinish(room, playerId)) throw new Error('Seul l’hôte peut terminer l’entraînement.');
+      return { ...room, session: finishGame(room.session!, now) };
 
     case 'undo':
       if (!canUndo(room, playerId)) throw new Error('Tu ne peux pas annuler cette fléchette.');

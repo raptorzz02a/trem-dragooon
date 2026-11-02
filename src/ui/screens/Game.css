@@ -48,6 +48,12 @@
   color: var(--text-dim);
 }
 
+.game-finish {
+  min-height: 48px;
+  padding: 0 20px;
+  font-size: 16px;
+}
+
 .game-quit {
   min-height: 48px;
   padding: 0 20px;
@@ -630,6 +636,11 @@
     padding: 0 10px;
     font-size: 14px;
   }
+  .game-finish {
+    min-height: 40px;
+    padding: 0 12px;
+    font-size: 14px;
+  }
   .game-quit {
     min-height: 40px;
     min-width: 0;
@@ -721,5 +732,12 @@
   .game-wait {
     font-size: 17px;
     padding: 6px;
+  }
+}
+
+/* Téléphone : la moyenne du tableau ferait déborder le score, elle reste visible sur la carte du joueur actif. */
+@media (max-width: 480px) {
+  .board-avg {
+    display: none;
   }
 }

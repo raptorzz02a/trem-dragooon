@@ -6,6 +6,7 @@ import type {
   GameConfig,
   GameMode,
   RandomOptions,
+  TrainingOptions,
   X01Options,
 } from '../game-engine/types';
 import { emptyTeams, individualSides, randomOrder, randomTeams, type Rng } from '../teams/teams';
@@ -40,13 +41,14 @@ export const DEFAULT_SETUP: GameSetup = {
   teamOf: {},
 };
 
-export const MODES: GameMode[] = ['x01', 'cricket', 'clock', 'random'];
+export const MODES: GameMode[] = ['x01', 'cricket', 'clock', 'random', 'training'];
 
 export const MODE_NAMES: Record<GameMode, string> = {
   x01: '301 / 501 / 701',
   cricket: 'Cricket',
   clock: 'Horloge',
   random: 'Chiffre aléatoire',
+  training: 'Entraînement',
 };
 
 /** Convention d'équipe à afficher avant le départ. */
@@ -55,6 +57,7 @@ export const TEAM_NOTES: Record<GameMode, string> = {
   cricket: 'Marques et points sont communs à l’équipe.',
   clock: 'La progression est commune : le numéro à viser est partagé par l’équipe.',
   random: 'Le total est commun : tous visent le même numéro tiré au sort.',
+  training: 'Les points de l’équipe s’additionnent.',
 };
 
 function modeOptions(setup: GameSetup, rng: Rng) {
@@ -67,10 +70,15 @@ function modeOptions(setup: GameSetup, rng: Rng) {
       return { mode: 'clock' as const, options: setup.clock };
     case 'random':
       return { mode: 'random' as const, options: { rounds: setup.random.rounds, targets: drawTargets(setup.random.rounds, rng) } };
+    case 'training':
+      return { mode: 'training' as const, options: {} as TrainingOptions };
   }
 }
 
-/** Configuration du moteur pour ces joueurs (dans l'ordre de la liste). Une partie à un joueur est un entraînement. */
+/**
+ * Configuration du moteur pour ces joueurs (dans l'ordre de la liste).
+ * Une partie à un joueur, ou une partie du mode Entraînement, est un entraînement : stats, mais pas de victoire.
+ */
 export function buildConfig(setup: GameSetup, players: readonly { id: string; name: string }[], rng: Rng = Math.random): GameConfig {
   let sides = individualSides(players);
   if (setup.teamMode) {
@@ -78,7 +86,7 @@ export function buildConfig(setup: GameSetup, players: readonly { id: string; na
     for (const p of players) sides[setup.teamOf[p.id] ?? 0]!.playerIds.push(p.id);
   }
   if (setup.randomizeOrder) sides = randomOrder(sides, rng);
-  return { ...modeOptions(setup, rng), teamMode: setup.teamMode, training: players.length === 1, sides };
+  return { ...modeOptions(setup, rng), teamMode: setup.teamMode, training: players.length === 1 || setup.mode === 'training', sides };
 }
 
 /** Pourquoi la partie ne peut pas être lancée avec ces réglages, ou null si tout va bien. */
