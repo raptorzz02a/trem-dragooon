@@ -46,9 +46,10 @@ describe('F. Entraînement', () => {
     expect(st(s).scores).toEqual([25, 1]);
   });
 
-  it('F07 : moyenne par fléchette', () => {
+  it('F07 : moyenne sur 3 fléchettes, même volée entamée', () => {
     const s = st(play(cfg(), 'T20 S1 S2'));
-    expect(trainingAverage(s, 0)).toBe(21);
+    expect(trainingAverage(s, 0)).toBe(63);
+    expect(trainingAverage(st(play(cfg(1), 'T20 T20 T20 S20')), 0)).toBe(150);
     expect(trainingAverage(s, 1)).toBeNull();
   });
 });

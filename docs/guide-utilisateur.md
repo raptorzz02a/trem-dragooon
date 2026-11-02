@@ -178,7 +178,7 @@ Comme à l'Horloge, la cible est dessinée avec le numéro à viser allumé en o
 
 Pour lancer des fléchettes, tout simplement. On part de 0, seul ou à plusieurs, et chaque fléchette rapporte
 sa valeur (simple, double, triple, 25 ou 50), sans bust ni limite de manches. La saisie se fait avec le pavé
-habituel. Le tableau montre le total et la moyenne par fléchette de chacun.
+habituel. Le tableau montre le total et la moyenne sur 3 fléchettes de chacun (points ÷ fléchettes × 3).
 
 La partie ne s'arrête jamais d'elle-même : quand vous avez fini, l'hôte touche **Terminer l'entraînement**
 (en haut de l'écran) puis confirme. La partie est alors enregistrée avec les points du moment, volée entamée

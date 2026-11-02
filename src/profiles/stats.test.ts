@@ -202,7 +202,6 @@ describe('Entraînement', () => {
     ];
     const s = trainingStats(playerGames(recs, 'p1'));
     expect(s).toMatchObject({ games: 2, darts: 10, points: 180 + 26 + 25 + 171, bestVolley: 180, bestScore: 231, over100: 0, over140: 1, max180: 1 });
-    expect(s.avgDart).toBeCloseTo(40.2);
-    expect(s.avgVolley).toBeCloseTo(402 / 4);
+    expect(s.avg3).toBeCloseTo(120.6);
   });
 });
