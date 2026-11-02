@@ -128,6 +128,41 @@
   min-height: 28px;
 }
 
+/* Pause après la volée : la volée terminée reste affichée, une barre montre le temps avant le joueur suivant. */
+.active-checkout.held-result {
+  color: var(--text);
+}
+
+.active-checkout.held-result.bust {
+  color: var(--danger);
+  text-transform: uppercase;
+}
+
+.held-next {
+  position: relative;
+  overflow: hidden;
+}
+
+.held-bar {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 5px;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  transform-origin: left;
+  animation: held-countdown linear forwards;
+}
+
+@keyframes held-countdown {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
 .volley {
   display: grid;
   grid-template-columns: repeat(3, 1fr) 1.1fr;

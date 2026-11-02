@@ -1,6 +1,6 @@
 // Recette du mode Entraînement :
 // 1. la borne (1366x768) lance un Entraînement sur la même cible avec Ju et Pierre (ajouté avec son mot de passe) ;
-// 2. on additionne les points sans limite, seul l'hôte peut terminer ; Pierre suit sur son téléphone ;
+// 2. on additionne les points sans limite (pause de 3 s après chaque volée), seul l'hôte peut terminer ; Pierre suit sur son téléphone ;
 // 3. « Terminer l'entraînement » enregistre la partie : elle apparaît dans « Mes stats » (carte Entraînement), sans victoire.
 // Prérequis : npm run online:dev dans un autre terminal (serveur local sur le port 8787), Playwright installé.
 // Usage : node scripts/recette-entrainement.cjs [dossier-des-captures] [adresse]
@@ -40,7 +40,14 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.getByText('Enregistrer').click();
     await p.locator('.home-account-name').waitFor({ timeout: 10000 });
   };
-  const skip = async (p) => { const o = p.locator('.transition'); if (await o.count()) await o.click({ position: { x: 5, y: 5 } }); await p.waitForTimeout(150); };
+  // Pause après la volée (« Joueur suivant → »), puis écran de transition : on passe les deux.
+  const skip = async (p) => {
+    const h = p.locator('.held-next');
+    if (await h.count()) { await h.click(); await p.waitForTimeout(100); }
+    const o = p.locator('.transition');
+    if (await o.count()) await o.click({ position: { x: 5, y: 5 } });
+    await p.waitForTimeout(150);
+  };
   const tap = async (p, m, label) => {
     await skip(p);
     if (m > 1) await p.locator(`.pad-mult-${m}`).click();
@@ -81,6 +88,12 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   check('Terminer grisé tant que rien n’est lancé', await borne.locator('.game-finish').isDisabled());
   // Ju : T20 T20 T20 = 180 ; Pierre : 25 D10 S1 = 46 ; Ju : 50 puis on termine en pleine volée.
   for (const n of [20, 20, 20]) await tap(borne, 3, n);
+  // Pause de 3 s après la 3e fléchette : la volée reste affichée, le pavé est bloqué.
+  check('pause après la 3e fléchette : volée affichée, pavé bloqué',
+    (await borne.locator('.held-next').count()) === 1 && (await borne.locator('.volley-slot.filled').count()) === 3 && (await borne.locator('.pad-num').first().isDisabled()));
+  await shot(borne, '04a-pause-volee.png');
+  await borne.waitForTimeout(3300);
+  check('passage tout seul au joueur suivant après 3 s', (await borne.locator('.held-next').count()) === 0 && (await borne.locator('.transition').count()) === 1);
   await skip(borne);
   await borne.locator('.pad-bull25').click();
   await borne.waitForTimeout(400);

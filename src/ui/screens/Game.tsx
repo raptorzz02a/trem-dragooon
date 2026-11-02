@@ -78,18 +78,36 @@ export function Game(props: Props) {
     if (effect) void sendLight(effect);
   }, [state]);
 
-  // Écran de transition : affiché quand le tour avance (pas quand on annule).
+  // Quand le tour avance tout seul (3e fléchette, bust, parcours fini), la volée terminée reste affichée
+  // quelques secondes avant de passer au joueur suivant ; puis vient l'écran de transition.
+  // Après « Fin de tour », confirmé exprès, on passe directement à la transition. Une annulation efface tout.
+  const [held, setHeld] = useState<TurnRecord | null>(null);
   const [transition, setTransition] = useState<TurnRecord | null>(null);
   const lastTurnIndex = useRef(current?.turnIndex ?? -1);
   useEffect(() => {
     const index = current?.turnIndex ?? -1;
-    if (current && index > lastTurnIndex.current && settings.animations) {
-      setTransition(state.turns.at(-1) ?? null);
+    const last = state.turns.at(-1) ?? null;
+    if (current && index > lastTurnIndex.current && last) {
+      if (last.outcome !== 'ended' && settings.holdMs > 0) {
+        setHeld(last);
+        setTransition(null);
+      } else if (settings.animations) setTransition(last);
     } else if (!current || index < lastTurnIndex.current) {
+      setHeld(null);
       setTransition(null);
     }
     lastTurnIndex.current = index;
-  }, [current, state.turns, settings.animations]);
+  }, [current, state.turns, settings.animations, settings.holdMs]);
+  const release = () => {
+    if (!held) return;
+    setHeld(null);
+    if (settings.animations) setTransition(held);
+  };
+  useEffect(() => {
+    if (!held) return;
+    const timer = setTimeout(release, settings.holdMs);
+    return () => clearTimeout(timer);
+  }, [held, settings.holdMs, settings.animations]);
   useEffect(() => {
     if (!transition) return;
     const timer = setTimeout(() => setTransition(null), settings.transitionMs);
@@ -111,6 +129,11 @@ export function Game(props: Props) {
 
   const activeSide = current ? sides[current.sideIndex]! : null;
   const hero = current ? view.hero(ctx, current.sideIndex) : null;
+  // Carte du joueur : la volée qui vient de se terminer pendant la pause, sinon la volée en cours.
+  const shown = held ?? current;
+  const shownSide = shown ? sides[shown.sideIndex]! : null;
+  const shownHero = shown ? view.hero(ctx, shown.sideIndex) : null;
+  const heldResult = held ? view.turnResult(held, ctx) : null;
   const round = (current?.round ?? state.turns.at(-1)?.round ?? 0) + 1;
   const result = transition ? view.turnResult(transition, ctx) : null;
 
@@ -139,29 +162,33 @@ export function Game(props: Props) {
 
       <div className="game-body">
         <section className="game-left">
-          {current && activeSide && hero && (
-            <div className="active-card" style={{ borderColor: activeSide.color ?? 'var(--gold)' }}>
+          {current && shown && shownSide && shownHero && (
+            <div className={`active-card${held ? ' held' : ''}`} style={{ borderColor: shownSide.color ?? 'var(--gold)' }}>
               <div className="active-head">
-                {avatarOf(current.playerId, 72)}
+                {avatarOf(shown.playerId, 72)}
                 <div className="active-who">
-                  <div className="label">Joueur actif</div>
-                  <div className="active-name">{nameOf(current.playerId)}</div>
+                  <div className="label">{held ? 'Volée terminée' : 'Joueur actif'}</div>
+                  <div className="active-name">{nameOf(shown.playerId)}</div>
                   {state.config.teamMode && (
-                    <div className="active-team" style={{ color: activeSide.color }}>
-                      {activeSide.name}
+                    <div className="active-team" style={{ color: shownSide.color }}>
+                      {shownSide.name}
                     </div>
                   )}
                 </div>
-                {view.heroAside?.(ctx)}
+                {!held && view.heroAside?.(ctx)}
                 <div className="active-remaining-box">
-                  <div className="label">{hero.label}</div>
-                  <div className="active-remaining">{hero.value}</div>
+                  <div className="label">{shownHero.label}</div>
+                  <div className="active-remaining">{shownHero.value}</div>
                 </div>
               </div>
-              {!view.heroAside && <div className="active-checkout">{view.hint(ctx) ?? ' '}</div>}
+              {heldResult ? (
+                <div className={`active-checkout held-result ${heldResult.bad ? 'bust' : ''}`}>{heldResult.text}</div>
+              ) : (
+                !view.heroAside && <div className="active-checkout">{view.hint(ctx) ?? ' '}</div>
+              )}
               <div className="volley">
                 {[0, 1, 2].map((i) => {
-                  const d = current.darts[i];
+                  const d = shown.darts[i];
                   return (
                     <div key={i} className={`volley-slot ${d ? 'filled' : ''} ${d && d.points === 0 ? 'zero' : ''}`}>
                       {d ? (
@@ -177,23 +204,30 @@ export function Game(props: Props) {
                 })}
                 <div className="volley-total">
                   <span className="label">Volée</span>
-                  {view.volleyTotal(current.darts, ctx)}
+                  {view.volleyTotal(shown.darts, ctx)}
                 </div>
               </div>
               <div className="game-actions">
                 <button disabled={!canUndo} onClick={guard(props.onUndo)}>
                   ↶ Annuler la fléchette
                 </button>
-                <button
-                  disabled={!myTurn}
-                  className={confirmEnd ? 'btn-gold' : 'btn-primary'}
-                  onClick={guard(() => {
-                    if (confirmEnd) props.onEndTurn();
-                    else setConfirmEnd(true);
-                  })}
-                >
-                  {confirmEnd ? 'Confirmer la fin du tour' : 'Fin de tour'}
-                </button>
+                {held ? (
+                  <button className="btn-gold held-next" onClick={guard(release)}>
+                    Joueur suivant →
+                    <span key={held.turnIndex} className="held-bar" style={{ animationDuration: `${settings.holdMs}ms` }} />
+                  </button>
+                ) : (
+                  <button
+                    disabled={!myTurn}
+                    className={confirmEnd ? 'btn-gold' : 'btn-primary'}
+                    onClick={guard(() => {
+                      if (confirmEnd) props.onEndTurn();
+                      else setConfirmEnd(true);
+                    })}
+                  >
+                    {confirmEnd ? 'Confirmer la fin du tour' : 'Fin de tour'}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -203,9 +237,9 @@ export function Game(props: Props) {
 
         <section className="game-right">
           {view.input ? (
-            view.input(ctx, props.onDart, !current || !myTurn || transition !== null)
+            view.input(ctx, props.onDart, !current || !myTurn || held !== null || transition !== null)
           ) : (
-            <ScorePad disabled={!current || !myTurn || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
+            <ScorePad disabled={!current || !myTurn || held !== null || transition !== null} onDart={props.onDart} {...view.pad(ctx)} />
           )}
           {current && !myTurn && <div className="game-wait">Au tour de {nameOf(current.playerId)}…</div>}
         </section>

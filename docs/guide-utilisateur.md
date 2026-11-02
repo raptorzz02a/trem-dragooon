@@ -94,7 +94,9 @@ Le tableau de tous les joueurs est juste en dessous.
   Un second appui confirme.
 - Un double appui trop rapide sur la même touche ne compte qu'une fois.
 
-Après la troisième fléchette, un bust ou une victoire, l'écran **« À toi de jouer »** annonce le joueur
+Après la troisième fléchette ou un bust, la volée reste affichée **3 secondes** (« Volée terminée », avec
+une barre qui se vide sur le bouton **Joueur suivant →**, qui permet de passer tout de suite). Le pavé est
+bloqué pendant ce temps. Ensuite, l'écran **« À toi de jouer »** annonce le joueur
 suivant. Il disparaît seul au bout d'un instant, ou dès qu'on le touche. Pendant cet écran, aucune fléchette
 ne peut être saisie par erreur pour le mauvais joueur.
 
