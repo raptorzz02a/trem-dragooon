@@ -167,8 +167,7 @@ function ModeCards({ games }: { games: PlayerGame[] }) {
           <dl>
             <Stat label="Fléchettes lancées" value={training.darts} />
             <Stat label="Points marqués" value={training.points} />
-            <Stat label="Moyenne par fléchette" value={num(training.avgDart)} />
-            <Stat label="Moyenne par volée" value={num(training.avgVolley)} />
+            <Stat label="Moyenne sur 3 fléchettes" value={num(training.avg3)} />
             <Stat label="Meilleure volée" value={training.bestVolley ?? ND} />
             <Stat label="Meilleur total" value={training.bestScore ?? ND} />
             <Stat label="Volées 100+" value={training.over100} />

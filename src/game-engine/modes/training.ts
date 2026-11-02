@@ -35,8 +35,8 @@ export const trainingRules: ModeRules<TrainingState> = {
   },
 };
 
-/** Moyenne par fléchette d'un côté, ou null s'il n'a rien lancé. */
+/** Moyenne sur 3 fléchettes d'un côté (points / fléchettes × 3), ou null s'il n'a rien lancé. */
 export function trainingAverage(state: TrainingState, sideIndex: number): number | null {
   const n = state.darts[sideIndex]!;
-  return n ? state.scores[sideIndex]! / n : null;
+  return n ? (3 * state.scores[sideIndex]!) / n : null;
 }

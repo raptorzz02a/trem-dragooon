@@ -264,8 +264,8 @@ export interface TrainingStats {
   games: number;
   darts: number;
   points: number;
-  avgDart: number | null;
-  avgVolley: number | null;
+  /** Moyenne sur 3 fléchettes : points / fléchettes × 3 (une volée entamée compte pour ce qu'elle vaut). */
+  avg3: number | null;
   bestVolley: number | null;
   /** Meilleur total sur une partie. */
   bestScore: number | null;
@@ -282,13 +282,11 @@ export function trainingStats(games: PlayerGame[]): TrainingStats {
   const darts = list.reduce((n, g) => n + g.turns.reduce((m, t) => m + t.darts.length, 0), 0);
   const points = volleys.reduce((a, b) => a + b, 0);
   const scores = list.map((g) => (g.state.mode as { scores: number[] }).scores[g.sideIndex]!);
-  // Les volées incomplètes (fin d'entraînement en cours de volée) comptent dans la moyenne : elles ont été jouées.
   return {
     games: list.length,
     darts,
     points,
-    avgDart: darts ? points / darts : null,
-    avgVolley: volleys.length ? points / volleys.length : null,
+    avg3: darts ? (3 * points) / darts : null,
     bestVolley: volleys.length ? Math.max(...volleys) : null,
     bestScore: scores.length ? Math.max(...scores) : null,
     over100: volleys.filter((v) => v >= 100 && v < 140).length,
