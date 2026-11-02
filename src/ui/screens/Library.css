@@ -371,6 +371,10 @@
   grid-template-columns: repeat(3, 1fr);
 }
 
+.tiles-5 {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .tile-value.nd,
 .record-value.nd {
   font-size: 18px;
@@ -690,6 +694,9 @@ button.small {
   }
   .tiles {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .tiles-5 > :last-child {
+    grid-column: span 2;
   }
   .stat-card dl {
     grid-template-columns: repeat(2, 1fr);

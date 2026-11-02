@@ -133,6 +133,9 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const wins = (await borne.locator('.tile', { hasText: 'Victoires' }).locator('.tile-value').innerText()).trim();
   const played = (await borne.locator('.tile', { hasText: 'Parties terminées' }).locator('.tile-value').innerText()).trim();
   check('1 partie terminée, pas de victoire comptée', played === '1' && wins === '0', `${played} partie(s), ${wins} victoire(s)`);
+  const thrown = (await borne.locator('.tile', { hasText: 'Fléchettes lancées' }).locator('.tile-value').innerText()).trim();
+  const cardDarts = (cardText.match(/Fléchettes lancées\s*\|?\s*(\d+)/) || [])[1];
+  check('résumé tout confondu : fléchettes lancées', thrown !== '0' && thrown === cardDarts, `${thrown} (carte : ${cardDarts})`);
   await shot(borne, '09-mes-stats.png');
   await borne.locator('.segmented button', { hasText: 'Entraînement' }).first().click();
   await borne.locator('.segmented button', { hasText: 'Scores' }).first().click();
