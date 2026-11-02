@@ -25,6 +25,12 @@ import numpy as np
 PORT = 55445
 ORIGINS = ['https://trem-dragooon.julien-charrier01.workers.dev']
 SAME_DART = 0.01  # deux detections plus proches que ca (cible normalisee 0-1) = la meme flechette
+BOARD_MM = 451.0  # diametre de la cible qui sert a normaliser les coordonnees (get_scores.py)
+
+
+def position_of(pred):
+    """Coordonnees normalisees (0-1, centre 0.5) -> mm depuis le centre : x vers la droite, y vers le bas."""
+    return {'x': round(float(pred[0] - 0.5) * BOARD_MM, 1), 'y': round(float(pred[1] - 0.5) * BOARD_MM, 1)}
 
 
 def dart_of(code):
@@ -110,7 +116,8 @@ class VisitTracker:
                 code = self.score(np.array([pred]))[0]
                 self.darts.append(pred)
                 self.codes.append(code)
-                self.events.add('flechette', volee=self.visit, rang=len(self.darts), code=code, flechette=dart_of(code))
+                self.events.add('flechette', volee=self.visit, rang=len(self.darts), code=code, flechette=dart_of(code),
+                                position=position_of(pred))
 
     def _stable(self):
         """Positions vues sur au moins `repeat` images recentes, de la plus vue a la moins vue."""

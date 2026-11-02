@@ -5,7 +5,7 @@ import threading
 import unittest
 import urllib.request
 
-from trem_sense import Events, VisitTracker, dart_of, serve
+from trem_sense import Events, VisitTracker, dart_of, position_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -34,6 +34,8 @@ class VisitTrackerTest(unittest.TestCase):
         kinds = [(e['type'], e.get('code'), e['volee']) for e in events.items]
         self.assertEqual(kinds, [('flechette', 'T20', 1), ('flechette', 'S5', 1), ('flechette', 'DB', 1), ('retrait', None, 1)])
         self.assertEqual(events.items[1]['flechette'], {'segment': 5, 'multiplier': 1})
+        # Position en mm depuis le centre : B est en bas a droite.
+        self.assertEqual(events.items[1]['position'], {'x': 45.1, 'y': 45.1})
         # Volee suivante : on repart de zero.
         for frame in [[B]] * 3:
             t.feed(frame)
@@ -62,6 +64,13 @@ class DartOfTest(unittest.TestCase):
         self.assertEqual(dart_of('SB'), {'segment': 25, 'multiplier': 1})
         self.assertEqual(dart_of('DB'), {'segment': 25, 'multiplier': 2})
         self.assertEqual(dart_of('miss'), {'segment': 0, 'multiplier': 1})
+
+
+class PositionTest(unittest.TestCase):
+    def test_mm_from_center(self):
+        self.assertEqual(position_of([0.5, 0.5]), {'x': 0.0, 'y': 0.0})
+        # Haut du double 20 : 170 mm au-dessus du centre.
+        self.assertEqual(position_of([0.5, 0.5 - 170 / 451]), {'x': 0.0, 'y': -170.0})
 
 
 class ServerTest(unittest.TestCase):

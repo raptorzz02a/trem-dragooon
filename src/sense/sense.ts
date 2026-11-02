@@ -2,14 +2,23 @@
 // repère chaque fléchette plantée et la sert sur 127.0.0.1:55445. L'appli l'interroge et saisit
 // la fléchette comme un appui sur le pavé ; le retrait des fléchettes termine la volée.
 
-import { MISS, type Dart } from '../game-engine/darts';
+import { MISS, type Dart, type DartPos } from '../game-engine/darts';
 import type { GameState } from '../game-engine/types';
 
 export const SENSE_URL = 'http://127.0.0.1:55445';
 const KEY = 'trem-dragooon.camera';
 
 export type SenseEvent =
-  | { id: number; type: 'flechette'; volee: number; rang: number; code: string; flechette: Dart }
+  | {
+      id: number;
+      type: 'flechette';
+      volee: number;
+      rang: number;
+      code: string;
+      flechette: Dart;
+      /** Point d'impact en mm depuis le centre (trem_sense.py récent ; absent avant). */
+      position?: DartPos;
+    }
   | { id: number; type: 'retrait'; volee: number; flechettes: number };
 
 /** État de la caméra vu par l'appli : ok, cible non repérée, ou Dart Sense injoignable. */
@@ -53,7 +62,11 @@ export function senseDarts(state: GameState, event: SenseEvent, visits: Map<numb
     visits.set(event.volee, canPlay && event.type === 'flechette' ? current.turnIndex : -1);
   }
   if (!canPlay || visits.get(event.volee) !== current.turnIndex) return [];
-  if (event.type === 'flechette') return current.darts.length < 3 ? [event.flechette] : [];
+  if (event.type === 'flechette') {
+    if (current.darts.length >= 3) return [];
+    const { segment, multiplier } = event.flechette;
+    return [event.position ? { segment, multiplier, pos: event.position } : { segment, multiplier }];
+  }
   if (current.darts.length === 0) return [];
   return Array.from({ length: 3 - current.darts.length }, () => MISS);
 }

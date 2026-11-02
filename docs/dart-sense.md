@@ -34,6 +34,13 @@ Une fléchette compte quand elle est vue au même endroit sur 3 des 5 dernières
 Le retrait : plus aucune fléchette sur 3 des 5 dernières images. Plus la caméra va vite (images/s affichées
 dans la fenêtre), plus la saisie est rapide.
 
+Avec chaque fléchette, `trem_sense.py` envoie aussi son point d'impact (`position`, en mm depuis le centre de la
+cible, x vers la droite, y vers le bas). L'appli l'enregistre avec la fléchette et s'en sert pour la **heat map**
+(fiche du joueur, onglet « Heat map », avec les mêmes filtres de jeu, de période et de saloon que les autres
+onglets). Une fléchette tapée au pavé ou corrigée à la main n'a pas de position : elle compte dans les
+statistiques mais n'apparaît pas sur la carte. Un `trem_sense.py` d'avant cette version marche toujours, sans
+heat map. Recette : `node scripts/recette-heatmap.cjs` (avec `npm run online:dev`).
+
 ## Installation (une fois)
 
 1. **Mettre à jour la borne** dans PowerShell : `cd $HOME\trem-dragooon` puis `git pull`.

@@ -24,6 +24,8 @@ import { playerCsv } from '../../profiles/export';
 import { isScoredMode, type ScoredMode } from '../../profiles/scores';
 import type { AppSettings } from '../../settings/settings';
 import { MeterBar } from '../components/Charts';
+import { DartHeatmap } from '../components/DartHeatmap';
+import { heatmap, MAX_POINTS } from '../../profiles/heatmap';
 import { ALL_TIME, PeriodFilter, periodRange, type Period } from '../components/PeriodFilter';
 import { ProgressionTab, RecordCards, ScoredModePicker, ScoresTab } from './ProfileTabs';
 import './Library.css';
@@ -254,12 +256,13 @@ interface Props {
 const ALL_SALOONS = 'all';
 const DELETED_SALOONS = 'deleted';
 
-type Tab = 'summary' | 'scores' | 'progress' | 'history';
+type Tab = 'summary' | 'scores' | 'progress' | 'heatmap' | 'history';
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'summary', label: 'Résumé' },
   { value: 'scores', label: 'Scores' },
   { value: 'progress', label: 'Progression' },
+  { value: 'heatmap', label: 'Heat map' },
   { value: 'history', label: 'Historique' },
 ];
 
@@ -456,6 +459,8 @@ export function Profile({
           </>
         )}
 
+        {tab === 'heatmap' && <HeatmapTab games={list} />}
+
         {tab === 'history' && (
           <div className="profile-history">
             <History records={games} playerId={profile.id} filter={filter} />
@@ -508,6 +513,42 @@ export function Profile({
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function HeatmapTab({ games }: { games: PlayerGame[] }) {
+  const data = useMemo(() => heatmap(games), [games]);
+  if (!data.points.length) {
+    return (
+      <div className="lib-empty">
+        Aucune fléchette vue par la caméra pour ces filtres. La heat map se remplit avec les fléchettes saisies par Dart Sense ;
+        les saisies au pavé et les corrections à la main comptent dans les statistiques mais n’ont pas de position.
+      </div>
+    );
+  }
+  return (
+    <div className="profile-body">
+      <div className="profile-stats">
+        <DartHeatmap data={data} />
+      </div>
+      <div className="profile-stats">
+        <div className="tiles">
+          <div className="tile">
+            <span className="tile-value">{data.points.length}</span>
+            <span className="tile-label">Fléchettes vues par la caméra</span>
+          </div>
+          <div className="tile">
+            <span className="tile-value">{num(data.spread! / 10, 1)} cm</span>
+            <span className="tile-label">Groupement (écart moyen au centre des impacts)</span>
+          </div>
+        </div>
+        <div className="tile-detail">
+          {data.manual > 0 && `${data.manual} fléchette${data.manual > 1 ? 's' : ''} saisie${data.manual > 1 ? 's' : ''} à la main : comptée${data.manual > 1 ? 's' : ''} dans les statistiques, absente${data.manual > 1 ? 's' : ''} de la carte. `}
+          {data.points.length >= MAX_POINTS && `Seules les ${MAX_POINTS} fléchettes les plus récentes sont affichées. `}
+          Plus le groupement est petit, plus les fléchettes tombent au même endroit. Ne dit rien de la cible visée.
+        </div>
+      </div>
     </div>
   );
 }

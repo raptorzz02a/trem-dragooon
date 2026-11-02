@@ -31,6 +31,11 @@ describe('saisie par la caméra', () => {
     expect(computeState(config, log).current?.playerId).toBe('b');
   });
 
+  it('transmet le point d’impact vu par la caméra', () => {
+    const event: SenseEvent = { id: 0, type: 'flechette', volee: 1, rang: 1, code: 'T20', flechette: T(20), position: { x: 1.5, y: -102 } };
+    expect(senseDarts(computeState(config, []), event, new Map(), true)).toEqual([{ ...T(20), pos: { x: 1.5, y: -102 } }]);
+  });
+
   it('volée complète : le retrait ne rajoute rien', () => {
     expect(play([dart(1, T(20)), dart(1, T(20)), dart(1, T(20)), takeout(1)])).toEqual(darts(T(20), T(20), T(20)));
   });

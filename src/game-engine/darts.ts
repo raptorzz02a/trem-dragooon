@@ -4,10 +4,24 @@
 
 export type Multiplier = 1 | 2 | 3;
 
+/**
+ * Point d'impact vu par la caméra (Dart Sense), en millimètres depuis le centre de la cible :
+ * x vers la droite, y vers le bas, le 20 en haut. Le double extérieur est à 170 mm.
+ */
+export interface DartPos {
+  x: number;
+  y: number;
+}
+
 export interface Dart {
   segment: number;
   multiplier: Multiplier;
+  /** Absent quand la fléchette est saisie au pavé ou corrigée à la main. */
+  pos?: DartPos;
 }
+
+/** Au-delà, ce n'est plus la cible (diamètre d'une cible : 451 mm). */
+export const POS_LIMIT = 300;
 
 export const BULL = 25;
 
@@ -24,6 +38,22 @@ export function isValidDart(dart: Dart): boolean {
   if (segment === 0) return multiplier === 1;
   if (segment === BULL) return multiplier === 1 || multiplier === 2;
   return segment >= 1 && segment <= 20;
+}
+
+/**
+ * Fléchette à enregistrer : seulement la zone et, si elle est plausible, la position (au dixième de mm).
+ * Tout autre champ venu du réseau est écarté.
+ */
+export function cleanDart(dart: Dart): Dart {
+  const out: Dart = { segment: dart.segment, multiplier: dart.multiplier };
+  const pos = dart.pos as unknown;
+  if (pos && typeof pos === 'object') {
+    const { x, y } = pos as Record<string, unknown>;
+    if (typeof x === 'number' && typeof y === 'number' && Number.isFinite(x) && Number.isFinite(y) && Math.hypot(x, y) <= POS_LIMIT) {
+      out.pos = { x: Math.round(x * 10) / 10, y: Math.round(y * 10) / 10 };
+    }
+  }
+  return out;
 }
 
 export function assertValidDart(dart: Dart): void {
