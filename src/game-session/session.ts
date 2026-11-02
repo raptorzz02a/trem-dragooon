@@ -1,5 +1,5 @@
 import { computeState } from '../game-engine/engine';
-import { assertValidDart, type Dart } from '../game-engine/darts';
+import { assertValidDart, cleanDart, type Dart } from '../game-engine/darts';
 import type { GameConfig, GameEvent, GameState } from '../game-engine/types';
 import { randomOrder, type Rng } from '../teams/teams';
 
@@ -64,7 +64,7 @@ function assertPlaying(session: GameSession): void {
 export function throwDart(session: GameSession, dart: Dart, now: string = nowIso()): GameSession {
   assertPlaying(session);
   assertValidDart(dart);
-  return withEvents(session, [...session.events, { type: 'dart', dart }], now);
+  return withEvents(session, [...session.events, { type: 'dart', dart: cleanDart(dart) }], now);
 }
 
 /** Termine la volée avant la troisième fléchette, sans fléchette fictive. */
@@ -111,7 +111,8 @@ export function correctDart(session: GameSession, eventIndex: number, dart: Dart
   const event = session.events[eventIndex];
   if (!event || event.type !== 'dart') throw new Error('Aucune fléchette à cette position.');
   const events = session.events.slice();
-  events[eventIndex] = { type: 'dart', dart };
+  // Corrigée à la main : la position vue par la caméra ne correspond plus, on l'oublie.
+  events[eventIndex] = { type: 'dart', dart: { segment: dart.segment, multiplier: dart.multiplier } };
   const corrections = [...session.corrections, { at: now, eventIndex, before: event.dart, after: dart }];
   return withEvents(session, events, now, { corrections });
 }

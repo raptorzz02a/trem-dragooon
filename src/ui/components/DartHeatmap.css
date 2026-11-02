@@ -1,0 +1,89 @@
+.heatmap {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.heatmap svg {
+  width: min(100%, 520px);
+  aspect-ratio: 1;
+  touch-action: manipulation;
+}
+
+.heatmap .chart-table {
+  width: min(100%, 520px);
+}
+
+.hm-rim {
+  fill: #0b100d;
+  stroke: var(--line);
+}
+
+.hm-zone {
+  stroke: #0b100d;
+  stroke-width: 0.8;
+  cursor: pointer;
+}
+
+.hm-single.even {
+  fill: #121a15;
+}
+
+.hm-single.odd {
+  fill: #1f2d25;
+}
+
+.hm-ring.even {
+  fill: var(--green-bright);
+}
+
+.hm-ring.odd {
+  fill: var(--green);
+}
+
+.hm-bull {
+  fill: var(--green);
+}
+
+.hm-bullseye {
+  fill: var(--green-bright);
+}
+
+.hm-zone.active {
+  stroke: var(--gold-bright);
+  stroke-width: 2.5;
+}
+
+.hm-label {
+  font-size: 19px;
+  font-weight: 800;
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: central;
+  pointer-events: none;
+}
+
+.hm-label.active {
+  fill: var(--gold-bright);
+}
+
+.hm-halo circle {
+  fill: #fff;
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.hm-dots circle {
+  fill: #050806;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 0.8;
+  pointer-events: none;
+}
+
+.hm-dots circle.active {
+  fill: var(--gold-bright);
+  stroke: #050806;
+}
