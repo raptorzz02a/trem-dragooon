@@ -67,6 +67,8 @@ export type ClientMessage =
   | { type: 'dart'; dart: Dart }
   | { type: 'endTurn' }
   | { type: 'undo' }
+  /** L'hôte termine un entraînement (pas de fin imposée) : la partie est enregistrée. */
+  | { type: 'finish' }
   /** Retour à la salle d'attente après une partie, avec les mêmes joueurs. */
   | { type: 'backToLobby' }
   /** L'hôte arrête la partie en cours : elle est enregistrée comme abandonnée. */

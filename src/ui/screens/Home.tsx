@@ -43,6 +43,7 @@ const MODES: { mode: GameMode; title: string; sub: string }[] = [
   { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull' },
   { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre' },
   { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche' },
+  { mode: 'training', title: 'Entraînement', sub: 'On part de 0 et on additionne, sans limite' },
 ];
 
 type RemoteAction = 'create' | 'join';
@@ -218,7 +219,7 @@ export function Home(props: Props) {
   );
 }
 
-const MODE_TITLES: Record<GameMode, string> = { x01: 'X01', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire' };
+const MODE_TITLES: Record<GameMode, string> = { x01: 'X01', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire', training: 'Entraînement' };
 
 /** Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code. */
 function LiveGames({ saloonId, onWatch, onJoin }: { saloonId: string; onWatch: (watchKey: string) => void; onJoin: (code: string) => void }) {

@@ -14,7 +14,11 @@ const KEY_LABEL: Record<GameMode, string> = {
   cricket: 'Marques/volée',
   clock: 'Record (fl.)',
   random: 'Meilleur score',
+  training: 'Meilleur total',
 };
+
+// L'Entraînement ne compte pas dans les victoires : il n'a pas de classement.
+const RANKING_MODES = MODE_FILTERS.filter((m) => m.value !== 'training');
 
 const SORTS: { value: RankingSort; label: string }[] = [
   { value: 'winRate', label: 'Victoires' },
@@ -90,7 +94,7 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
         <h2>{title}</h2>
       </header>
       <div className="lib-filters">
-        <Segmented value={mode} options={MODE_FILTERS} onChange={setMode} />
+        <Segmented value={mode} options={RANKING_MODES} onChange={setMode} />
         <Segmented value={format} options={FORMAT_FILTERS} onChange={setFormat} />
       </div>
       <div className="lib-filters">

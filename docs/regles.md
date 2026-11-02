@@ -61,3 +61,13 @@ automatisé ; l'identifiant du cahier des charges (A01, B03…) figure dans le n
 - La cible est dessinée comme à l'Horloge, avec le numéro à viser en surbrillance.
 - En équipe, le total est commun à l'équipe.
 - Après la dernière manche, le plus haut score gagne (ex aequo possibles).
+
+## Entraînement
+
+- Score de départ 0, de 1 à 10 joueurs (ou équipes, total commun).
+- Chaque fléchette rapporte sa valeur : simple, double ou triple du numéro, 25 ou 50 pour le Bull. Pas de bust,
+  pas de limite de manches.
+- Pas de fin imposée : l'hôte termine la partie quand il veut (événement « finish » ajouté à la liste des
+  lancers). La volée entamée est gardée, le classement final suit les totaux.
+- C'est toujours un entraînement : la partie compte dans les statistiques mais pas dans les victoires ni les
+  classements. Une annulation après la fin rouvre la partie.

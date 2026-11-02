@@ -3,7 +3,7 @@ import { D, S, T } from '../game-engine/darts';
 import { sessionState } from '../game-session/session';
 import { DEFAULT_AVATAR } from '../ui/components/Avatar';
 import { isValidCode, normalizeCode, randomCode } from './protocol';
-import { addLocalPlayer, applyMessage, archiveChange, canThrow, canUndo, closesRoom, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
+import { addLocalPlayer, applyMessage, archiveChange, canFinish, canThrow, canUndo, closesRoom, createRoom, joinRoom, roomView, setConnected, type Room } from './room';
 
 const NOW = '2026-10-29T20:00:00.000Z';
 const who = (name: string) => ({ name, color: '#ff0000', avatar: DEFAULT_AVATAR });
@@ -83,8 +83,8 @@ describe('salle d’attente', () => {
     expect(set.setup.x01.startScore).toBe(501);
   });
 
-  it('lance les quatre jeux, en individuel ou en équipes', () => {
-    for (const mode of ['x01', 'cricket', 'clock', 'random'] as const) {
+  it('lance tous les jeux, en individuel ou en équipes', () => {
+    for (const mode of ['x01', 'cricket', 'clock', 'random', 'training'] as const) {
       let room = lobby('Ju', 'Max', 'Léo', 'Zoé');
       room = applyMessage(room, 'p1', { type: 'setup', setup: { ...room.setup, mode, teamMode: true, teamCount: 2 } });
       room = applyMessage(room, 'p1', { type: 'drawTeams' }, NOW, first);
@@ -272,5 +272,40 @@ describe('même cible', () => {
     room = applyMessage(room, ju.id, { type: 'dart', dart: S(5) }, NOW);
     const next = applyMessage(room, ju.id, { type: 'abandon' }, NOW);
     expect(archiveChange(room, next)).toBeNull();
+  });
+});
+
+describe('entraînement', () => {
+  const training = (...names: string[]) => {
+    let room = lobby(...names);
+    room = applyMessage(room, 'p1', { type: 'setup', setup: { ...room.setup, mode: 'training' } });
+    return applyMessage(room, 'p1', { type: 'start' }, NOW, first);
+  };
+
+  it('à plusieurs, c’est quand même un entraînement : pas de victoire', () => {
+    expect(training('Ju', 'Max').session!.config.training).toBe(true);
+  });
+
+  it('seul l’hôte le termine, et il est alors enregistré ; une annulation le rouvre', () => {
+    let room = training('Ju', 'Max');
+    expect(() => applyMessage(room, 'p1', { type: 'finish' }, NOW)).toThrow();
+    room = applyMessage(room, 'p1', { type: 'dart', dart: T(20) }, NOW);
+    expect(canFinish(room, 'p2')).toBe(false);
+    expect(() => applyMessage(room, 'p2', { type: 'finish' }, NOW)).toThrow();
+    expect(canFinish(room, 'p1')).toBe(true);
+    const done = applyMessage(room, 'p1', { type: 'finish' }, NOW);
+    const change = archiveChange(room, done);
+    expect(change && 'record' in change && change.record.session.status).toBe('finished');
+    expect(canFinish(done, 'p1')).toBe(false);
+    const undone = applyMessage(done, 'p1', { type: 'undo' }, NOW);
+    expect(undone.session!.status).toBe('in_progress');
+    expect(archiveChange(done, undone)).toEqual({ forget: done.session!.id });
+  });
+
+  it('terminer est refusé dans les autres jeux', () => {
+    let room = playing('Ju', 'Max');
+    room = applyMessage(room, 'p1', { type: 'dart', dart: T(20) }, NOW);
+    expect(canFinish(room, 'p1')).toBe(false);
+    expect(() => applyMessage(room, 'p1', { type: 'finish' }, NOW)).toThrow();
   });
 });

@@ -8,6 +8,7 @@ import {
   playerGames,
   randomStats,
   summary,
+  trainingStats,
   x01Stats,
   type PlayerGame,
   type StatsFilter,
@@ -35,6 +36,7 @@ export const MODE_FILTERS: { value: ModeFilter; label: string }[] = [
   { value: 'cricket', label: 'Cricket' },
   { value: 'clock', label: 'Horloge' },
   { value: 'random', label: 'Chiffre aléatoire' },
+  { value: 'training', label: 'Entraînement' },
 ];
 
 export const FORMAT_FILTERS: { value: NonNullable<StatsFilter['format']>; label: string }[] = [
@@ -103,6 +105,7 @@ function ModeCards({ games }: { games: PlayerGame[] }) {
   const cricket = cricketStats(games);
   const clock = clockStats(games);
   const random = randomStats(games);
+  const training = trainingStats(games);
   return (
     <>
       {x01Stats(games).map((s) => (
@@ -158,6 +161,23 @@ function ModeCards({ games }: { games: PlayerGame[] }) {
           </dl>
         </section>
       )}
+      {training.games > 0 && (
+        <section className="stat-card">
+          <h3>Entraînement · {training.games} partie{training.games > 1 ? 's' : ''}</h3>
+          <dl>
+            <Stat label="Fléchettes lancées" value={training.darts} />
+            <Stat label="Points marqués" value={training.points} />
+            <Stat label="Moyenne par fléchette" value={num(training.avgDart)} />
+            <Stat label="Moyenne par volée" value={num(training.avgVolley)} />
+            <Stat label="Meilleure volée" value={training.bestVolley ?? ND} />
+            <Stat label="Meilleur total" value={training.bestScore ?? ND} />
+            <Stat label="Volées 100+" value={training.over100} />
+            <Stat label="Volées 140+" value={training.over140} />
+            <Stat label="180" value={training.max180} />
+            <Stat label="Durée moyenne" value={duration(training.avgDurationMs)} />
+          </dl>
+        </section>
+      )}
     </>
   );
 }
@@ -190,7 +210,8 @@ function History({ records, playerId, filter }: { records: GameRecord[]; playerI
         let result = { text: 'Abandonnée', cls: 'muted' };
         if (r.session.status === 'finished') {
           const rank = state.ranking.find((e) => e.sideIndex === side)?.rank ?? 0;
-          if (config.training) result = { text: 'Entraînement', cls: 'muted' };
+          if (config.mode === 'training') result = { text: `${(state.mode as { scores: number[] }).scores[side]} pts`, cls: 'muted' };
+          else if (config.training) result = { text: 'Entraînement', cls: 'muted' };
           else if (state.winners.includes(side)) result = { text: 'Victoire', cls: 'win' };
           else result = { text: `${rank}e sur ${config.sides.length}`, cls: '' };
         }
@@ -297,7 +318,7 @@ export function Profile({
   const s = summary(list);
   const fav = favouriteHits(list);
   // Modes à score joués sur la période, du plus joué au moins joué : le premier sert par défaut aux onglets de score.
-  const played = (['x01', 'cricket', 'random'] as const)
+  const played = (['x01', 'cricket', 'random', 'training'] as const)
     .map((m) => ({ m, n: list.filter((g) => g.state.config.mode === m).length }))
     .filter((x) => x.n > 0)
     .sort((a, b) => b.n - a.n)
@@ -411,7 +432,7 @@ export function Profile({
                 Non disponible pour l’Horloge : on n’y note que Touché ou Raté, sans score de volée. Les records d’Horloge sont dans le Résumé.
               </div>
             ) : scored === null ? (
-              <div className="lib-empty">Aucune partie de 301/501/701, Cricket ou Chiffre aléatoire pour ces filtres.</div>
+              <div className="lib-empty">Aucune partie de 301/501/701, Cricket, Chiffre aléatoire ou Entraînement pour ces filtres.</div>
             ) : (
               <>
                 {mode === 'all' && (

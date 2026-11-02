@@ -6,6 +6,7 @@ import {
   correctDart,
   createSession,
   endTurn,
+  finishGame,
   rematchConfig,
   sessionState,
   startSession,
@@ -111,5 +112,25 @@ describe('Déroulement et corrections', () => {
     const s = withScript(started(), 'T20 S5 / D16 T19');
     const restored = JSON.parse(JSON.stringify(s)) as GameSession;
     expect(sessionState(restored)).toEqual(sessionState(s));
+  });
+});
+
+describe('Fin d’un entraînement', () => {
+  const training = () => started(config('training', {}, players(1)));
+
+  it('terminer enregistre la partie, annuler la rouvre', () => {
+    let s = withScript(training(), 'T20 S5');
+    s = finishGame(s, NOW);
+    expect(s.status).toBe('finished');
+    expect(s.endedAt).toBe(NOW);
+    expect(sessionState(s).turns[0]!.darts).toHaveLength(2);
+    s = undoLast(s, NOW);
+    expect(s.status).toBe('in_progress');
+    expect(sessionState(s).current?.darts).toHaveLength(2);
+  });
+
+  it('refusé sans fléchette ou pour un autre jeu', () => {
+    expect(() => finishGame(training(), NOW)).toThrow();
+    expect(() => finishGame(withScript(started(), 'S20'), NOW)).toThrow();
   });
 });

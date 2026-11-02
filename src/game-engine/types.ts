@@ -1,6 +1,6 @@
 import type { Dart } from './darts';
 
-export type GameMode = 'x01' | 'cricket' | 'clock' | 'random';
+export type GameMode = 'x01' | 'cricket' | 'clock' | 'random' | 'training';
 
 export interface X01Options {
   startScore: 301 | 501 | 701;
@@ -33,11 +33,15 @@ export interface RandomOptions {
   targets: number[];
 }
 
+/** Entraînement : pas de réglage, on part de 0 et on additionne les points jusqu'à ce que l'hôte arrête. */
+export type TrainingOptions = Record<string, never>;
+
 export type ModeOptions =
   | { mode: 'x01'; options: X01Options }
   | { mode: 'cricket'; options: CricketOptions }
   | { mode: 'clock'; options: ClockOptions }
-  | { mode: 'random'; options: RandomOptions };
+  | { mode: 'random'; options: RandomOptions }
+  | { mode: 'training'; options: TrainingOptions };
 
 /**
  * Un « côté » est ce qui porte un score : un joueur seul en individuel,
@@ -58,7 +62,8 @@ export type GameConfig = ModeOptions & {
   sides: Side[];
 };
 
-export type GameEvent = { type: 'dart'; dart: Dart } | { type: 'endTurn' };
+/** finish : fin de partie demandée (Entraînement, qui n'a pas de fin imposée). */
+export type GameEvent = { type: 'dart'; dart: Dart } | { type: 'endTurn' } | { type: 'finish' };
 
 export interface ThrownDart {
   dart: Dart;

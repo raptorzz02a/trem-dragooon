@@ -5,7 +5,7 @@ import { setupProblem, type GameSetup } from '../../game-setup/setup';
 import { passwordProblem, pseudoKey, pseudoProblem, PSEUDO_MAX, type PublicAccount } from '../../online/accounts';
 import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomView } from '../../online/protocol';
 import { PUBLIC_SALOON_ID } from '../../online/saloons';
-import { canThrow, canUndo, startingPlayers } from '../../online/room';
+import { canFinish, canThrow, canUndo, startingPlayers } from '../../online/room';
 import { loadCommunity } from '../../online/useAccount';
 import { useOnlineRoom } from '../../online/useOnlineRoom';
 import type { Profile } from '../../profiles/types';
@@ -91,6 +91,7 @@ export function RoomScreen(props: {
           onDart={(dart) => send({ type: 'dart', dart })}
           onEndTurn={() => send({ type: 'endTurn' })}
           onUndo={() => send({ type: 'undo' })}
+          onFinish={canFinish(room, playerId) ? () => send({ type: 'finish' }) : undefined}
           quitMessage={
             host
               ? 'Arrêter la partie ? Elle sera supprimée pour tout le monde et ne comptera pas dans les stats.'

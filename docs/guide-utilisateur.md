@@ -11,7 +11,7 @@ L'application s'ouvre sur l'accueil.
 
 ![Accueil](images/accueil.png)
 
-- **Les quatre grandes tuiles** lancent une nouvelle partie : 301 / 501 / 701, Cricket, Horloge ou Chiffre aléatoire.
+- **Les grandes tuiles** lancent une nouvelle partie : 301 / 501 / 701, Cricket, Horloge, Chiffre aléatoire ou Entraînement.
 - **Reprendre la partie en cours** apparaît si une partie n'est pas terminée. Elle est retrouvée telle quelle,
   même après une coupure de courant ou un redémarrage.
 - **Joueurs** ouvre la liste des profils, **Classements** les classements.
@@ -172,6 +172,18 @@ jamais deux fois de suite le même. Seules les fléchettes sur ce numéro rappor
 Comme à l'Horloge, la cible est dessinée avec le numéro à viser allumé en or. On touche **Simple**,
 **Double**, **Triple** (ou **25**, **50** pour le Bull) quand la fléchette est sur le numéro, **Raté** sinon.
 
+### Entraînement
+
+Pour lancer des fléchettes, tout simplement. On part de 0, seul ou à plusieurs, et chaque fléchette rapporte
+sa valeur (simple, double, triple, 25 ou 50), sans bust ni limite de manches. La saisie se fait avec le pavé
+habituel. Le tableau montre le total et la moyenne par fléchette de chacun.
+
+La partie ne s'arrête jamais d'elle-même : quand vous avez fini, l'hôte touche **Terminer l'entraînement**
+(en haut de l'écran) puis confirme. La partie est alors enregistrée avec les points du moment, volée entamée
+comprise. Elle compte dans les statistiques (fléchettes, points, moyennes, volées 100+/140+/180) mais jamais
+dans les victoires ni les classements, même à plusieurs. **Annuler la dernière fléchette** sur l'écran de fin
+rouvre l'entraînement. **Quitter** puis **Arrêter la partie** le supprime sans rien enregistrer.
+
 ### En équipes
 
 - Le score est commun à l'équipe.
@@ -189,7 +201,7 @@ elle ne donne donc ni précision sur une cible, ni taux de ratés, ni carte de c
 
 Depuis **Joueurs**, touchez un joueur pour ouvrir sa fiche. Les filtres en haut s'appliquent à tous les onglets :
 
-- le **mode** (Tous, 301/501/701, Cricket, Horloge, Chiffre aléatoire) ;
+- le **mode** (Tous, 301/501/701, Cricket, Horloge, Chiffre aléatoire, Entraînement) ;
 - la **formule** (Tout, Individuel, Équipes) ;
 - la **période** : Tout, 30 jours, 90 jours, 1 an, ou **Dates…** pour choisir le début et la fin.
 

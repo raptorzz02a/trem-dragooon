@@ -25,6 +25,8 @@ interface Props {
   onEndTurn: () => void;
   onUndo: () => void;
   onQuit: () => void;
+  /** Entraînement : terminer la partie pour l'enregistrer (absent : bouton masqué). */
+  onFinish?: () => void;
   /** Absent : bouton masqué (en ligne, seul l'hôte relance). */
   onRematch?: () => void;
   onEditPlayers?: () => void;
@@ -42,7 +44,7 @@ interface Props {
   endNote?: string;
 }
 
-/** Écran de jeu commun aux quatre modes ; ce qui diffère est fourni par la vue du mode. */
+/** Écran de jeu commun à tous les modes ; ce qui diffère est fourni par la vue du mode. */
 export function Game(props: Props) {
   const { state, players, settings } = props;
   const view = MODE_VIEWS[state.config.mode];
@@ -104,6 +106,8 @@ export function Game(props: Props) {
   useEffect(() => setConfirmEnd(false), [current?.turnIndex]);
 
   const [confirmQuit, setConfirmQuit] = useState(false);
+  const [confirmFinish, setConfirmFinish] = useState(false);
+  const thrown = props.session.events.some((e) => e.type === 'dart');
 
   const activeSide = current ? sides[current.sideIndex]! : null;
   const hero = current ? view.hero(ctx, current.sideIndex) : null;
@@ -121,6 +125,11 @@ export function Game(props: Props) {
         {sense.enabled && (
           <button className={`game-sense sense-${sense.active ? sense.status : 'paused'}`} onClick={sense.toggle}>
             📷 {!sense.active ? 'Saisie manuelle' : sense.status === 'ok' ? 'Caméra' : sense.status === 'cible' ? 'Cible non repérée' : 'Caméra éteinte'}
+          </button>
+        )}
+        {props.onFinish && current && (
+          <button className="game-finish btn-gold" disabled={!thrown} onClick={() => setConfirmFinish(true)}>
+            Terminer l’entraînement
           </button>
         )}
         <button className="game-quit" onClick={() => setConfirmQuit(true)}>
@@ -260,6 +269,26 @@ export function Game(props: Props) {
                   Rejouer
                 </button>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmFinish && current && props.onFinish && (
+        <div className="overlay">
+          <div className="dialog">
+            <div>Terminer l’entraînement ? La partie sera enregistrée dans les statistiques avec les points actuels.</div>
+            <div className="dialog-actions">
+              <button onClick={() => setConfirmFinish(false)}>Continuer à lancer</button>
+              <button
+                className="btn-gold"
+                onClick={() => {
+                  setConfirmFinish(false);
+                  props.onFinish!();
+                }}
+              >
+                Terminer
+              </button>
             </div>
           </div>
         </div>

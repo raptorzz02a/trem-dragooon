@@ -11,6 +11,7 @@ import {
   rankings,
   randomStats,
   summary,
+  trainingStats,
   x01Stats,
 } from './stats';
 
@@ -178,5 +179,30 @@ describe('G. Données et statistiques', () => {
     const abandoned = record(x01(), 'T20 T20');
     expect(abandoned.session.status).toBe('abandoned');
     expect(summary(playerGames([abandoned], 'p2'))).toMatchObject({ played: 0, losses: 0 });
+  });
+});
+
+describe('Entraînement', () => {
+  const cfg = (sides = players(2)) => config('training', {}, sides);
+
+  it('compte dans les stats, pas dans les victoires ni les classements', () => {
+    const recs = [record(cfg(), 'T20 T20 T20 S1 S1 S1 !')];
+    expect(summary(playerGames(recs, 'p1'))).toMatchObject({ played: 1, competitive: 0, wins: 0, losses: 0 });
+    expect(rankings(recs, [profile('p1'), profile('p2')], {}, 0).ranked).toEqual([]);
+  });
+
+  it('un entraînement pas terminé n’est pas compté', () => {
+    expect(playerGames([record(cfg(), 'T20 T20')], 'p1')).toEqual([]);
+  });
+
+  it('fléchettes, points, moyennes et records', () => {
+    const recs = [
+      record(cfg(players(1)), 'T20 T20 T20 S20 S5 S1 25 !'),
+      record(cfg(players(1)), 'T20 T19 T18 !'),
+    ];
+    const s = trainingStats(playerGames(recs, 'p1'));
+    expect(s).toMatchObject({ games: 2, darts: 10, points: 180 + 26 + 25 + 171, bestVolley: 180, bestScore: 231, over100: 0, over140: 1, max180: 1 });
+    expect(s.avgDart).toBeCloseTo(40.2);
+    expect(s.avgVolley).toBeCloseTo(402 / 4);
   });
 });
