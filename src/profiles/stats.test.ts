@@ -35,6 +35,9 @@ describe('Statistiques', () => {
     const recs = [record(x01(), x01Win), record(training, 'T20 T20 T20 T20 T7 D20')];
     const s1 = summary(playerGames(recs, 'p1'));
     expect(s1).toMatchObject({ played: 2, competitive: 1, wins: 1, losses: 0, winRate: 100, soloWins: 1 });
+    // 6 fléchettes en partie + 6 à l'entraînement : tout est compté.
+    expect(s1.darts).toBe(12);
+    expect(summary(playerGames(recs, 'p2')).darts).toBe(6);
     expect(summary(playerGames(recs, 'p2'))).toMatchObject({ wins: 0, losses: 1, winRate: 0 });
   });
 

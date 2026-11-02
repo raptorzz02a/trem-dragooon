@@ -74,6 +74,8 @@ export interface Summary {
   winRate: number | null;
   soloWins: number;
   teamWins: number;
+  /** Fléchettes lancées par le joueur, tous modes confondus (entraînement compris). */
+  darts: number;
 }
 
 export function summary(games: PlayerGame[]): Summary {
@@ -87,6 +89,7 @@ export function summary(games: PlayerGame[]): Summary {
     winRate: comp.length ? (100 * wins.length) / comp.length : null,
     soloWins: wins.filter((g) => !g.state.config.teamMode).length,
     teamWins: wins.filter((g) => g.state.config.teamMode).length,
+    darts: games.reduce((n, g) => n + g.turns.reduce((m, t) => m + t.darts.length, 0), 0),
   };
 }
 

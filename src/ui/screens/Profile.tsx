@@ -378,10 +378,14 @@ export function Profile({
         {tab === 'summary' && (
           <div className="profile-body">
             <div className="profile-stats">
-              <div className="tiles">
+              <div className="tiles tiles-5">
                 <div className="tile">
                   <span className="tile-value">{s.played}</span>
                   <span className="tile-label">Parties terminées</span>
+                </div>
+                <div className="tile">
+                  <span className="tile-value">{s.darts.toLocaleString('fr-FR')}</span>
+                  <span className="tile-label">Fléchettes lancées</span>
                 </div>
                 <div className="tile">
                   <span className="tile-value">{s.wins}</span>
