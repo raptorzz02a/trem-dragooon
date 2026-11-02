@@ -1,4 +1,6 @@
 export interface AppSettings {
+  /** Pause après la volée (3e fléchette, bust…) : la volée reste affichée avant de passer au joueur suivant, en millisecondes. */
+  holdMs: number;
   /** Durée de l'écran « joueur suivant », en millisecondes. */
   transitionMs: number;
   /** false : pas d'écran de transition ni d'animation. */
@@ -10,6 +12,7 @@ export interface AppSettings {
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
+  holdMs: 3000,
   transitionMs: 1500,
   animations: true,
   statThresholds: [60, 100, 140],

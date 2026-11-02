@@ -52,7 +52,14 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
     await p.getByText('Enregistrer').click(); // avatar proposé à la création
     await p.locator('.home-account-name').waitFor({ timeout: 10000 });
   };
-  const skip = async (p) => { const o = p.locator('.transition'); if (await o.count()) await o.click({ position: { x: 5, y: 5 } }); await p.waitForTimeout(150); };
+  // Pause après la volée (« Joueur suivant → »), puis écran de transition : on passe les deux.
+  const skip = async (p) => {
+    const h = p.locator('.held-next');
+    if (await h.count()) { await h.click(); await p.waitForTimeout(100); }
+    const o = p.locator('.transition');
+    if (await o.count()) await o.click({ position: { x: 5, y: 5 } });
+    await p.waitForTimeout(150);
+  };
   const tap = async (p, m, label) => {
     await skip(p);
     if (m > 1) await p.locator(`.pad-mult-${m}`).click();
