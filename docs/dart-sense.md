@@ -41,6 +41,24 @@ onglets). Une fléchette tapée au pavé ou corrigée à la main n'a pas de posi
 statistiques mais n'apparaît pas sur la carte. Un `trem_sense.py` d'avant cette version marche toujours, sans
 heat map. Recette : `node scripts/recette-heatmap.cjs` (avec `npm run online:dev`).
 
+## Une ou deux caméras
+
+Par défaut (`--camera auto`), `trem_sense.py` essaie les webcams 0 à 5 au démarrage et garde celles qui voient
+la cible : la webcam intégrée du PC, qui ne la voit pas, est écartée. La console affiche par exemple
+`Webcam 1 : voit la cible` puis `2 camera(s) utilisee(s) : 1, 2`. On peut aussi les donner : `--camera 1,2`.
+
+Avec deux caméras, par exemple une à gauche et une à droite de la cible :
+
+- chaque caméra repère la cible et les fléchettes de son côté, ramenées sur le même plan de cible ;
+- une fléchette vue par les deux est placée à la moyenne des deux positions (plus précis près des fils) ;
+- une fléchette cachée pour l'une (ailettes d'une autre fléchette devant) reste vue par l'autre ;
+- deux fléchettes serrées vues par la même caméra ne sont jamais confondues ;
+- le retrait n'est compté que quand aucune caméra ne voit plus de fléchette.
+
+Le PC analyse les deux images à chaque tour : les images/s affichées sont donc à peu près divisées par deux.
+Placer chaque caméra à hauteur du centre de la cible, 20 à 40° sur le côté, la cible remplissant le carré central.
+Avec `s`, une image par caméra est enregistrée (`…-cam1.png`, `…-cam2.png`).
+
 ## Installation (une fois)
 
 1. **Mettre à jour la borne** dans PowerShell : `cd $HOME\trem-dragooon` puis `git pull`.
@@ -53,10 +71,11 @@ heat map. Recette : `node scripts/recette-heatmap.cjs` (avec `npm run online:dev
 3. **Essai** depuis le dossier de Dart Sense, environnement Python activé (`.venv\Scripts\activate`, ou le nom de ton environnement) :
 
    ```powershell
-   python trem_sense.py --camera 1
+   python trem_sense.py
    ```
 
-   `--camera` prend le numéro de la webcam (comme pour Dart Sense : 1 pour la Crosstour en USB), une adresse
+   `--camera` vaut `auto` par défaut (webcams qui voient la cible, voir plus haut). Il prend aussi le numéro
+   d'une webcam (`1`), deux numéros (`1,2`), une adresse
    IP Webcam (`192.168.1.20:8080`) ou une adresse complète (`rtsp://…`). Une fenêtre montre ce que voit le
    modèle : points de calibration en vert, fléchettes en orange, et en rouge les fléchettes de la volée en
    cours. `q` dans la fenêtre pour quitter, `--sans-fenetre` pour s'en passer. Chaque fléchette s'écrit aussi

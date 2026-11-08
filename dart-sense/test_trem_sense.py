@@ -5,7 +5,9 @@ import threading
 import unittest
 import urllib.request
 
-from trem_sense import Events, VisitTracker, dart_of, position_of, serve
+import numpy as np
+
+from trem_sense import Events, VisitTracker, dart_of, fuse, position_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -55,6 +57,33 @@ class VisitTrackerTest(unittest.TestCase):
         for frame in [[A], [B], [C], [A], [B]]:
             t.feed(frame)
         self.assertEqual(events.items, [])
+
+
+class FuseTest(unittest.TestCase):
+    def test_two_cameras(self):
+        left = [[0.300, 0.300], [0.600, 0.600]]
+        right = [[0.310, 0.302], [0.500, 0.200]]  # la 2e flechette de gauche est cachee pour la droite
+        fused = sorted(map(tuple, fuse([left, right]).round(3)))
+        self.assertEqual(fused, [(0.305, 0.301), (0.5, 0.2), (0.6, 0.6)])
+
+    def test_close_darts_of_one_camera_stay_apart(self):
+        # Deux flechettes serrees dans le T20, vues par les deux cameras : toujours deux flechettes.
+        left = [[0.450, 0.250], [0.462, 0.240]]
+        right = [[0.452, 0.251], [0.463, 0.238]]
+        self.assertEqual(len(fuse([left, right])), 2)
+        self.assertEqual(len(fuse([left])), 2)
+
+    def test_one_camera_or_none(self):
+        self.assertEqual(fuse([[A, B]]).tolist(), [A, B])
+        self.assertEqual(fuse([np.zeros((0, 2)), np.zeros((0, 2))]).shape, (0, 2))
+
+    def test_jitter_does_not_double_count(self):
+        # Fusion qui bouge de 0,012 quand une camera perd la flechette : toujours une seule flechette.
+        t, events = tracker()
+        t.same = 0.015
+        for frame in [[[0.300, 0.300]], [[0.312, 0.300]], [[0.300, 0.300]], [[0.312, 0.300]], [[0.300, 0.300]], [[0.312, 0.300]]]:
+            t.feed(frame)
+        self.assertEqual([e['type'] for e in events.items], ['flechette'])
 
 
 class DartOfTest(unittest.TestCase):

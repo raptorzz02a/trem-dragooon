@@ -7,7 +7,9 @@ comme si on avait tape sur le pave. Quand les flechettes sont retirees de la cib
 un evenement « retrait » termine la volee.
 
 A copier dans le dossier de Dart Sense (a cote de get_scores.py et weights.pt), puis :
-    python trem_sense.py --camera 1
+    python trem_sense.py --camera auto
+Avec deux cameras (par exemple a gauche et a droite de la cible), les flechettes vues par les deux
+sont placees a la moyenne des deux positions, et une flechette cachee pour l'une reste vue par l'autre.
 Dans la fenetre : q pour quitter, s pour enregistrer l'image de la camera (dossier captures).
 """
 
@@ -85,9 +87,12 @@ class VisitTracker:
     puis aucune flechette sur `repeat` des `window` dernieres images.
     """
 
-    def __init__(self, score, events, repeat=3, window=5):
+    def __init__(self, score, events, repeat=3, window=5, same=SAME_DART):
         self.score = score  # coordonnees (N, 2) -> liste de codes ('T20', 'SB', 'miss'...)
         self.events = events
+        # Distance sous laquelle deux positions sont la meme flechette (plus large a deux cameras :
+        # la position fusionnee bouge un peu quand une camera perd la flechette de vue).
+        self.same = same
         self.repeat = repeat
         self.window = window
         self.visit = 1
@@ -112,7 +117,7 @@ class VisitTracker:
         for pred in self._stable():
             if len(self.darts) >= 3:
                 break
-            if all(np.linalg.norm(pred - d) > SAME_DART for d in self.darts):
+            if all(np.linalg.norm(pred - d) > self.same for d in self.darts):
                 code = self.score(np.array([pred]))[0]
                 self.darts.append(pred)
                 self.codes.append(code)
@@ -125,7 +130,7 @@ class VisitTracker:
         for frame in self.frames:
             for pred in frame:
                 for g in groups:
-                    if np.linalg.norm(pred - g[0]) < SAME_DART:
+                    if np.linalg.norm(pred - g[0]) < self.same:
                         g.append(pred)
                         break
                 else:
@@ -190,60 +195,150 @@ def serve(events, port, origins):
     return server
 
 
-def frames_from(source, size=None):
-    """Images de la camera (numero de webcam, adresse IP Webcam, URL rtsp/http) ou d'un dossier d'images (essai)."""
-    import cv2
+FUSE_DIST = 0.03  # deux cameras voient la meme flechette si leurs positions sur la cible sont a moins de ca (~13 mm)
 
-    if os.path.isdir(source):
-        # Essai sans camera : chaque image est repetee comme si elle restait devant l'objectif.
-        files = sorted(f for f in os.listdir(source) if f.lower().endswith(('.png', '.jpg', '.jpeg')))
-        for name in files:
-            frame = cv2.imread(os.path.join(source, name))
-            print('Image', name)
-            for _ in range(6):
-                yield frame
-        return
+
+def fuse(views):
+    """Regroupe les flechettes vues par plusieurs cameras (coordonnees sur la cible, 0-1).
+
+    Une flechette vue par les deux cameras est placee a la moyenne des deux positions (plus precis),
+    une flechette cachee pour l'une mais vue par l'autre est gardee.
+    """
+    groups = []  # [positions, cameras deja dans le groupe]
+    for cam, coords in enumerate(views):
+        for pred in np.asarray(coords, dtype=float).reshape(-1, 2):
+            # Deux flechettes vues par la meme camera ne sont jamais fusionnees, meme serrees dans un triple.
+            near = [g for g in groups if cam not in g[1] and np.linalg.norm(np.mean(g[0], axis=0) - pred) < FUSE_DIST]
+            if near:
+                g = min(near, key=lambda g: np.linalg.norm(np.mean(g[0], axis=0) - pred))
+                g[0].append(pred)
+                g[1].add(cam)
+            else:
+                groups.append([[pred], {cam}])
+    return np.array([np.mean(g[0], axis=0) for g in groups]).reshape(-1, 2)
+
+
+def open_capture(source, size=None):
+    import cv2
 
     if source.isdigit():
         cap = cv2.VideoCapture(int(source), cv2.CAP_DSHOW if os.name == 'nt' else cv2.CAP_ANY)
+    elif os.path.isfile(source):  # video enregistree (essai)
+        cap = cv2.VideoCapture(source)
     else:
         cap = cv2.VideoCapture(source if '://' in source else 'http://' + source + '/video')
-    if not cap.isOpened():
-        raise ConnectionError(f'Impossible d ouvrir la camera : {source}')
-    if size:
+    if cap.isOpened() and size:
         # Demande une definition plus fine a la webcam (elle donne la plus proche qu'elle sait faire).
         w, h = (int(v) for v in size.lower().split('x'))
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
-    print(f'Camera : {int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}')
-    # Lecture dans un thread : on analyse toujours l'image la plus recente (pas de retard qui s'accumule).
-    latest = {'frame': None, 'id': 0, 'running': True, 'time': time.time()}
+    return cap
 
-    def reader():
-        while latest['running']:
-            ok, frame = cap.read()
+
+class Camera:
+    """Une camera lue dans son propre thread : on analyse toujours l'image la plus recente (pas de retard qui s'accumule)."""
+
+    def __init__(self, source, size=None):
+        import cv2
+
+        self.name = source
+        self.cap = open_capture(source, size)
+        if not self.cap.isOpened():
+            raise ConnectionError(f'Impossible d ouvrir la camera : {source}')
+        print(f'Camera {source} : {int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}')
+        self.frame, self.id, self.time, self.running = None, 0, time.time(), True
+        # Video enregistree : lue a sa vitesse normale, comme une camera.
+        self.pace = 1 / (self.cap.get(cv2.CAP_PROP_FPS) or 25) if os.path.isfile(source) else 0
+        threading.Thread(target=self._read, daemon=True).start()
+
+    def _read(self):
+        while self.running:
+            ok, frame = self.cap.read()
             if not ok:
                 time.sleep(0.01)
                 continue
-            latest['frame'], latest['time'] = frame, time.time()
-            latest['id'] += 1
+            self.frame, self.time = frame, time.time()
+            self.id += 1
+            time.sleep(self.pace)
 
-    threading.Thread(target=reader, daemon=True).start()
-    last = 0
+    def close(self):
+        self.running = False
+        self.cap.release()
+
+
+def frames_from(sources, size=None):
+    """Rend a chaque tour la liste des images les plus recentes, une par camera.
+
+    Une source peut aussi etre un dossier d'images (essai sans camera) : chaque image est repetee
+    comme si elle restait devant l'objectif.
+    """
+    import cv2
+
+    if len(sources) == 1 and os.path.isdir(sources[0]):
+        files = sorted(f for f in os.listdir(sources[0]) if f.lower().endswith(('.png', '.jpg', '.jpeg')))
+        for name in files:
+            frame = cv2.imread(os.path.join(sources[0], name))
+            print('Image', name)
+            for _ in range(6):
+                yield [frame]
+        return
+
+    cameras = [Camera(s, size) for s in sources]
+    seen = [0] * len(cameras)
     try:
         while True:
-            if latest['id'] == last:
-                if time.time() - latest['time'] > 10:
-                    print('Plus d image de la camera depuis 10 s, arret.')
-                    return
-                time.sleep(0.005)
-                continue
-            last = latest['id']
-            yield latest['frame']
+            # On attend une image neuve de chaque camera (au plus 10 s).
+            for i, cam in enumerate(cameras):
+                while cam.id == seen[i]:
+                    if time.time() - cam.time > 10:
+                        print(f'Plus d image de la camera {cam.name} depuis 10 s, arret.')
+                        return
+                    time.sleep(0.005)
+                seen[i] = cam.id
+            yield [cam.frame for cam in cameras]
     finally:
-        latest['running'] = False
+        for cam in cameras:
+            cam.close()
+
+
+def analyse(model, scorer, frame, conf):
+    """Carre central, resultat du modele et flechettes sur la cible (None si la cible n'est pas reperee)."""
+    h, w = frame.shape[:2]
+    size = min(h, w)
+    x0, y0 = (w - size) // 2, (h - size) // 2
+    # Le modele a ete entraine sur des images carrees ou la cible remplit le cadre.
+    square = frame[y0:y0 + size, x0:x0 + size]
+    result = model(square, conf=conf, verbose=False)[0]
+    calibration, darts = scorer.process_yolo_output(result)
+    if np.count_nonzero(np.all(calibration != -1, axis=1)) < 4:
+        return square, result, None
+    H = scorer.find_homography(calibration, size)
+    darts = darts[np.all((darts >= 0) & (darts <= 1), axis=1)] if len(darts) else darts
+    coords = scorer.transform_to_boardplane(H[0], darts, size) if len(darts) else np.zeros((0, 2))
+    return square, result, coords
+
+
+def detect_cameras(model, scorer, size, conf, count=6):
+    """Cherche les webcams 0 a count-1 qui voient la cible (la webcam integree du PC, qui ne la voit pas, est ecartee)."""
+    found = []
+    for i in range(count):
+        cap = open_capture(str(i), size)
+        if not cap.isOpened():
+            continue
+        frame = None
+        for _ in range(15):  # les premieres images d'une webcam sont souvent noires
+            ok, img = cap.read()
+            if ok:
+                frame = img
         cap.release()
+        if frame is None:
+            continue
+        coords = analyse(model, scorer, frame, conf)[2]
+        print(f'Webcam {i} : ' + ('voit la cible' if coords is not None else 'ne voit pas la cible, ecartee'))
+        if coords is not None:
+            found.append(str(i))
+    return found
 
 
 def run(args):
@@ -253,63 +348,70 @@ def run(args):
 
     model = YOLO(args.modele)
     scorer = GetScores(args.modele)
+    if args.camera == 'auto':
+        sources = detect_cameras(model, scorer, args.definition, args.confiance)
+        if not sources:
+            print('Aucune camera ne voit la cible : verifie le cadrage, ou donne le numero avec --camera 1')
+            return
+    else:
+        sources = [c.strip() for c in args.camera.split(',') if c.strip()]
+    print(f'{len(sources)} camera(s) utilisee(s) : {", ".join(sources)}')
+
     events = Events()
-    tracker = VisitTracker(lambda coords: scorer.score(coords.copy())[0], events)
+    tracker = VisitTracker(lambda coords: scorer.score(coords.copy())[0], events, same=SAME_DART if len(sources) == 1 else 1.5 * SAME_DART)
     serve(events, args.port, ORIGINS + ([args.origine] if args.origine else []))
     print(f'Dart Sense pret pour TREM-DRAGOOON : http://127.0.0.1:{args.port} (q dans la fenetre pour quitter)')
 
     last_time = time.time()
-    for frame in frames_from(args.camera, args.definition):
-        h, w = frame.shape[:2]
-        size = min(h, w)
-        x0, y0 = (w - size) // 2, (h - size) // 2
-        # Le modele a ete entraine sur des images carrees ou la cible remplit le cadre.
-        square = frame[y0:y0 + size, x0:x0 + size]
-        result = model(square, conf=args.confiance, verbose=False)[0]
-        calibration, darts = scorer.process_yolo_output(result)
+    for frames in frames_from(sources, args.definition):
+        analysed = [analyse(model, scorer, f, args.confiance) for f in frames]
         now = time.time()
         fps = round(1 / max(now - last_time, 1e-3), 1)
         last_time = now
 
-        found = np.count_nonzero(np.all(calibration != -1, axis=1))
-        if found < 4:
+        views = [coords for _, _, coords in analysed if coords is not None]
+        if not views:
             # Cible non reperee (quelqu'un devant, mauvais cadrage) : on ne compte rien, sinon on croirait a un retrait.
-            events.set_status(camera='cible', fps=fps, volee=tracker.codes)
-            coords = None
+            events.set_status(camera='cible', fps=fps, volee=tracker.codes, cameras=len(frames))
         else:
-            H = scorer.find_homography(calibration, size)
-            darts = darts[np.all((darts >= 0) & (darts <= 1), axis=1)] if len(darts) else darts
-            coords = scorer.transform_to_boardplane(H[0], darts, size) if len(darts) else np.zeros((0, 2))
-            tracker.feed(coords)
-            events.set_status(camera='ok', fps=fps, volee=tracker.codes)
+            tracker.feed(fuse(views))
+            events.set_status(camera='ok', fps=fps, volee=tracker.codes, cameras=len(frames))
 
         if not args.sans_fenetre:
-            view = square.copy()
-            th = max(1, size // 400)
-            for box, k, c in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist()):
-                color = (0, 200, 255) if int(k) == 4 else (0, 255, 0)
-                cv2.circle(view, (int(box[0]), int(box[1])), 6 * th, color, th)
-                if int(k) == 4:
-                    cv2.putText(view, f'{c:.2f}', (int(box[0]) + 8 * th, int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.8 * th, color, 2 * th)
-            text = ' '.join(tracker.codes) if coords is not None else 'Cible non reperee : remplis le cadre'
-            cv2.putText(view, f'{text}  ({fps} img/s)', (10, 40 * th), cv2.FONT_HERSHEY_SIMPLEX, th, (0, 0, 255), 2 * th)
-            scale = 600 / size
-            cv2.imshow('Dart Sense - TREM-DRAGOOON', cv2.resize(view, None, fx=scale, fy=scale))
+            panels = []
+            for square, result, coords in analysed:
+                view = square.copy()
+                size = view.shape[0]
+                th = max(1, size // 400)
+                for box, k, c in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist()):
+                    color = (0, 200, 255) if int(k) == 4 else (0, 255, 0)
+                    cv2.circle(view, (int(box[0]), int(box[1])), 6 * th, color, th)
+                    if int(k) == 4:
+                        cv2.putText(view, f'{c:.2f}', (int(box[0]) + 8 * th, int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.8 * th, color, 2 * th)
+                if coords is None:
+                    cv2.putText(view, 'Cible non reperee', (10, 90 * th), cv2.FONT_HERSHEY_SIMPLEX, th, (0, 0, 255), 2 * th)
+                side = 600 if len(analysed) == 1 else 480
+                panels.append(cv2.resize(view, (side, side)))
+            board = np.hstack(panels)
+            cv2.putText(board, f'{" ".join(tracker.codes)}  ({fps} img/s)', (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+            cv2.imshow('Dart Sense - TREM-DRAGOOON', board)
             key = cv2.waitKey(1) & 0xFF
             if key == ord('q'):
                 break
             if key == ord('s'):
-                # Image brute de la camera, pour analyser une flechette mal lue.
+                # Images brutes des cameras, pour analyser une flechette mal lue.
                 os.makedirs('captures', exist_ok=True)
-                name = os.path.join('captures', time.strftime('%Y%m%d-%H%M%S') + '.png')
-                cv2.imwrite(name, frame)
-                print('Image enregistree :', os.path.abspath(name))
+                stamp = time.strftime('%Y%m%d-%H%M%S')
+                for i, frame in enumerate(frames):
+                    name = os.path.join('captures', f'{stamp}-cam{i + 1}.png' if len(frames) > 1 else f'{stamp}.png')
+                    cv2.imwrite(name, frame)
+                    print('Image enregistree :', os.path.abspath(name))
     events.set_status(camera='arretee')
 
 
 def main():
     parser = argparse.ArgumentParser(description='Dart Sense pour TREM-DRAGOOON')
-    parser.add_argument('--camera', default='0', help='numero de webcam (0, 1...), adresse IP Webcam, URL rtsp://..., ou dossier d images (essai)')
+    parser.add_argument('--camera', default='auto', help='auto (webcams qui voient la cible, une ou deux), numero de webcam (1), deux numeros (1,2), adresse IP Webcam, URL rtsp://..., ou dossier d images (essai)')
     parser.add_argument('--port', type=int, default=PORT)
     parser.add_argument('--modele', default='weights.pt')
     parser.add_argument('--origine', help='adresse de l appli si ce n est pas celle de Cloudflare (ex. http://192.168.1.20:4173)')
