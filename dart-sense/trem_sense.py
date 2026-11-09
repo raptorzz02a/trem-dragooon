@@ -302,7 +302,51 @@ def frames_from(sources, size=None):
             cam.close()
 
 
-def analyse(model, scorer, frame, conf):
+class Calibration:
+    """Memoire des 6 points de repere de la cible pour une camera fixe.
+
+    Le modele les repere a chaque image, mais une flechette, une ailette ou un reflet en cache ou en decale
+    souvent un : la cible est alors mal placee et la flechette mal comptee, pour de bon. On garde donc, pour
+    chaque point, la mediane de ses dernieres positions vues avec assez de confiance. Si la camera bouge,
+    la memoire suit en quelques secondes.
+    """
+
+    CONF = 0.5  # confiance minimale d'un point de repere (0,85 dans Dart Sense d'origine)
+
+    def __init__(self, keep=15):
+        self.points = [deque(maxlen=keep) for _ in range(6)]
+
+    MOVED = 0.03  # un point a plus de ca de sa position memorisee (~13 mm) a bouge
+
+    def update(self, result):
+        """Ajoute les points vus sur cette image ; rend combien la cible en montre en ce moment."""
+        seen = {}
+        for k, c, box in zip(result.boxes.cls.tolist(), result.boxes.conf.tolist(), result.boxes.xywhn.tolist()):
+            k = int(k)
+            if k == 4 or c < self.CONF:
+                continue
+            i = k - 1 if k > 4 else k  # classes du modele : 0-3 et 5-6 pour les 6 points, 4 pour les flechettes
+            seen.setdefault(i, box[:2])
+        # La plupart des points vus ont bouge : camera ou cible deplacee, on repart de zero.
+        known = self.coords()
+        moved = [i for i, p in seen.items() if known[i][0] >= 0 and np.linalg.norm(known[i] - p) > self.MOVED]
+        if len(seen) >= 3 and len(moved) > len(seen) / 2:
+            for pts in self.points:
+                pts.clear()
+        for i, p in seen.items():
+            self.points[i].append(p)
+        return len(seen)
+
+    def coords(self):
+        """Points de repere a utiliser (-1 pour un point jamais vu)."""
+        out = -np.ones((6, 2))
+        for i, pts in enumerate(self.points):
+            if pts:
+                out[i] = np.median(np.array(pts), axis=0)
+        return out
+
+
+def analyse(model, scorer, frame, conf, calibration=None):
     """Carre central, resultat du modele et flechettes sur la cible (None si la cible n'est pas reperee)."""
     h, w = frame.shape[:2]
     size = min(h, w)
@@ -310,10 +354,15 @@ def analyse(model, scorer, frame, conf):
     # Le modele a ete entraine sur des images carrees ou la cible remplit le cadre.
     square = frame[y0:y0 + size, x0:x0 + size]
     result = model(square, conf=conf, verbose=False)[0]
-    calibration, darts = scorer.process_yolo_output(result)
-    if np.count_nonzero(np.all(calibration != -1, axis=1)) < 4:
+    points, darts = scorer.process_yolo_output(result)
+    if calibration is not None:
+        # Au moins 3 points visibles maintenant (personne devant la cible), le reste vient de la memoire.
+        if calibration.update(result) < 3:
+            return square, result, None
+        points = calibration.coords()
+    if np.count_nonzero(np.all(points != -1, axis=1)) < 4:
         return square, result, None
-    H = scorer.find_homography(calibration, size)
+    H = scorer.find_homography(points, size)
     darts = darts[np.all((darts >= 0) & (darts <= 1), axis=1)] if len(darts) else darts
     coords = scorer.transform_to_boardplane(H[0], darts, size) if len(darts) else np.zeros((0, 2))
     return square, result, coords
@@ -362,9 +411,10 @@ def run(args):
     serve(events, args.port, ORIGINS + ([args.origine] if args.origine else []))
     print(f'Dart Sense pret pour TREM-DRAGOOON : http://127.0.0.1:{args.port} (q dans la fenetre pour quitter)')
 
+    calibrations = [Calibration() for _ in sources]
     last_time = time.time()
     for frames in frames_from(sources, args.definition):
-        analysed = [analyse(model, scorer, f, args.confiance) for f in frames]
+        analysed = [analyse(model, scorer, f, args.confiance, cal) for f, cal in zip(frames, calibrations)]
         now = time.time()
         fps = round(1 / max(now - last_time, 1e-3), 1)
         last_time = now
@@ -379,10 +429,14 @@ def run(args):
 
         if not args.sans_fenetre:
             panels = []
-            for square, result, coords in analysed:
+            for (square, result, coords), cal in zip(analysed, calibrations):
                 view = square.copy()
                 size = view.shape[0]
                 th = max(1, size // 400)
+                # Points de repere retenus (memoire) : croix blanches.
+                for x, y in cal.coords():
+                    if x >= 0:
+                        cv2.drawMarker(view, (int(x * size), int(y * size)), (255, 255, 255), cv2.MARKER_CROSS, 14 * th, 2 * th)
                 for box, k, c in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist()):
                     color = (0, 200, 255) if int(k) == 4 else (0, 255, 0)
                     cv2.circle(view, (int(box[0]), int(box[1])), 6 * th, color, th)

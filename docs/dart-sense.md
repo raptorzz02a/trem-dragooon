@@ -41,6 +41,15 @@ onglets). Une fléchette tapée au pavé ou corrigée à la main n'a pas de posi
 statistiques mais n'apparaît pas sur la carte. Un `trem_sense.py` d'avant cette version marche toujours, sans
 heat map. Recette : `node scripts/recette-heatmap.cjs` (avec `npm run online:dev`).
 
+## Points de repère mémorisés
+
+Pour placer la cible, le modèle repère 6 points sur le bord du double (vers le 20, le 3, le 11, le 6, le 9 et le
+15, ronds verts dans la fenêtre). Une fléchette, une ailette ou un reflet en cache ou en décale souvent un, et
+une fléchette comptée à ce moment-là gardait un mauvais score. La caméra étant fixe, `trem_sense.py` retient
+pour chaque point la médiane de ses 15 dernières positions sûres (croix blanches dans la fenêtre) : un point
+caché ou faux sur une image ne change plus rien. Si la plupart des points bougent d'un coup (caméra ou cible
+déplacée), la mémoire repart de zéro.
+
 ## Une ou deux caméras
 
 Par défaut (`--camera auto`), `trem_sense.py` essaie les webcams 0 à 5 au démarrage et garde celles qui voient

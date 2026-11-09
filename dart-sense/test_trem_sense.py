@@ -7,7 +7,7 @@ import urllib.request
 
 import numpy as np
 
-from trem_sense import Events, VisitTracker, dart_of, fuse, position_of, serve
+from trem_sense import Calibration, Events, VisitTracker, dart_of, fuse, position_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -84,6 +84,45 @@ class FuseTest(unittest.TestCase):
         for frame in [[[0.300, 0.300]], [[0.312, 0.300]], [[0.300, 0.300]], [[0.312, 0.300]], [[0.300, 0.300]], [[0.312, 0.300]]]:
             t.feed(frame)
         self.assertEqual([e['type'] for e in events.items], ['flechette'])
+
+
+class FakeBoxes:
+    def __init__(self, items):  # (classe, confiance, x, y)
+        self.cls = np.array([k for k, _, _, _ in items])
+        self.conf = np.array([c for _, c, _, _ in items])
+        self.xywhn = np.array([[x, y, 0.01, 0.01] for _, _, x, y in items])
+
+
+class FakeResult:
+    def __init__(self, items):
+        self.boxes = FakeBoxes(items)
+
+
+class CalibrationTest(unittest.TestCase):
+    def test_median_ignores_a_wrong_frame_and_keeps_hidden_points(self):
+        cal = Calibration()
+        good = [(0, 0.9, 0.45, 0.12), (1, 0.9, 0.55, 0.88), (2, 0.9, 0.12, 0.55), (3, 0.9, 0.88, 0.45), (5, 0.9, 0.2, 0.3), (6, 0.9, 0.8, 0.7)]
+        for _ in range(4):
+            self.assertEqual(cal.update(FakeResult(good)), 6)
+        # Une image ou le point « 20 » est decale (reflet) et le point « 6 » cache par une flechette.
+        bad = [(0, 0.8, 0.60, 0.20)] + [p for p in good if p[0] not in (0, 3)] + [(4, 0.9, 0.5, 0.5), (2, 0.3, 0.9, 0.9)]
+        self.assertEqual(cal.update(FakeResult(bad)), 5)
+        coords = cal.coords()
+        self.assertEqual(coords[0].tolist(), [0.45, 0.12])  # la mediane ecarte l'image fausse
+        self.assertEqual(coords[3].tolist(), [0.88, 0.45])  # le point cache reste connu
+        self.assertEqual(coords[4].tolist(), [0.2, 0.3])  # classe 5 du modele = 5e point
+
+    def test_camera_moved_resets(self):
+        cal = Calibration()
+        before = [(0, 0.9, 0.45, 0.12), (1, 0.9, 0.55, 0.88), (2, 0.9, 0.12, 0.55), (3, 0.9, 0.88, 0.45)]
+        for _ in range(5):
+            cal.update(FakeResult(before))
+        after = [(k, c, x + 0.1, y) for k, c, x, y in before]
+        cal.update(FakeResult(after))
+        self.assertEqual(np.round(cal.coords()[0], 3).tolist(), [0.55, 0.12])
+
+    def test_unknown_points(self):
+        self.assertTrue((Calibration().coords() == -1).all())
 
 
 class DartOfTest(unittest.TestCase):
