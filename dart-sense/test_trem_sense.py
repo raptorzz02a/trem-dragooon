@@ -7,7 +7,7 @@ import urllib.request
 
 import numpy as np
 
-from trem_sense import Calibration, Events, VisitTracker, dart_of, fuse, position_of, serve
+from trem_sense import BOARD_MM, Calibration, Events, VisitTracker, dart_of, drop_unsure_misses, fuse, position_of, score_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -132,6 +132,34 @@ class DartOfTest(unittest.TestCase):
         self.assertEqual(dart_of('SB'), {'segment': 25, 'multiplier': 1})
         self.assertEqual(dart_of('DB'), {'segment': 25, 'multiplier': 2})
         self.assertEqual(dart_of('miss'), {'segment': 0, 'multiplier': 1})
+
+
+def mm(x, y):
+    return [0.5 + x / BOARD_MM, 0.5 + y / BOARD_MM]
+
+
+class ScoreTest(unittest.TestCase):
+    def test_near_wire_is_not_rounded(self):
+        # Flechette vue par ju a (62,8 ; -127,1) mm : dans le 1, a 26,3 degres du 20. Dart Sense disait 18.
+        self.assertEqual(score_of(mm(62.8, -127.1)), 'S1')
+        self.assertEqual(score_of(mm(-49.5, -68.4)), 'S12')
+
+    def test_rings_and_segments(self):
+        self.assertEqual(score_of(mm(0, -102)), 'T20')
+        self.assertEqual(score_of(mm(0, 165)), 'D3')
+        self.assertEqual(score_of(mm(165, 0)), 'D6')
+        self.assertEqual(score_of(mm(-60, 0)), 'S11')
+        self.assertEqual(score_of(mm(0, 3)), 'DB')
+        self.assertEqual(score_of(mm(10, 0)), 'SB')
+        self.assertEqual(score_of(mm(0, -180)), 'miss')
+        self.assertEqual(score_of(mm(-120, -120 * 0.3)), 'S14')
+
+
+class UnsureMissTest(unittest.TestCase):
+    def test_low_confidence_miss_is_dropped(self):
+        coords = np.array([mm(-172, -135.6), mm(62.8, -127.1), mm(0, -190)])
+        kept = drop_unsure_misses(coords, [0.19, 0.3, 0.8])
+        self.assertEqual([score_of(c) for c in kept], ['S1', 'miss'])
 
 
 class PositionTest(unittest.TestCase):
