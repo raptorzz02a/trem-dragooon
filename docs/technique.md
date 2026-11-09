@@ -76,6 +76,9 @@ Contre les saisies accidentelles :
 
 ## 3. Installation
 
+> Pour installer ou réinstaller la borne sur un PC (Python, Dart Sense, ampoule, démarrage automatique), suivre
+> `installation.md`. Cette section ne sert plus qu'au développement et à la reprise des anciennes stats locales.
+
 ### 3.1 Prérequis sur le PC
 
 - **Node.js** 20 LTS ou plus récent ([nodejs.org](https://nodejs.org), installeur Windows « LTS »).
