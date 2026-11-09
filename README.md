@@ -5,6 +5,8 @@ Application de comptage de points aux fléchettes, en ligne : sur la borne tacti
 
 Adresse : https://trem-dragooon.julien-charrier01.workers.dev · détails dans `docs/en-ligne.md`.
 
+**Installer la borne sur un nouveau PC** (prérequis, Dart Sense, ampoule, démarrage auto) : `docs/installation.md`.
+
 Modes : 301 / 501 / 701, Cricket, Horloge, Chiffre aléatoire, Entraînement. De 1 à 10 joueurs, en individuel ou en équipes.
 
 ## Développement
@@ -32,6 +34,8 @@ npm run typecheck # vérification TypeScript
 | `bridge` | Pont local de l'ampoule Yeelight, lancé sur le PC de la borne. Voir `docs/ampoule.md`. |
 | `dart-sense` | Saisie automatique par caméra (Dart Sense), lancée sur le PC de la borne. Voir `docs/dart-sense.md`. |
 | `server` | Serveur Cloudflare (Worker + Durable Objects) qui sert l'appli et les salons en ligne. |
+| `borne/trem-dragooon.bat` | Démarrage de la borne (ponts + appli plein écran), à mettre dans `shell:startup`. |
+| `docs/installation.md` | Réinstaller la borne sur un nouveau PC : prérequis, Dart Sense, ampoule, démarrage, vérifications. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
 | `docs/guide-utilisateur.md` | Guide utilisateur (livrable 05). |
 | `docs/technique.md` | Documentation technique : architecture, installation, kiosque, données, mise à jour (livrable 06). |
