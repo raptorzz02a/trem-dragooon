@@ -50,6 +50,13 @@ pour chaque point la médiane de ses 15 dernières positions sûres (croix blanc
 caché ou faux sur une image ne change plus rien. Si la plupart des points bougent d'un coup (caméra ou cible
 déplacée), la mémoire repart de zéro.
 
+## Score près des fils
+
+Le calcul du secteur de Dart Sense arrondissait l'angle de la fléchette au degré, vers l'horizontale : une
+fléchette dans le 1 tout près du fil était comptée 18 (même chose pour tous les fils). `trem_sense.py` calcule
+maintenant le secteur lui-même, sans arrondi. Une détection hors cible peu sûre (confiance sous 0,5, souvent un
+reflet ou une ailette) est ignorée : une vraie fléchette hors cible compte de toute façon comme ratée au retrait.
+
 ## Une ou deux caméras
 
 Par défaut (`--camera auto`), `trem_sense.py` essaie les webcams 0 à 5 au démarrage et garde celles qui voient

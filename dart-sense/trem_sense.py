@@ -30,6 +30,31 @@ SAME_DART = 0.01  # deux detections plus proches que ca (cible normalisee 0-1) =
 BOARD_MM = 451.0  # diametre de la cible qui sert a normaliser les coordonnees (get_scores.py)
 
 
+SEGMENTS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5]  # dans le sens des aiguilles d'une montre
+# Rayons interieurs en mm (get_scores.py) : bull 50, bull 25, simple, triple, simple, double, hors cible.
+RINGS = [(170.0, 'miss'), (160.0, 'D'), (107.4, 'S'), (97.4, 'T'), (15.9 + 0.8, 'S'), (6.35 + 0.8, 'SB'), (0.0, 'DB')]
+MISS_CONF = 0.5  # une detection hors cible moins sure que ca est ignoree (reflet, ailette)
+
+
+def score_of(pred):
+    """Code de la flechette ('S1', 'T20', 'DB', 'miss') depuis ses coordonnees normalisees.
+
+    Remplace GetScores.score de Dart Sense, qui arrondit l'angle vers l'horizontale : une flechette
+    a 63,7 degres (dans le 1, pres du fil) y etait comptee 18. Ici l'angle n'est pas arrondi.
+    """
+    x, y = (float(pred[0]) - 0.5) * BOARD_MM, (float(pred[1]) - 0.5) * BOARD_MM
+    r = (x * x + y * y) ** 0.5
+    ring = next(name for inner, name in RINGS if r >= inner)
+    if ring in ('miss', 'SB', 'DB'):
+        return ring
+    angle = np.degrees(np.arctan2(x, -y)) % 360  # 0 = vers le 20, sens des aiguilles d'une montre
+    return f'{ring}{SEGMENTS[int(((angle + 9) % 360) // 18)]}'
+
+
+def scores_of(coords):
+    return [score_of(c) for c in coords]
+
+
 def position_of(pred):
     """Coordonnees normalisees (0-1, centre 0.5) -> mm depuis le centre : x vers la droite, y vers le bas."""
     return {'x': round(float(pred[0] - 0.5) * BOARD_MM, 1), 'y': round(float(pred[1] - 0.5) * BOARD_MM, 1)}
@@ -162,7 +187,10 @@ def serve(events, port, origins):
                 self.send_header('Content-Type', 'application/json')
                 self.send_header('Content-Length', str(len(data)))
                 self.end_headers()
-                self.wfile.write(data)
+                try:
+                    self.wfile.write(data)
+                except (ConnectionError, OSError):
+                    pass  # l'appli a ferme la connexion (page rechargee) : rien a faire
             else:
                 self.end_headers()
 
@@ -365,7 +393,23 @@ def analyse(model, scorer, frame, conf, calibration=None):
     H = scorer.find_homography(points, size)
     darts = darts[np.all((darts >= 0) & (darts <= 1), axis=1)] if len(darts) else darts
     coords = scorer.transform_to_boardplane(H[0], darts, size) if len(darts) else np.zeros((0, 2))
-    return square, result, coords
+    return square, result, drop_unsure_misses(coords, dart_confidences(result))
+
+
+def dart_confidences(result):
+    """Confiance des flechettes, dans l'ordre de process_yolo_output (les 3 premieres de classe 4)."""
+    return [c for k, c in zip(result.boxes.cls.tolist(), result.boxes.conf.tolist()) if int(k) == 4][:3]
+
+
+def drop_unsure_misses(coords, confs):
+    """Ecarte les detections hors cible peu sures (un reflet ou une ailette pris pour une flechette).
+
+    Une vraie flechette hors cible n'a pas besoin d'etre vue : au retrait, elle compte comme ratee.
+    """
+    if len(coords) != len(confs):
+        return coords
+    keep = [i for i, (c, conf) in enumerate(zip(coords, confs)) if conf >= MISS_CONF or score_of(c) != 'miss']
+    return coords[keep] if len(keep) else np.zeros((0, 2))
 
 
 def detect_cameras(model, scorer, size, conf, count=6):
@@ -407,7 +451,7 @@ def run(args):
     print(f'{len(sources)} camera(s) utilisee(s) : {", ".join(sources)}')
 
     events = Events()
-    tracker = VisitTracker(lambda coords: scorer.score(coords.copy())[0], events, same=SAME_DART if len(sources) == 1 else 1.5 * SAME_DART)
+    tracker = VisitTracker(scores_of, events, same=SAME_DART if len(sources) == 1 else 1.5 * SAME_DART)
     serve(events, args.port, ORIGINS + ([args.origine] if args.origine else []))
     print(f'Dart Sense pret pour TREM-DRAGOOON : http://127.0.0.1:{args.port} (q dans la fenetre pour quitter)')
 
