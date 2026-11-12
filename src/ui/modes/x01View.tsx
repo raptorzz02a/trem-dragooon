@@ -16,6 +16,13 @@ export function x01Average(state: GameState, sideIndex: number): number {
   return scored / turns.length;
 }
 
+/** Fléchettes lancées par un côté sur toute la partie (une volée en bust compte ses fléchettes). */
+export function x01Darts(state: GameState, sideIndex: number): number {
+  return sum(state.turns.filter((t) => t.sideIndex === sideIndex).map((t) => t.darts.length));
+}
+
+const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
+
 export const x01View: ModeView = {
   title: ({ state }) => {
     const o = state.config.options as X01Options;
@@ -47,7 +54,21 @@ export const x01View: ModeView = {
     turn.outcome === 'bust'
       ? { text: `Bust ! ${ctx.nameOf(turn.playerId)} revient à ${x01(ctx.state).remaining[turn.sideIndex]}`, bad: true }
       : { text: `${ctx.nameOf(turn.playerId)} : ${sum(turn.darts.map((d) => d.points))} points` },
-  rankValue: (r, { state }) => `reste ${r.value} · moy. ${x01Average(state, r.sideIndex).toFixed(1)}`,
+  endSummary: ({ state }) => {
+    if (state.winners.length !== 1) return null;
+    const side = state.winners[0]!;
+    const turns = state.turns.filter((t) => t.sideIndex === side);
+    const last = turns.at(-1);
+    if (!last) return null;
+    return (
+      <div className="end-darts">
+        Fini en <strong>{plural(x01Darts(state, side), 'fléchette')}</strong> · {plural(turns.length, 'volée')} · finition{' '}
+        {last.darts.map((d) => formatDart(d.dart)).join(' ')} en {plural(last.darts.length, 'fléchette')}
+      </div>
+    );
+  },
+  rankValue: (r, { state }) =>
+    `${r.value === 0 ? 'fini' : `reste ${r.value}`} · ${x01Darts(state, r.sideIndex)} fl. · moy. ${x01Average(state, r.sideIndex).toFixed(1)}`,
   board: (ctx) => (
     <ListBoard
       ctx={ctx}

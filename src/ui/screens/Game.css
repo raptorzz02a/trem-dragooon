@@ -371,6 +371,16 @@
   text-shadow: 0 0 24px rgba(204, 174, 94, 0.6);
 }
 
+.end-darts {
+  font-size: 22px;
+  color: var(--text-dim);
+}
+
+.end-darts strong {
+  color: var(--gold-bright);
+  font-size: 28px;
+}
+
 .end-ranking {
   list-style: none;
   margin: 0;

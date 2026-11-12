@@ -29,6 +29,8 @@ export interface ModeView {
   turnResult(turn: TurnRecord, ctx: ViewContext): { text: string; bad?: boolean };
   /** Titre de l'écran de fin, si le mode a une victoire particulière. */
   winLabel?(ctx: ViewContext): string | null;
+  /** Ligne sous le nom du gagnant sur l'écran de fin (ex. nombre de fléchettes pour finir). */
+  endSummary?(ctx: ViewContext): ReactNode;
   /** Valeur d'une ligne du classement final. */
   rankValue(entry: RankEntry, ctx: ViewContext): string;
   /** Tableau des scores de tous les côtés. */
