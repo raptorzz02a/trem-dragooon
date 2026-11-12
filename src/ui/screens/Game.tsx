@@ -280,6 +280,7 @@ export function Game(props: Props) {
           <div className="dialog end">
             <div className="label">{view.winLabel?.(ctx) ?? (state.winners.length > 1 ? 'Égalité' : 'Victoire')}</div>
             <div className="end-winner">{state.winners.map(sideName).join(' et ')}</div>
+            {view.endSummary?.(ctx)}
             <ol className="end-ranking">
               {state.ranking.map((r) => (
                 <li key={r.sideIndex}>
