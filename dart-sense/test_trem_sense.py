@@ -2,12 +2,13 @@
 
 import json
 import threading
+import time
 import unittest
 import urllib.request
 
 import numpy as np
 
-from trem_sense import BOARD_MM, Calibration, Events, VisitTracker, dart_of, drop_unsure_misses, fuse, position_of, score_of, serve
+from trem_sense import BOARD_MM, Calibration, Events, VisitTracker, dart_of, drop_unsure_misses, fresh_frames, fuse, position_of, score_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -187,6 +188,36 @@ class ServerTest(unittest.TestCase):
             urllib.request.urlopen(bad)
         self.assertEqual(err.exception.code, 403)
         server.shutdown()
+
+
+class FakeCamera:
+    def __init__(self, name):
+        self.name, self.id, self.frame, self.time = name, 0, None, time.time()
+
+    def push(self, frame):
+        self.id, self.frame, self.time = self.id + 1, frame, time.time()
+
+
+class FreshFramesTest(unittest.TestCase):
+    def test_does_not_wait_for_the_slow_camera(self):
+        fast, slow = FakeCamera('1'), FakeCamera('2')
+        seen = [0, 0]
+        fast.push('a1')
+        threading.Timer(0.05, lambda: slow.push('b1')).start()
+        # Au demarrage, on attend une image de chaque camera.
+        self.assertEqual(fresh_frames([fast, slow], seen), ['a1', 'b1'])
+        fast.push('a2')
+        # Ensuite la camera rapide n'attend plus la lente : None = garder l'analyse precedente.
+        self.assertEqual(fresh_frames([fast, slow], seen), ['a2', None])
+        fast.push('a3')
+        slow.push('b2')
+        self.assertEqual(fresh_frames([fast, slow], seen), ['a3', 'b2'])
+
+    def test_stops_when_a_camera_is_silent(self):
+        cam = FakeCamera('1')
+        cam.push('a1')
+        cam.time -= 20
+        self.assertIsNone(fresh_frames([cam], [0], timeout=10))
 
 
 if __name__ == '__main__':

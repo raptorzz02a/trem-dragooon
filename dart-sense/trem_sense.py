@@ -246,7 +246,18 @@ def fuse(views):
     return np.array([np.mean(g[0], axis=0) for g in groups]).reshape(-1, 2)
 
 
-def open_capture(source, size=None):
+CAPTURE_FPS = 10  # images/s demandees a la webcam : le modele en analyse 1 ou 2 par seconde, 30 ferait decoder pour rien
+
+
+def fourcc_of(cap):
+    import cv2
+
+    code = int(cap.get(cv2.CAP_PROP_FOURCC))
+    text = ''.join(chr((code >> (8 * i)) & 0xFF) for i in range(4)) if code > 0 else ''
+    return text.strip() if text.isprintable() and text.strip() else '?'
+
+
+def open_capture(source, size=None, fps=CAPTURE_FPS):
     import cv2
 
     if source.isdigit():
@@ -261,20 +272,25 @@ def open_capture(source, size=None):
         cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
         cap.set(cv2.CAP_PROP_FRAME_WIDTH, w)
         cap.set(cv2.CAP_PROP_FRAME_HEIGHT, h)
+    if cap.isOpened() and source.isdigit() and fps:
+        # Moins d'images a decoder (le PC garde sa puissance pour le modele) et moins de debit sur le port USB.
+        cap.set(cv2.CAP_PROP_FPS, fps)
     return cap
 
 
 class Camera:
     """Une camera lue dans son propre thread : on analyse toujours l'image la plus recente (pas de retard qui s'accumule)."""
 
-    def __init__(self, source, size=None):
+    def __init__(self, source, size=None, fps=CAPTURE_FPS):
         import cv2
 
         self.name = source
-        self.cap = open_capture(source, size)
+        self.cap = open_capture(source, size, fps)
         if not self.cap.isOpened():
             raise ConnectionError(f'Impossible d ouvrir la camera : {source}')
-        print(f'Camera {source} : {int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))}')
+        c = self.cap
+        print(f'Camera {source} : {int(c.get(cv2.CAP_PROP_FRAME_WIDTH))}x{int(c.get(cv2.CAP_PROP_FRAME_HEIGHT))}, '
+              f'format {fourcc_of(c)}, {c.get(cv2.CAP_PROP_FPS):.0f} img/s demandees')
         self.frame, self.id, self.time, self.running = None, 0, time.time(), True
         # Video enregistree : lue a sa vitesse normale, comme une camera.
         self.pace = 1 / (self.cap.get(cv2.CAP_PROP_FPS) or 25) if os.path.isfile(source) else 0
@@ -295,8 +311,28 @@ class Camera:
         self.cap.release()
 
 
-def frames_from(sources, size=None):
-    """Rend a chaque tour la liste des images les plus recentes, une par camera.
+def fresh_frames(cameras, seen, timeout=10):
+    """Attend qu'au moins une camera ait une image neuve et rend la liste des images, None pour une camera
+    sans image neuve (son analyse precedente est gardee). On n'attend donc pas la camera la plus lente.
+
+    Au demarrage, on attend la premiere image de chaque camera. Rend None si une camera ne donne plus rien.
+    """
+    while True:
+        for cam in cameras:
+            if time.time() - cam.time > timeout:
+                print(f'Plus d image de la camera {cam.name} depuis {timeout} s, arret.')
+                return None
+        started = all(cam.id > 0 for cam in cameras)
+        fresh = [cam.id != s for cam, s in zip(cameras, seen)]
+        if started and any(fresh):
+            for i, cam in enumerate(cameras):
+                seen[i] = cam.id
+            return [cam.frame if f else None for cam, f in zip(cameras, fresh)]
+        time.sleep(0.005)
+
+
+def frames_from(sources, size=None, fps=CAPTURE_FPS):
+    """Rend a chaque tour la liste des images, une par camera (None : pas d'image neuve depuis le tour d'avant).
 
     Une source peut aussi etre un dossier d'images (essai sans camera) : chaque image est repetee
     comme si elle restait devant l'objectif.
@@ -312,19 +348,14 @@ def frames_from(sources, size=None):
                 yield [frame]
         return
 
-    cameras = [Camera(s, size) for s in sources]
+    cameras = [Camera(s, size, fps) for s in sources]
     seen = [0] * len(cameras)
     try:
         while True:
-            # On attend une image neuve de chaque camera (au plus 10 s).
-            for i, cam in enumerate(cameras):
-                while cam.id == seen[i]:
-                    if time.time() - cam.time > 10:
-                        print(f'Plus d image de la camera {cam.name} depuis 10 s, arret.')
-                        return
-                    time.sleep(0.005)
-                seen[i] = cam.id
-            yield [cam.frame for cam in cameras]
+            frames = fresh_frames(cameras, seen)
+            if frames is None:
+                return
+            yield frames
     finally:
         for cam in cameras:
             cam.close()
@@ -434,6 +465,33 @@ def detect_cameras(model, scorer, size, conf, count=6):
     return found
 
 
+class Timing:
+    """Ou passe le temps : attente des cameras ou analyse par le modele. Affiche toutes les 10 s dans la console."""
+
+    def __init__(self, cameras, every=10):
+        self.every, self.start = every, time.time()
+        self.wait, self.loops = 0.0, 0
+        self.analyse, self.count = [0.0] * cameras, [0] * cameras
+
+    def waited(self, seconds):
+        self.wait += seconds
+        self.loops += 1
+
+    def analysed(self, cam, seconds):
+        self.analyse[cam] += seconds
+        self.count[cam] += 1
+
+    def report(self, sources):
+        elapsed = time.time() - self.start
+        if elapsed < self.every or not self.loops:
+            return
+        cams = ', '.join(f'camera {s} {self.count[i] / elapsed:.1f} img/s analysees en {1000 * self.analyse[i] / max(self.count[i], 1):.0f} ms'
+                         for i, s in enumerate(sources))
+        wait = 1000 * max(self.wait, 0) / self.loops
+        print(f'{self.loops / elapsed:.1f} tours/s | {cams} | attente des cameras {wait:.0f} ms par tour')
+        self.__init__(len(self.count), self.every)
+
+
 def run(args):
     import cv2
     from ultralytics import YOLO
@@ -456,12 +514,22 @@ def run(args):
     print(f'Dart Sense pret pour TREM-DRAGOOON : http://127.0.0.1:{args.port} (q dans la fenetre pour quitter)')
 
     calibrations = [Calibration() for _ in sources]
+    analysed = [None] * len(sources)
+    frames = [None] * len(sources)  # derniere image de chaque camera (touche s)
+    timing = Timing(len(sources))
     last_time = time.time()
-    for frames in frames_from(sources, args.definition):
-        analysed = [analyse(model, scorer, f, args.confiance, cal) for f, cal in zip(frames, calibrations)]
+    for fresh in frames_from(sources, args.definition, args.ips):
+        timing.waited(time.time() - last_time)
+        for i, (f, cal) in enumerate(zip(fresh, calibrations)):
+            if f is not None:
+                start = time.time()
+                analysed[i] = analyse(model, scorer, f, args.confiance, cal)
+                timing.analysed(i, time.time() - start)
+                frames[i] = f
         now = time.time()
         fps = round(1 / max(now - last_time, 1e-3), 1)
         last_time = now
+        timing.report(sources)
 
         views = [coords for _, _, coords in analysed if coords is not None]
         if not views:
@@ -473,7 +541,7 @@ def run(args):
 
         if not args.sans_fenetre:
             panels = []
-            for (square, result, coords), cal in zip(analysed, calibrations):
+            for (square, result, coords), cal in zip(analysed, calibrations):  # chaque camera a deja ete analysee une fois
                 view = square.copy()
                 size = view.shape[0]
                 th = max(1, size // 400)
@@ -514,6 +582,7 @@ def main():
     parser.add_argument('--modele', default='weights.pt')
     parser.add_argument('--origine', help='adresse de l appli si ce n est pas celle de Cloudflare (ex. http://192.168.1.20:4173)')
     parser.add_argument('--definition', help='definition demandee a la webcam, ex. 1920x1080 (sinon celle par defaut, souvent 640x480)')
+    parser.add_argument('--ips', type=int, default=CAPTURE_FPS, help=f'images/s demandees aux webcams (defaut {CAPTURE_FPS} ; 0 = celles de la webcam)')
     parser.add_argument('--confiance', type=float, default=0.15, help='confiance minimale d une detection (0.25 dans Dart Sense) : plus bas = plus de flechettes vues, plus de fausses')
     parser.add_argument('--sans-fenetre', action='store_true', help='pas de fenetre de controle')
     run(parser.parse_args())
