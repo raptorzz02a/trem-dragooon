@@ -72,6 +72,22 @@ Avec deux caméras, par exemple une à gauche et une à droite de la cible :
 - le retrait n'est compté que quand aucune caméra ne voit plus de fléchette.
 
 Le PC analyse les deux images à chaque tour : les images/s affichées sont donc à peu près divisées par deux.
+Une caméra plus lente (peu de lumière, hub USB chargé) ne fait plus attendre l'autre : seule l'image neuve est
+analysée, la dernière analyse de l'autre caméra est gardée.
+
+## Vitesse (images/s)
+
+Les webcams sont réglées à 10 images/s (`--ips 10`, `--ips 0` pour leur réglage à elles) : le modèle n'en analyse
+qu'une ou deux par seconde, et les 30 images/s par défaut faisaient décoder le PC pour rien et chargeaient le
+port USB. À l'ouverture, la console affiche la définition, le format (`MJPG` attendu) et les images/s de chaque
+caméra, puis toutes les 10 s une ligne comme :
+
+```
+1.1 tours/s | camera 1 1.1 img/s analysees en 450 ms, camera 2 1.1 img/s analysees en 430 ms | attente des cameras 5 ms par tour
+```
+
+Si l'analyse prend l'essentiel du temps, c'est le processeur (modèle OpenVINO, mode performances, une seule
+caméra avec `--camera 1`). Si c'est l'attente des caméras, c'est la caméra elle-même (manque de lumière, débit USB).
 Placer chaque caméra à hauteur du centre de la cible, 20 à 40° sur le côté, la cible remplissant le carré central.
 Avec `s`, une image par caméra est enregistrée (`…-cam1.png`, `…-cam2.png`).
 
