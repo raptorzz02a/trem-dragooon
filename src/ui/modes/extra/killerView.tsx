@@ -1,20 +1,16 @@
 import { alive, type KillerState } from '../../../game-engine/extra/killer';
 import type { GameState } from '../../../game-engine/types';
 import { KillerInput } from '../../components/KillerInput';
+import type { Mark } from '../../components/DartBoard';
+import { zone } from '../../../game-engine/extra/zones';
 import { ListBoard } from '../ListBoard';
 import type { ModeView } from '../types';
+import { Hearts } from './kit';
 
 const kl = (state: GameState) => state.mode as KillerState;
 const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
 
-export function Hearts({ lives, max }: { lives: number; max: number }) {
-  return (
-    <span className="hearts" aria-label={plural(lives, 'vie')}>
-      {'♥'.repeat(lives)}
-      <i>{'♥'.repeat(Math.max(0, max - lives))}</i>
-    </span>
-  );
-}
+export { Hearts };
 
 export const killerView: ModeView = {
   title: ({ state }) => `Killer · ${kl(state).maxLives} vies`,
@@ -103,6 +99,26 @@ export const killerView: ModeView = {
       }}
     />
   ),
-  input: (ctx, onDart, disabled) => <KillerInput ctx={ctx} disabled={disabled} onDart={onDart} />,
+  input: (ctx, onDart, disabled) => {
+    const k = kl(ctx.state);
+    const me = ctx.state.current?.sideIndex ?? -1;
+    const iAmKiller = me >= 0 && k.killer[me];
+    // Avant d'être Killer : son double à viser. Ensuite : les numéros des adversaires (en rouge les Killers).
+    const marks: Mark[] = k.numbers.flatMap((n, i): Mark[] => {
+      if (!alive(k, i)) return [{ zone: zone(n), tone: 'out' }];
+      if (i === me)
+        return iAmKiller
+          ? [{ zone: zone(n), tone: 'soft' }]
+          : [
+              { zone: zone(n), tone: 'soft' },
+              { zone: zone(n, 'D'), tone: 'gold', pulse: true },
+            ];
+      return iAmKiller ? [{ zone: zone(n), tone: k.killer[i] ? 'red' : 'green' }] : [];
+    });
+    const players = k.numbers
+      .map((number, side) => ({ side, number, lives: k.lives[side]!, maxLives: k.maxLives, killer: k.killer[side] }))
+      .filter((p) => alive(k, p.side));
+    return <KillerInput ctx={ctx} players={players} marks={marks} disabled={disabled} onDart={onDart} />;
+  },
   pad: () => ({}),
 };

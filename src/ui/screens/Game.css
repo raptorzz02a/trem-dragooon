@@ -852,3 +852,40 @@
 .game-rules {
   font-size: 16px;
 }
+
+.dt-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.dt-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dt-dots i.ok {
+  background: var(--green-bright);
+}
+.dt-dots i.ko {
+  background: var(--danger);
+}
+.target-strip span.bad {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pyr-mini {
+  display: inline-flex;
+  gap: 3px;
+}
+.pyr-mini i {
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.pyr-mini i.ok {
+  background: var(--green-bright);
+}
+.pyr-mini i.now {
+  background: var(--gold);
+}

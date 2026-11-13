@@ -1,0 +1,10 @@
+.numbers-input {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+}
+
+.numbers-input button {
+  min-height: 96px;
+  font-size: 30px;
+}

@@ -4,7 +4,28 @@ import type { Dart } from './darts';
 export type ClassicMode = 'x01' | 'cricket' | 'clock' | 'random' | 'training';
 
 /** « Autres jeux » du catalogue : statistiques à part, jamais mêlées aux modes principaux. */
-export type ExtraMode = 'highscore' | 'halveit' | 'killer';
+/** Autres jeux dont les options sont décrites dans leur fichier de règles (src/game-engine/extra). */
+export type LateExtraMode =
+  | 'baseball'
+  | 'bobs27'
+  | 'fives'
+  | 'bigsix'
+  | 'golf'
+  | 'vingtetun'
+  | 'bermuda'
+  | 'lowscore'
+  | 'dtchallenge'
+  | 'ninelives'
+  | 'killerdoubles'
+  | 'onedart'
+  | 'survie'
+  | 'contrat'
+  | 'pyramide'
+  | 'bombe'
+  | 'coffres'
+  | 'roi';
+
+export type ExtraMode = 'highscore' | 'halveit' | 'killer' | LateExtraMode;
 
 export type GameMode = ClassicMode | ExtraMode;
 
@@ -74,7 +95,8 @@ export type ModeOptions =
   | { mode: 'training'; options: TrainingOptions }
   | { mode: 'highscore'; options: HighScoreOptions }
   | { mode: 'halveit'; options: HalveItOptions }
-  | { mode: 'killer'; options: KillerOptions };
+  | { mode: 'killer'; options: KillerOptions }
+  | { mode: LateExtraMode; options: object };
 
 /**
  * Un « côté » est ce qui porte un score : un joueur seul en individuel,

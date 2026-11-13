@@ -1,7 +1,11 @@
 import { BULL } from '../../../game-engine/darts';
 import { formatTarget, type HalveItState } from '../../../game-engine/extra/halveit';
 import type { GameState } from '../../../game-engine/types';
-import { TargetInput } from '../../components/TargetInput';
+import { ZoneInput } from '../../components/ZoneInput';
+import { zone } from '../../../game-engine/extra/zones';
+import type { HalveTarget } from '../../../game-engine/types';
+
+const toZone = (t: HalveTarget) => zone(t.segment, t.multiplier === 2 ? 'D' : t.multiplier === 3 ? 'T' : 'any');
 import { ListBoard } from '../ListBoard';
 import type { ModeView } from '../types';
 
@@ -69,7 +73,9 @@ export const halveitView: ModeView = {
       }}
     />
   ),
-  input: ({ state }, onDart, disabled) => <TargetInput target={hv(state).targets[roundOf(state)]!} disabled={disabled} onDart={onDart} />,
+  input: ({ state }, onDart, disabled) => (
+    <ZoneInput target={toZone(hv(state).targets[roundOf(state)]!)} disabled={disabled} onDart={onDart} />
+  ),
   pad: ({ state }) => {
     const t = hv(state).targets[roundOf(state)]!;
     return t.segment === BULL ? { highlightBull: 'any' } : { highlight: t.segment };

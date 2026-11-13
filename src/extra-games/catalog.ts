@@ -2,6 +2,7 @@ import { drawHalveTargets, HALVE_STANDARD, type HalveItState } from '../game-eng
 import type { HighScoreState } from '../game-engine/extra/highscore';
 import { drawKillerNumbers, KILLER_MIN_PLAYERS, type KillerState } from '../game-engine/extra/killer';
 import { MAX_PLAYERS } from '../game-engine/engine';
+import { MORE_GAMES } from './catalog-more';
 import type { ExtraMode, GameMode, GameState, ModeOptions } from '../game-engine/types';
 
 // Catalogue des « Autres jeux » : tout ce que l'interface doit savoir d'un jeu (fiche, règles en mots simples,
@@ -85,7 +86,7 @@ export interface UpcomingGame {
 
 const num = (v: SettingValue | undefined, fallback: number) => (typeof v === 'number' ? v : fallback);
 
-export const EXTRA_GAMES: ExtraGameDef[] = [
+const LOT1_GAMES: ExtraGameDef[] = [
   {
     id: 'highscore',
     name: 'High Score',
@@ -205,116 +206,10 @@ export const EXTRA_GAMES: ExtraGameDef[] = [
   },
 ];
 
-export const UPCOMING_GAMES: UpcomingGame[] = [
-  {
-    name: 'Baseball',
-    sub: '9 manches, du 1 au 9',
-    categories: ['classic', 'team'],
-    icon: 'bat',
-  },
-  {
-    name: "Bob's 27",
-    sub: 'Les doubles un par un',
-    categories: ['classic', 'precision'],
-    icon: 't27',
-  },
-  {
-    name: 'Fives',
-    sub: 'Des volées divisibles par 5',
-    categories: ['quick'],
-    icon: 't5',
-  },
-  {
-    name: 'Big Six',
-    sub: 'Touche la cible imposée ou perds une vie',
-    categories: ['precision'],
-    icon: 't6',
-  },
-  {
-    name: 'Golf',
-    sub: '18 trous, le plus petit score gagne',
-    categories: ['classic', 'team'],
-    icon: 'flag',
-  },
-  {
-    name: '21',
-    sub: 'Exactement 21, pas un de plus',
-    categories: ['quick'],
-    icon: 't21',
-  },
-  {
-    name: 'Bermuda',
-    sub: 'Une zone tirée au sort à chaque tour',
-    categories: ['classic', 'team'],
-    icon: 'tri',
-  },
-  {
-    name: 'Low Score',
-    sub: 'Le plus petit total gagne',
-    categories: ['quick'],
-    icon: 'down',
-  },
-  {
-    name: 'Doubles et triples',
-    sub: 'Du 1 au 20, 3 fléchettes par numéro',
-    categories: ['precision'],
-    icon: 'tD',
-  },
-  {
-    name: 'Nine Lives',
-    sub: '9 vies pour faire le tour',
-    categories: ['quick'],
-    icon: 'heart',
-  },
-  {
-    name: 'Killer Doubles',
-    sub: 'Défends ton double',
-    categories: ['precision'],
-    icon: 'shield',
-  },
-  {
-    name: 'One Dart',
-    sub: 'Une seule fléchette par tour',
-    categories: ['precision'],
-    icon: 't1',
-  },
-  {
-    name: 'Survie',
-    sub: 'De plus en plus dur',
-    categories: ['precision'],
-    icon: 'shield',
-  },
-  {
-    name: 'Le Contrat',
-    sub: 'Choisis ton défi',
-    categories: ['house', 'team'],
-    icon: 'doc',
-  },
-  {
-    name: 'La Pyramide',
-    sub: 'Simple ou Spicy, monte au sommet',
-    categories: ['house'],
-    icon: 'pyramid',
-  },
-  {
-    name: 'La Bombe',
-    sub: 'Ne la laisse pas exploser',
-    categories: ['house'],
-    icon: 'bomb',
-  },
-  {
-    name: 'Les Coffres',
-    sub: '6 bonus cachés sur la cible',
-    categories: ['house', 'team'],
-    icon: 'chest',
-  },
-  {
-    name: 'Le Roi',
-    sub: 'Prends la couronne',
-    categories: ['house'],
-    icon: 'crown',
-  },
-];
+export const EXTRA_GAMES: ExtraGameDef[] = [...LOT1_GAMES, ...MORE_GAMES];
+
+/** Jeux annoncés mais pas encore jouables (aucun pour l'instant). */
+export const UPCOMING_GAMES: UpcomingGame[] = [];
 
 export const EXTRA_MODES: ExtraMode[] = EXTRA_GAMES.map((g) => g.id);
 

@@ -210,7 +210,7 @@ export function Home(props: Props) {
             {place === 'same' && (
               <button className="home-mode home-mode-extra" disabled={busy} onClick={props.onOtherGames}>
                 <span className="home-mode-title">Autres jeux</span>
-                <span className="home-mode-sub">Killer, Halve It, High Score… et bientôt d’autres</span>
+                <span className="home-mode-sub">21 jeux de bar : Killer, Golf, Baseball, La Bombe…</span>
               </button>
             )}
           </div>
