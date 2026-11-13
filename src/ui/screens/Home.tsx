@@ -7,6 +7,8 @@ import { useLiveGames } from '../../online/useLiveGames';
 import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
+import { GameIcon } from '../components/GameIcon';
+import type { Category, IconName } from '../../extra-games/catalog';
 import { PLACE_NAMES } from './Setup';
 import { MODE_NAMES } from '../../game-setup/setup';
 import { lightEnabled, sendLight, setLightEnabled } from '../../light/light';
@@ -41,12 +43,13 @@ interface Props {
   onImport?: () => void;
 }
 
-const MODES: { mode: GameMode; title: string; sub: string }[] = [
-  { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions' },
-  { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull' },
-  { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre' },
-  { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche' },
-  { mode: 'training', title: 'Entraînement', sub: 'On part de 0 et on additionne, sans limite' },
+/** Les modes principaux, présentés comme les cartes du catalogue « Autres jeux » (icône, nom, une ligne). */
+const MODES: { mode: GameMode; title: string; sub: string; icon: IconName; tint: Category }[] = [
+  { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions', icon: 't501', tint: 'classic' },
+  { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull', icon: 'cricket', tint: 'precision' },
+  { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre', icon: 'clock', tint: 'quick' },
+  { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche', icon: 'dice', tint: 'house' },
+  { mode: 'training', title: 'Entraînement', sub: 'On part de 0 et on additionne, sans limite', icon: 'plus', tint: 'team' },
 ];
 
 type RemoteAction = 'create' | 'join';
@@ -76,7 +79,8 @@ export function Home(props: Props) {
     setSenseEnabled(!camera);
     setCamera(!camera);
     if (camera) return;
-    if ((await senseState()).status === 'off') setError('Dart Sense injoignable : lance trem_sense.py sur ce PC (voir docs/dart-sense.md).');
+    if ((await senseState()).status === 'off')
+      setError('Dart Sense injoignable : lance trem_sense.py sur ce PC (voir docs/dart-sense.md).');
   };
 
   const create = async (mode: GameMode) => {
@@ -112,12 +116,7 @@ export function Home(props: Props) {
           <Logo size={56} />
         </div>
         <div className="home-account">
-          <button
-            className="home-account-toggle"
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen((o) => !o)}
-          >
+          <button className="home-account-toggle" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
             <Avatar avatar={account.avatar} color={account.color} size={48} />
             <span className="home-account-name">{account.name}</span>
             <span className="home-account-caret">{menuOpen ? '▴' : '▾'}</span>
@@ -202,15 +201,19 @@ export function Home(props: Props) {
         ) : (
           <div className="home-modes">
             {MODES.map((m) => (
-              <button key={m.mode} className="home-mode btn-primary" disabled={busy} onClick={() => create(m.mode)}>
+              <button key={m.mode} className="home-mode" disabled={busy} onClick={() => create(m.mode)}>
+                <GameIcon def={{ icon: m.icon, categories: [m.tint] }} size={64} />
                 <span className="home-mode-title">{m.title}</span>
                 <span className="home-mode-sub">{m.sub}</span>
               </button>
             ))}
             {place === 'same' && (
               <button className="home-mode home-mode-extra" disabled={busy} onClick={props.onOtherGames}>
-                <span className="home-mode-title">Autres jeux</span>
-                <span className="home-mode-sub">21 jeux de bar : Killer, Golf, Baseball, La Bombe…</span>
+                <GameIcon def={{ icon: 'grid', categories: ['quick'] }} size={56} />
+                <span className="home-mode-text">
+                  <span className="home-mode-title">Autres jeux</span>
+                  <span className="home-mode-sub">21 jeux de bar : Killer, Golf, Baseball, La Bombe…</span>
+                </span>
               </button>
             )}
           </div>
@@ -231,7 +234,15 @@ export function Home(props: Props) {
 const MODE_TITLES: Record<GameMode, string> = { ...MODE_NAMES, x01: 'X01' };
 
 /** Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code. */
-function LiveGames({ saloonId, onWatch, onJoin }: { saloonId: string; onWatch: (watchKey: string) => void; onJoin: (code: string) => void }) {
+function LiveGames({
+  saloonId,
+  onWatch,
+  onJoin,
+}: {
+  saloonId: string;
+  onWatch: (watchKey: string) => void;
+  onJoin: (code: string) => void;
+}) {
   const games = useLiveGames(saloonId);
   if (games.length === 0) return null;
   return (
@@ -239,7 +250,9 @@ function LiveGames({ saloonId, onWatch, onJoin }: { saloonId: string; onWatch: (
       <div className="label">Parties en cours</div>
       {games.map((g) => (
         <div key={g.watchKey} className="home-live-row">
-          <span className={`home-live-status${g.status === 'playing' ? ' playing' : ''}`}>{g.status === 'playing' ? 'En jeu' : 'Salle d’attente'}</span>
+          <span className={`home-live-status${g.status === 'playing' ? ' playing' : ''}`}>
+            {g.status === 'playing' ? 'En jeu' : 'Salle d’attente'}
+          </span>
           <span className="home-live-mode">
             {MODE_TITLES[g.mode]} · {PLACE_NAMES[g.place]}
           </span>
