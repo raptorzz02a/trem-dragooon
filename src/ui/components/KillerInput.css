@@ -11,8 +11,8 @@
 }
 
 .killer-players {
-  flex: 1;
-  min-height: 0;
+  flex: none;
+  max-height: 45%;
   overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -60,4 +60,21 @@
 .killer-miss {
   min-height: 80px;
   font-size: 26px;
+}
+
+.killer-target {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Téléphone : pas la place pour la cible, les boutons joueurs suffisent. */
+@media (max-width: 700px) {
+  .killer-target {
+    display: none;
+  }
+  .killer-players {
+    max-height: none;
+  }
 }

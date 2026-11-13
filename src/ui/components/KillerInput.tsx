@@ -4,6 +4,7 @@ import { alive, type KillerState } from '../../game-engine/extra/killer';
 import type { ViewContext } from '../modes/types';
 import { Hearts } from '../modes/extra/killerView';
 import { useTapGuard } from '../useTapGuard';
+import { ClockTarget } from './ClockTarget';
 import './KillerInput.css';
 
 interface Props {
@@ -32,6 +33,10 @@ export function KillerInput({ ctx, disabled, onDart }: Props) {
     setZone(1);
   });
   const sides = k.numbers.map((n, i) => ({ n, i })).filter(({ i }) => alive(k, i));
+  // Cible : mon numéro en or, ceux des adversaires en vert (en rouge s'ils sont Killer), les éliminés barrés.
+  const marks = Object.fromEntries(
+    k.numbers.map((n, i) => [n, i === me ? 'current' : !alive(k, i) ? 'out' : k.killer[i] ? 'danger' : 'done'] as const),
+  );
 
   return (
     <div className="killer-input">
@@ -59,6 +64,9 @@ export function KillerInput({ ctx, disabled, onDart }: Props) {
             {k.killer[i] && <span className="board-chip gold">KILLER</span>}
           </button>
         ))}
+      </div>
+      <div className="killer-target">
+        <ClockTarget steps={[]} progress={0} marks={marks} label="Numéros des joueurs sur la cible" />
       </div>
       <button className="clock-miss killer-miss" disabled={disabled} onClick={() => send(MISS)}>
         ✗ Autre numéro / Raté

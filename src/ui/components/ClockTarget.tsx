@@ -5,6 +5,9 @@ interface Props {
   steps: ClockStep[];
   /** Indice de l'étape à atteindre (steps.length = parcours fini). */
   progress: number;
+  /** Coloration libre par numéro (Killer…) : remplace la progression pour les numéros listés. */
+  marks?: Partial<Record<number, 'current' | 'done' | 'danger' | 'out'>>;
+  label?: string;
 }
 
 const R_OUTER = 88;
@@ -26,9 +29,9 @@ function wedge(center: number): string {
 }
 
 /** Cible dessinée : numéro à viser en or, numéros déjà faits en vert, Bull allumé quand c'est son tour. */
-export function ClockTarget({ steps, progress }: Props) {
+export function ClockTarget({ steps, progress, marks, label = 'Progression sur la cible' }: Props) {
   const stateOf = (index: number) => (index < 0 ? 'todo' : index < progress ? 'done' : index === progress ? 'current' : 'todo');
-  const numberState = (n: number) => stateOf(steps.findIndex((s) => 'number' in s && s.number === n));
+  const numberState = (n: number) => (marks ? (marks[n] ?? 'todo') : stateOf(steps.findIndex((s) => 'number' in s && s.number === n)));
   const bullIndexes = steps.map((s, i) => ('bull' in s ? i : -1)).filter((i) => i >= 0);
   const bullState =
     bullIndexes.length === 0
@@ -40,7 +43,7 @@ export function ClockTarget({ steps, progress }: Props) {
           : 'todo';
 
   return (
-    <svg className="clock-target" viewBox="-110 -110 220 220" role="img" aria-label="Progression sur la cible">
+    <svg className="clock-target" viewBox="-110 -110 220 220" role="img" aria-label={label}>
       <circle r="104" className="ct-rim" />
       {BOARD_ORDER.map((n, i) => {
         const angle = i * 18;
