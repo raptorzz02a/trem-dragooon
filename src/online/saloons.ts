@@ -148,6 +148,8 @@ export interface LiveGame {
   watchKey: string;
   /** Code de la partie, seulement pour un compte qui y joue déjà : il peut la reprendre. */
   code?: string;
+  /** Vrai pour l'hôte de la partie et les administrateurs du saloon : ils peuvent la supprimer de la liste. */
+  canDelete?: boolean;
   mode: GameMode;
   place: RoomPlace;
   status: 'lobby' | 'playing';
@@ -157,9 +159,11 @@ export interface LiveGame {
 }
 
 /** Résumé qu'une partie envoie à la base des saloons quand il change (null : partie finie ou effacée). */
-export type LiveSummary = Omit<LiveGame, 'watchKey' | 'updatedAt' | 'code'> & {
+export type LiveSummary = Omit<LiveGame, 'watchKey' | 'updatedAt' | 'code' | 'canDelete'> & {
   /** Comptes présents dans la partie (jamais envoyés à la liste). */
   playerIds?: string[];
+  /** Compte de l'hôte, qui peut supprimer la partie (jamais envoyé à la liste). */
+  hostId?: string;
 };
 
 /** Une partie qui ne donne plus de nouvelles depuis ce délai sort de la liste (même durée que l'effacement d'une partie). */

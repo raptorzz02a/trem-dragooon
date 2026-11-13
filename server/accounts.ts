@@ -943,11 +943,45 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     const id = typeof saloonId === 'string' ? saloonId : '';
     if (!this.isMember(me.id, id)) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
     return this.liveRows(id).map((r) => {
-      const { playerIds, ...summary } = JSON.parse(r.summary) as LiveSummary;
+      const { playerIds, hostId, ...summary } = JSON.parse(r.summary) as LiveSummary;
       // Les parties signalées avant l'ajout des comptes se reconnaissent au pseudo (unique).
       const mine = playerIds ? playerIds.includes(me.id) : summary.players.some((n) => pseudoKey(n) === pseudoKey(me.name));
-      return { ...summary, ...(mine ? { code: r.code } : {}), watchKey: r.watch_key, updatedAt: new Date(r.updated_at).toISOString() };
+      const canDelete = hostId === me.id || this.canModerateGames(id, me.id);
+      return {
+        ...summary,
+        ...(mine ? { code: r.code } : {}),
+        ...(canDelete ? { canDelete } : {}),
+        watchKey: r.watch_key,
+        updatedAt: new Date(r.updated_at).toISOString(),
+      };
     });
+  }
+
+  /** Administrateurs du saloon (et de l'appli) : ils peuvent supprimer n'importe quelle partie de la liste. */
+  private canModerateGames(saloonId: string, accountId: string): boolean {
+    if (saloonId === PUBLIC_SALOON_ID) return this.isPublicAdmin(accountId);
+    const actor = this.actor(saloonId, accountId);
+    return actor === 'owner' || actor === 'admin' || actor === 'global';
+  }
+
+  /**
+   * Code de la partie à supprimer depuis la liste « Parties en cours » : seulement pour son hôte ou un administrateur du saloon.
+   * La ligne sort aussitôt de la liste ; la partie elle-même est effacée ensuite par le serveur de parties.
+   */
+  async deleteGameCode(token: string, saloonId: unknown, watchKey: unknown): Promise<string> {
+    const me = await this.member(token);
+    const id = typeof saloonId === 'string' ? saloonId : '';
+    if (!this.isMember(me.id, id)) throw Object.assign(new Error('Saloon introuvable.'), { status: 404 });
+    const row = this.sql
+      .exec<{ code: string; summary: string }>('SELECT code, summary FROM live_rooms WHERE saloon_id = ? AND watch_key = ?', id, String(watchKey ?? ''))
+      .toArray()[0];
+    if (!row) throw Object.assign(new Error('Cette partie n’est plus en cours.'), { status: 404 });
+    const { hostId } = JSON.parse(row.summary) as LiveSummary;
+    if (hostId !== me.id && !this.canModerateGames(id, me.id)) {
+      throw Object.assign(new Error('Seul l’hôte de la partie (ou un administrateur du saloon) peut la supprimer.'), { status: 403 });
+    }
+    this.sql.exec('DELETE FROM live_rooms WHERE code = ?', row.code);
+    return row.code;
   }
 
   /** Code de la partie à regarder : seulement pour un membre du saloon. */

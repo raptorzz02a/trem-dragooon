@@ -131,6 +131,13 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
       await db.setMinGames(bearer(request), decodeURIComponent(games[1]!), b.minGames);
       return json({ ok: true });
     }
+    // Supprimer une partie depuis la liste « Parties en cours » (hôte ou administrateur du saloon).
+    const doomed = /^\/api\/saloons\/([^/]+)\/games\/([^/]+)$/.exec(path);
+    if (doomed && method === 'DELETE') {
+      const code = await db.deleteGameCode(bearer(request), decodeURIComponent(doomed[1]!), decodeURIComponent(doomed[2]!));
+      await env.ROOMS.get(env.ROOMS.idFromName(code)).remove();
+      return json({ ok: true });
+    }
     if (games?.[2] === 'games' && method === 'GET') return json({ games: await db.saloonGames(bearer(request), decodeURIComponent(games[1]!)) });
     if (games?.[2] === 'defaults' && method === 'PUT') {
       const b = await body(request);
@@ -254,6 +261,11 @@ export class RoomObject extends DurableObject<Env> {
     await this.ctx.storage.put('watchKey', crypto.randomUUID().replace(/-/g, ''));
     await this.commit(createRoom(code, place, setup, saloonId));
     return true;
+  }
+
+  /** Supprimée depuis la liste « Parties en cours » par son hôte ou un administrateur : comme quand l'hôte la ferme. */
+  async remove(): Promise<void> {
+    await this.destroy(ROOM_DELETED, 'Partie supprimée par l’hôte');
   }
 
   async fetch(request: Request): Promise<Response> {
