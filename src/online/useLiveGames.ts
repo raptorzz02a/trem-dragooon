@@ -8,14 +8,16 @@ import { accountToken, api } from './useAccount';
 
 const REFRESH_MS = 15_000;
 
-export function useLiveGames(saloonId: string): LiveGame[] {
+export function useLiveGames(saloonId: string): { games: LiveGame[]; remove: (watchKey: string) => Promise<void> } {
   const [games, setGames] = useState<LiveGame[]>([]);
+  const reload = useRef<() => Promise<void>>(async () => undefined);
   useEffect(() => {
     let stopped = false;
     const load = () =>
       api<{ games: LiveGame[] }>(`/api/saloons/${encodeURIComponent(saloonId)}/games`)
-        .then((r) => !stopped && setGames(r.games))
+        .then((r) => void (!stopped && setGames(r.games)))
         .catch(() => undefined);
+    reload.current = load;
     setGames([]);
     void load();
     const timer = setInterval(load, REFRESH_MS);
@@ -24,7 +26,13 @@ export function useLiveGames(saloonId: string): LiveGame[] {
       clearInterval(timer);
     };
   }, [saloonId]);
-  return games;
+  /** Supprime la partie (hôte ou administrateur du saloon) : elle disparaît aussitôt de la liste. */
+  const remove = async (watchKey: string) => {
+    await api(`/api/saloons/${encodeURIComponent(saloonId)}/games/${encodeURIComponent(watchKey)}`, { method: 'DELETE' });
+    setGames((list) => list.filter((g) => g.watchKey !== watchKey));
+    void reload.current();
+  };
+  return { games, remove };
 }
 
 export interface Watching {

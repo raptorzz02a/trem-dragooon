@@ -103,6 +103,8 @@ export function App() {
   const [room, setRoom] = useState<string | null>(sharedCode);
   const [screen, setScreen] = useState<Screen>(room ? 'room' : 'home');
   const [editing, setEditing] = useState(false);
+  /** Change quand la partie à reprendre est oubliée (supprimée depuis la liste), pour redessiner l'accueil. */
+  const [, setForgotten] = useState(0);
   const [editError, setEditError] = useState<string | null>(null);
   const [changingPassword, setChangingPassword] = useState(false);
   const [renewingRecovery, setRenewingRecovery] = useState(false);
@@ -213,6 +215,12 @@ export function App() {
         }}
         onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }, saloons.current.id))}
         onJoin={enter}
+        onGameDeleted={(code) => {
+          if (code && code === currentOnlineRoom()) {
+            setCurrentOnlineRoom(null);
+            setForgotten((n) => n + 1);
+          }
+        }}
         onOtherGames={() => setScreen('games')}
         onPlayers={() => setScreen('players')}
         onMyStats={() => setScreen('mystats')}

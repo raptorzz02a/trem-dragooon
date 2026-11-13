@@ -77,6 +77,7 @@ export function liveSummary(room: Room, watchers: number): LiveSummary | null {
     status: room.status === 'playing' ? 'playing' : 'lobby',
     players,
     playerIds,
+    hostId: room.hostId,
     watchers,
   };
 }

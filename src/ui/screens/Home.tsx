@@ -4,6 +4,7 @@ import type { PublicAccount } from '../../online/accounts';
 import { CODE_LENGTH, isValidCode, normalizeCode, type RoomPlace } from '../../online/protocol';
 import type { SaloonsState } from '../../online/useSaloons';
 import { useLiveGames } from '../../online/useLiveGames';
+import type { LiveGame } from '../../online/saloons';
 import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
@@ -24,6 +25,8 @@ interface Props {
   onWatch: (watchKey: string) => void;
   /** Partie en cours sur cet appareil (quittée sans la fermer, ou page rechargée). */
   currentRoom: string | null;
+  /** Une partie vient d'être supprimée depuis la liste « Parties en cours » (code connu si on y jouait). */
+  onGameDeleted: (code?: string) => void;
   onResume: () => void;
   onNewGame: (mode: GameMode, place: RoomPlace) => Promise<void>;
   onJoin: (code: string) => void;
@@ -79,8 +82,7 @@ export function Home(props: Props) {
     setSenseEnabled(!camera);
     setCamera(!camera);
     if (camera) return;
-    if ((await senseState()).status === 'off')
-      setError('Dart Sense injoignable : lance trem_sense.py sur ce PC (voir docs/dart-sense.md).');
+    if ((await senseState()).status === 'off') setError('Dart Sense injoignable : lance trem_sense.py sur ce PC (voir docs/dart-sense.md).');
   };
 
   const create = async (mode: GameMode) => {
@@ -116,7 +118,12 @@ export function Home(props: Props) {
           <Logo size={56} />
         </div>
         <div className="home-account">
-          <button className="home-account-toggle" aria-haspopup="menu" aria-expanded={menuOpen} onClick={() => setMenuOpen((o) => !o)}>
+          <button
+            className="home-account-toggle"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((o) => !o)}
+          >
             <Avatar avatar={account.avatar} color={account.color} size={48} />
             <span className="home-account-name">{account.name}</span>
             <span className="home-account-caret">{menuOpen ? '▴' : '▾'}</span>
@@ -221,7 +228,7 @@ export function Home(props: Props) {
         {error && <div className="home-warning">{error}</div>}
       </section>
 
-      <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} onJoin={props.onJoin} />
+      <LiveGames saloonId={props.saloons.current.id} onWatch={props.onWatch} onJoin={props.onJoin} onDeleted={props.onGameDeleted} />
 
       <div className="home-links">
         <button onClick={props.onMyStats}>Mes stats</button>
@@ -233,40 +240,87 @@ export function Home(props: Props) {
 
 const MODE_TITLES: Record<GameMode, string> = { ...MODE_NAMES, x01: 'X01' };
 
-/** Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code. */
+/**
+ * Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code.
+ * L'hôte d'une partie (et les administrateurs du saloon) peut la supprimer d'ici, après confirmation.
+ */
 function LiveGames({
   saloonId,
   onWatch,
   onJoin,
+  onDeleted,
 }: {
   saloonId: string;
   onWatch: (watchKey: string) => void;
   onJoin: (code: string) => void;
+  onDeleted: (code?: string) => void;
 }) {
-  const games = useLiveGames(saloonId);
+  const { games, remove } = useLiveGames(saloonId);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
   if (games.length === 0) return null;
+  const doRemove = async (g: LiveGame) => {
+    setBusy(true);
+    setError('');
+    try {
+      await remove(g.watchKey);
+      setConfirming(null);
+      onDeleted(g.code);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Suppression impossible.');
+    } finally {
+      setBusy(false);
+    }
+  };
   return (
     <section className="home-live">
       <div className="label">Parties en cours</div>
       {games.map((g) => (
-        <div key={g.watchKey} className="home-live-row">
-          <span className={`home-live-status${g.status === 'playing' ? ' playing' : ''}`}>
-            {g.status === 'playing' ? 'En jeu' : 'Salle d’attente'}
-          </span>
+        <div key={g.watchKey} className={`home-live-row${confirming === g.watchKey ? ' confirming' : ''}`}>
+          <span className={`home-live-status${g.status === 'playing' ? ' playing' : ''}`}>{g.status === 'playing' ? 'En jeu' : 'Salle d’attente'}</span>
           <span className="home-live-mode">
             {MODE_TITLES[g.mode]} · {PLACE_NAMES[g.place]}
           </span>
           <span className="home-live-players">{g.players.join(', ')}</span>
           {g.watchers > 0 && <span className="home-live-watchers">👁 {g.watchers}</span>}
-          {g.code ? (
-            <button className="btn-gold" onClick={() => onJoin(g.code!)}>
-              Reprendre
-            </button>
+          {confirming === g.watchKey ? (
+            <>
+              <span className="home-live-confirm">Supprimer cette partie pour tout le monde ?</span>
+              <button className="home-live-yes" disabled={busy} onClick={() => void doRemove(g)}>
+                Supprimer
+              </button>
+              <button disabled={busy} onClick={() => setConfirming(null)}>
+                Annuler
+              </button>
+            </>
           ) : (
-            <button onClick={() => onWatch(g.watchKey)}>Regarder</button>
+            <>
+              {g.code ? (
+                <button className="btn-gold" onClick={() => onJoin(g.code!)}>
+                  Reprendre
+                </button>
+              ) : (
+                <button onClick={() => onWatch(g.watchKey)}>Regarder</button>
+              )}
+              {g.canDelete && (
+                <button
+                  className="home-live-delete"
+                  title="Supprimer la partie"
+                  aria-label="Supprimer la partie"
+                  onClick={() => {
+                    setError('');
+                    setConfirming(g.watchKey);
+                  }}
+                >
+                  🗑
+                </button>
+              )}
+            </>
           )}
         </div>
       ))}
+      {error && <div className="home-live-error">{error}</div>}
       <div className="home-live-hint">Pour rejoindre une autre partie, demande son code à l’hôte.</div>
     </section>
   );

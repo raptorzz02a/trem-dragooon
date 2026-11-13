@@ -383,6 +383,40 @@
   font-size: 17px;
 }
 
+.home-live-row button.home-live-delete {
+  min-width: 48px;
+  padding: 0 12px;
+  background: transparent;
+  border: 1px solid var(--line);
+  opacity: 0.7;
+}
+
+.home-live-row button.home-live-delete:hover {
+  opacity: 1;
+  border-color: var(--danger);
+}
+
+.home-live-row.confirming {
+  border-color: var(--danger);
+}
+
+.home-live-confirm {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--danger);
+}
+
+.home-live-row button.home-live-yes {
+  background: #c62f35;
+  border-color: #c62f35;
+  color: #fff;
+}
+
+.home-live-error {
+  font-size: 15px;
+  color: var(--danger);
+}
+
 .home-live-hint {
   font-size: 15px;
   color: var(--text-dim);
