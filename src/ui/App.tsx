@@ -15,6 +15,7 @@ import { SaloonDialog, SaloonInfo } from './components/Saloons';
 import { Admin } from './screens/Admin';
 import { Community } from './screens/Community';
 import { Home } from './screens/Home';
+import { OtherGames } from './screens/OtherGames';
 import { ImportLocal, localData } from './screens/ImportLocal';
 import { RoomScreen } from './screens/Room';
 import { WatchScreen } from './screens/Watch';
@@ -22,7 +23,7 @@ import { Welcome } from './screens/Welcome';
 
 // Tout se joue avec des comptes en ligne : sur la même cible (un appareil saisit pour tous) ou à distance.
 
-type Screen = 'home' | 'room' | 'players' | 'mystats' | 'import' | 'admin' | 'watch';
+type Screen = 'home' | 'room' | 'players' | 'mystats' | 'import' | 'admin' | 'watch' | 'games';
 
 /** Code reçu par un lien de partage (?partie=ABC234, ou ?salon= pour les anciens liens), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
@@ -183,6 +184,15 @@ export function App() {
     );
   }
 
+  if (screen === 'games') {
+    return (
+      <OtherGames
+        onBack={home}
+        onPlay={async (mode) => enter(await createOnlineRoom('same', { ...DEFAULT_SETUP, mode }, saloons.current.id))}
+      />
+    );
+  }
+
   if (screen === 'import') return <ImportLocal onBack={home} />;
 
   if (screen === 'admin' && accountState.admin) return <Admin myId={account.id} onBack={home} />;
@@ -203,6 +213,7 @@ export function App() {
         }}
         onNewGame={async (mode: GameMode, place: RoomPlace) => enter(await createOnlineRoom(place, { ...DEFAULT_SETUP, mode }, saloons.current.id))}
         onJoin={enter}
+        onOtherGames={() => setScreen('games')}
         onPlayers={() => setScreen('players')}
         onMyStats={() => setScreen('mystats')}
         onRecovery={() => setRenewingRecovery(true)}

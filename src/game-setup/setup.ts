@@ -1,8 +1,10 @@
 import { DEFAULT_OPTIONS, MAX_TEAMS, MIN_TEAMS, validateConfig } from '../game-engine/engine';
 import { drawTargets } from '../game-engine/modes/random';
 import type {
+  ClassicMode,
   ClockOptions,
   CricketOptions,
+  ExtraMode,
   GameConfig,
   GameMode,
   RandomOptions,
@@ -10,6 +12,16 @@ import type {
   X01Options,
 } from '../game-engine/types';
 import { emptyTeams, individualSides, randomOrder, randomTeams, type Rng } from '../teams/teams';
+import {
+  cleanValues,
+  defaultValues,
+  EXTRA_GAMES,
+  EXTRA_MODES,
+  extraGame,
+  extraPlayersProblem,
+  isExtraMode,
+  type SettingValue,
+} from '../extra-games/catalog';
 
 // Réglages d'une partie avant son lancement : jeu, options, équipes, ordre de passage.
 // Partagés par l'écran de la salle d'attente et par le serveur, qui les vérifie avant de les accepter.
@@ -27,7 +39,12 @@ export interface GameSetup {
   randomizeOrder: boolean;
   /** Équipe de chaque joueur (indice), en mode équipe. */
   teamOf: Record<string, number>;
+  /** Réglages des « Autres jeux », par jeu (clés et valeurs proposées par le catalogue). */
+  extra: Record<ExtraMode, Record<string, SettingValue>>;
 }
+
+const defaultExtra = () =>
+  Object.fromEntries(EXTRA_GAMES.map((g) => [g.id, defaultValues(g)])) as Record<ExtraMode, Record<string, SettingValue>>;
 
 export const DEFAULT_SETUP: GameSetup = {
   mode: 'x01',
@@ -39,9 +56,16 @@ export const DEFAULT_SETUP: GameSetup = {
   teamCount: 2,
   randomizeOrder: true,
   teamOf: {},
+  extra: defaultExtra(),
 };
 
-export const MODES: GameMode[] = ['x01', 'cricket', 'clock', 'random', 'training'];
+/** Modes principaux : les seuls comptés dans les statistiques et classements classiques. */
+export const MODES: ClassicMode[] = ['x01', 'cricket', 'clock', 'random', 'training'];
+
+/** Tous les modes qu'une partie peut avoir, Autres jeux compris. */
+export const ALL_MODES: GameMode[] = [...MODES, ...EXTRA_MODES];
+
+export const isClassicMode = (mode: GameMode): mode is ClassicMode => (MODES as GameMode[]).includes(mode);
 
 export const MODE_NAMES: Record<GameMode, string> = {
   x01: '301 / 501 / 701',
@@ -49,6 +73,7 @@ export const MODE_NAMES: Record<GameMode, string> = {
   clock: 'Horloge',
   random: 'Chiffre aléatoire',
   training: 'Entraînement',
+  ...(Object.fromEntries(EXTRA_GAMES.map((g) => [g.id, g.name])) as Record<ExtraMode, string>),
 };
 
 /** Convention d'équipe à afficher avant le départ. */
@@ -58,9 +83,17 @@ export const TEAM_NOTES: Record<GameMode, string> = {
   clock: 'La progression est commune : le numéro à viser est partagé par l’équipe.',
   random: 'Le total est commun : tous visent le même numéro tiré au sort.',
   training: 'Les points de l’équipe s’additionnent.',
+  ...(Object.fromEntries(EXTRA_MODES.map((m) => [m, 'Le score est commun à l’équipe ; ses joueurs lancent à tour de rôle.'])) as Record<
+    ExtraMode,
+    string
+  >),
 };
 
-function modeOptions(setup: GameSetup, rng: Rng) {
+function modeOptions(setup: GameSetup, sideCount: number, rng: Rng) {
+  if (isExtraMode(setup.mode)) {
+    const def = extraGame(setup.mode);
+    return def.options(cleanValues(def, setup.extra?.[setup.mode]), sideCount, rng);
+  }
   switch (setup.mode) {
     case 'x01':
       return { mode: 'x01' as const, options: setup.x01 };
@@ -86,12 +119,21 @@ export function buildConfig(setup: GameSetup, players: readonly { id: string; na
     for (const p of players) sides[setup.teamOf[p.id] ?? 0]!.playerIds.push(p.id);
   }
   if (setup.randomizeOrder) sides = randomOrder(sides, rng);
-  return { ...modeOptions(setup, rng), teamMode: setup.teamMode, training: players.length === 1 || setup.mode === 'training', sides };
+  return {
+    ...modeOptions(setup, sides.length, rng),
+    teamMode: setup.teamMode,
+    training: players.length === 1 || setup.mode === 'training',
+    sides,
+  } as GameConfig;
 }
 
 /** Pourquoi la partie ne peut pas être lancée avec ces réglages, ou null si tout va bien. */
 export function setupProblem(setup: GameSetup, players: readonly { id: string; name: string }[]): string | null {
   if (players.length === 0) return 'Ajoute au moins un joueur.';
+  if (isExtraMode(setup.mode)) {
+    const problem = extraPlayersProblem(extraGame(setup.mode), players.length, setup.teamMode);
+    if (problem) return problem;
+  }
   try {
     validateConfig(buildConfig({ ...setup, randomizeOrder: false }, players));
     return null;
@@ -115,8 +157,7 @@ export function smallestTeam(setup: GameSetup, playerIds: readonly string[]): nu
 
 // Vérification des réglages reçus du réseau : seules les valeurs proposées à l'écran sont acceptées.
 
-const pick = <T>(value: unknown, allowed: readonly T[], fallback: T): T =>
-  allowed.includes(value as T) ? (value as T) : fallback;
+const pick = <T>(value: unknown, allowed: readonly T[], fallback: T): T => (allowed.includes(value as T) ? (value as T) : fallback);
 
 const obj = (value: unknown): Record<string, unknown> => (value && typeof value === 'object' ? (value as Record<string, unknown>) : {});
 
@@ -132,8 +173,11 @@ export function cleanSetup(input: unknown, base: GameSetup = DEFAULT_SETUP): Gam
   for (const [id, t] of Object.entries(obj(v.teamOf ?? base.teamOf))) {
     if (typeof t === 'number' && Number.isInteger(t) && t >= 0 && t < MAX_TEAMS) teamOf[id.slice(0, 64)] = Math.min(t, teamCount - 1);
   }
+  const mode = pick(v.mode, ALL_MODES, base.mode);
+  // Jeu individuel (Killer…) : pas d'équipes, même si le saloon les a par défaut.
+  const soloOnly = isExtraMode(mode) && !extraGame(mode).teams;
   return {
-    mode: pick(v.mode, MODES, base.mode),
+    mode,
     x01: {
       startScore: pick(x.startScore, [301, 501, 701] as const, base.x01.startScore),
       out: pick(x.out, ['straight', 'double'] as const, base.x01.out),
@@ -154,9 +198,10 @@ export function cleanSetup(input: unknown, base: GameSetup = DEFAULT_SETUP): Gam
       rounds: pick(r.rounds, [10, 15, 20] as const, base.random.rounds),
       targets: [],
     },
-    teamMode: pick(v.teamMode, [true, false], base.teamMode),
+    teamMode: !soloOnly && pick(v.teamMode, [true, false], base.teamMode),
     teamCount: Math.max(MIN_TEAMS, teamCount),
     randomizeOrder: pick(v.randomizeOrder, [true, false], base.randomizeOrder),
     teamOf,
+    extra: Object.fromEntries(EXTRA_GAMES.map((g) => [g.id, cleanValues(g, obj(v.extra)[g.id], base.extra?.[g.id])])) as GameSetup['extra'],
   };
 }

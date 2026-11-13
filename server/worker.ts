@@ -1,6 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import { isValidCode, normalizeCode, randomCode, type ClientMessage, type ServerMessage } from '../src/online/protocol';
 import { cleanSetup } from '../src/game-setup/setup';
+import { isExtraMode } from '../src/extra-games/catalog';
 import { addLocalPlayer, applyMessage, archiveChange, closesRoom, createRoom, joinRoom, liveSummary, roomView, setConnected, type Room } from '../src/online/room';
 import { PUBLIC_SALOON_ID } from '../src/online/saloons';
 import { AccountsObject, type AccountsEnv } from './accounts';
@@ -188,13 +189,16 @@ export default {
   },
 } satisfies ExportedHandler<Env>;
 
+const obj = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' ? (v as Record<string, unknown>) : {});
+
 async function route(request: Request, env: Env): Promise<Response> {
   const url = new URL(request.url);
 
   if (url.pathname === '/api/rooms' && request.method === 'POST') {
     // Le salon naît avec le jeu et le lieu choisis à l'accueil ; l'hôte peut tout changer ensuite.
     const b = await body(request).catch(() => ({}) as Record<string, unknown>);
-    const place = b.place === 'same' ? 'same' : 'remote';
+    // Les « Autres jeux » se jouent seulement sur la même cible.
+    const place = b.place === 'same' || isExtraMode(obj(b.setup).mode as string) ? 'same' : 'remote';
     // Une partie se joue dans un saloon dont le créateur est membre ; sans saloon précisé, dans le saloon public.
     const saloonId = typeof b.saloonId === 'string' && b.saloonId ? b.saloonId : PUBLIC_SALOON_ID;
     const db = accounts(env);

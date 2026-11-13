@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { formatDart } from '../../game-engine/darts';
 import { playerFor } from '../../game-engine/engine';
 import type { ViewContext } from './types';
@@ -5,6 +6,10 @@ import type { ViewContext } from './types';
 interface Row {
   value: string | number;
   detail?: string;
+  /** Repères propres au jeu (numéro, vies, badges), avant le score. */
+  extra?: ReactNode;
+  /** Côté éliminé : ligne grisée. */
+  out?: boolean;
 }
 
 /** Tableau en lignes, un côté par ligne : utilisé par 301/501/701, Horloge, Chiffre aléatoire et Entraînement. */
@@ -21,7 +26,11 @@ export function ListBoard({ ctx, row }: { ctx: ViewContext; row: (sideIndex: num
         // Dernière volée terminée de ce côté : reste visible quand la main passe (saisie par caméra surtout).
         const last = [...state.turns].reverse().find((t) => t.sideIndex === i);
         return (
-          <li key={side.id} className={active ? 'active' : ''} style={{ borderLeftColor: side.color ?? 'transparent' }}>
+          <li
+            key={side.id}
+            className={`${active ? 'active' : ''}${r.out ? ' out' : ''}`}
+            style={{ borderLeftColor: side.color ?? 'transparent' }}
+          >
             <span className="board-name">
               {ctx.sideName(i)}
               {state.config.teamMode && next && <span className="board-sub"> · {ctx.nameOf(next)}</span>}
@@ -35,6 +44,7 @@ export function ListBoard({ ctx, row }: { ctx: ViewContext; row: (sideIndex: num
                 ))}
               </span>
             )}
+            {r.extra}
             {r.detail && <span className="board-avg">{r.detail}</span>}
             <span className="board-score">{r.value}</span>
           </li>

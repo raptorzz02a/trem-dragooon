@@ -1,6 +1,12 @@
 import type { Dart } from './darts';
 
-export type GameMode = 'x01' | 'cricket' | 'clock' | 'random' | 'training';
+/** Modes principaux : ceux de l'accueil, comptés dans les statistiques classiques. */
+export type ClassicMode = 'x01' | 'cricket' | 'clock' | 'random' | 'training';
+
+/** « Autres jeux » du catalogue : statistiques à part, jamais mêlées aux modes principaux. */
+export type ExtraMode = 'highscore' | 'halveit' | 'killer';
+
+export type GameMode = ClassicMode | ExtraMode;
 
 export interface X01Options {
   startScore: 301 | 501 | 701;
@@ -36,12 +42,39 @@ export interface RandomOptions {
 /** Entraînement : pas de réglage, on part de 0 et on additionne les points jusqu'à ce que l'hôte arrête. */
 export type TrainingOptions = Record<string, never>;
 
+/** High Score : toutes les zones comptent, sur un nombre de manches fixé. */
+export interface HighScoreOptions {
+  rounds: 5 | 10 | 15;
+}
+
+/** Cible d'une manche de Halve It : un numéro (25 = Bull), avec une zone imposée ou non. */
+export interface HalveTarget {
+  segment: number;
+  /** 2 : double seulement, 3 : triple seulement ; absent : toute zone du numéro. */
+  multiplier?: 2 | 3;
+}
+
+export interface HalveItOptions {
+  sequence: 'standard' | 'random';
+  /** Cibles des manches, fixées au lancement (tirées au sort ou séquence de l'annexe). */
+  targets: HalveTarget[];
+}
+
+export interface KillerOptions {
+  lives: 3 | 5;
+  /** Numéro de chaque côté (même ordre que sides), tiré au sort au lancement. */
+  numbers: number[];
+}
+
 export type ModeOptions =
   | { mode: 'x01'; options: X01Options }
   | { mode: 'cricket'; options: CricketOptions }
   | { mode: 'clock'; options: ClockOptions }
   | { mode: 'random'; options: RandomOptions }
-  | { mode: 'training'; options: TrainingOptions };
+  | { mode: 'training'; options: TrainingOptions }
+  | { mode: 'highscore'; options: HighScoreOptions }
+  | { mode: 'halveit'; options: HalveItOptions }
+  | { mode: 'killer'; options: KillerOptions };
 
 /**
  * Un « côté » est ce qui porte un score : un joueur seul en individuel,

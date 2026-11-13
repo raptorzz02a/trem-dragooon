@@ -1,0 +1,15 @@
+.game-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 26%;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 6px 16px rgba(0, 0, 0, 0.35);
+}
+
+.game-icon svg {
+  width: 62%;
+  height: 62%;
+}

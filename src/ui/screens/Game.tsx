@@ -12,6 +12,8 @@ import type { Profile } from '../../profiles/types';
 import { Avatar } from '../components/Avatar';
 import { lightEffectFor, lightEnabled, sendLight } from '../../light/light';
 import { useDartSense } from '../../sense/useDartSense';
+import { extraGame, isExtraMode } from '../../extra-games/catalog';
+import { RulesDialog } from '../components/RulesDialog';
 import './Game.css';
 
 interface Props {
@@ -125,6 +127,8 @@ export function Game(props: Props) {
 
   const [confirmQuit, setConfirmQuit] = useState(false);
   const [confirmFinish, setConfirmFinish] = useState(false);
+  const [showRules, setShowRules] = useState(false);
+  const extraDef = isExtraMode(state.config.mode) ? extraGame(state.config.mode) : null;
   const thrown = props.session.events.some((e) => e.type === 'dart');
 
   const activeSide = current ? sides[current.sideIndex]! : null;
@@ -155,10 +159,16 @@ export function Game(props: Props) {
             Terminer l’entraînement
           </button>
         )}
+        {extraDef && (
+          <button className="game-rules" onClick={() => setShowRules(true)}>
+            ? Règles
+          </button>
+        )}
         <button className="game-quit" onClick={() => setConfirmQuit(true)}>
           Quitter
         </button>
       </header>
+      {showRules && extraDef && <RulesDialog def={extraDef} onClose={() => setShowRules(false)} />}
 
       <div className="game-body">
         <section className="game-left">

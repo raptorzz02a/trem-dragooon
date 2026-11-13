@@ -8,6 +8,7 @@ import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
 import { PLACE_NAMES } from './Setup';
+import { MODE_NAMES } from '../../game-setup/setup';
 import { lightEnabled, sendLight, setLightEnabled } from '../../light/light';
 import { senseEnabled, senseState, setSenseEnabled } from '../../sense/sense';
 import './Home.css';
@@ -24,6 +25,8 @@ interface Props {
   onResume: () => void;
   onNewGame: (mode: GameMode, place: RoomPlace) => Promise<void>;
   onJoin: (code: string) => void;
+  /** Catalogue des « Autres jeux » (Même cible uniquement). */
+  onOtherGames: () => void;
   onPlayers: () => void;
   onMyStats: () => void;
   /** Créer ou renouveler son code de secours (mot de passe oublié). */
@@ -204,6 +207,12 @@ export function Home(props: Props) {
                 <span className="home-mode-sub">{m.sub}</span>
               </button>
             ))}
+            {place === 'same' && (
+              <button className="home-mode home-mode-extra" disabled={busy} onClick={props.onOtherGames}>
+                <span className="home-mode-title">Autres jeux</span>
+                <span className="home-mode-sub">Killer, Halve It, High Score… et bientôt d’autres</span>
+              </button>
+            )}
           </div>
         )}
         {error && <div className="home-warning">{error}</div>}
@@ -219,7 +228,7 @@ export function Home(props: Props) {
   );
 }
 
-const MODE_TITLES: Record<GameMode, string> = { x01: 'X01', cricket: 'Cricket', clock: 'Horloge', random: 'Chiffre aléatoire', training: 'Entraînement' };
+const MODE_TITLES: Record<GameMode, string> = { ...MODE_NAMES, x01: 'X01' };
 
 /** Parties en cours dans le saloon : on peut les regarder, ou reprendre celles où l'on joue ; pour en rejoindre une autre, il faut son code. */
 function LiveGames({ saloonId, onWatch, onJoin }: { saloonId: string; onWatch: (watchKey: string) => void; onJoin: (code: string) => void }) {

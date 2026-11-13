@@ -23,7 +23,7 @@ export function playerCsv(games: PlayerGame[]): string {
     const result = config.training ? 'entraînement' : g.won ? 'victoire' : 'défaite';
     return g.turns.map((t) => [
       new Date(g.endedAt).toLocaleString('fr-FR'),
-      MODE_LABELS[config.mode],
+      (MODE_LABELS as Record<string, string>)[config.mode] ?? config.mode,
       variant,
       g.record.id,
       t.round + 1,

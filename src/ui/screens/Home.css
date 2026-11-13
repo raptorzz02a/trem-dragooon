@@ -211,6 +211,17 @@
 }
 
 /* Téléphone : une colonne, modes sur deux colonnes, l'écran défile. */
+/* Sixième tuile : le catalogue des autres jeux, sur toute la largeur. */
+.home-mode-extra {
+  grid-column: 1 / -1;
+  height: 96px;
+  flex-direction: row;
+  gap: 18px;
+  background: var(--bg-raised);
+  border: 2px solid var(--gold);
+  color: var(--gold);
+}
+
 @media (max-width: 700px) {
   .screen.home {
     justify-content: flex-start;
@@ -256,6 +267,12 @@
     gap: 12px;
   }
   /* Nombre impair de jeux : le dernier prend toute la largeur. */
+  .home-mode-extra {
+    grid-column: auto;
+    height: auto;
+    flex-direction: column;
+    gap: 10px;
+  }
   .home-mode:last-child:nth-child(odd) {
     grid-column: span 2;
   }

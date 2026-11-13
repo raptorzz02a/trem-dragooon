@@ -7,9 +7,12 @@ import { Avatar } from '../components/Avatar';
 import { ALL_TIME, PeriodFilter, periodRange, type Period } from '../components/PeriodFilter';
 import { ND, num, pct } from '../format';
 import { FORMAT_FILTERS, MODE_FILTERS, Segmented } from './Profile';
+import { EXTRA_GAMES, extraGame } from '../../extra-games/catalog';
+import { extraRankings, type ExtraRankingRow } from '../../extra-games/stats';
+import type { ExtraMode } from '../../game-engine/types';
 import './Library.css';
 
-const KEY_LABEL: Record<GameMode, string> = {
+const KEY_LABEL: Partial<Record<GameMode, string>> = {
   x01: 'Moy. volée',
   cricket: 'Marques/volée',
   clock: 'Record (fl.)',
@@ -41,11 +44,22 @@ interface Props {
   note?: string;
 }
 
-export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements', backLabel = '← Accueil', minGames = MIN_RANKED_GAMES, note }: Props) {
+export function Rankings({
+  profiles,
+  games,
+  onOpen,
+  onBack,
+  title = 'Classements',
+  backLabel = '← Accueil',
+  minGames = MIN_RANKED_GAMES,
+  note,
+}: Props) {
   const [mode, setMode] = useState<GameMode | 'all'>('all');
   const [period, setPeriod] = useState<Period>(ALL_TIME);
   const [format, setFormat] = useState<NonNullable<StatsFilter['format']>>('all');
   const [sortChoice, setSort] = useState<RankingSort>('winRate');
+  const [family, setFamily] = useState<'classic' | 'extra'>('classic');
+  const [extraMode, setExtraMode] = useState<ExtraMode>(EXTRA_GAMES[0]!.id);
   const scored = isScoredMode(mode === 'all' ? undefined : mode);
   // Moyenne, record et progression n'ont de sens que pour un mode à score.
   const sort: RankingSort = scored ? sortChoice : 'winRate';
@@ -63,13 +77,24 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
     if (sort === 'bestVolley') return r.bestVolley === null ? ND : String(r.bestVolley);
     if (sort === 'progression') {
       if (r.progression === null) return ND;
-      const v = r.progression.toLocaleString('fr-FR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+      const v = r.progression.toLocaleString('fr-FR', {
+        minimumFractionDigits: digits,
+        maximumFractionDigits: digits,
+      });
       return r.progression > 0 ? `+${v}` : v;
     }
     return mode === 'all' ? '' : num(r.key, mode === 'cricket' ? 2 : mode === 'x01' ? 1 : 0);
   };
   const lastHead =
-    sort === 'average' ? `Moyenne (${unit})` : sort === 'bestVolley' ? `Record (${unit})` : sort === 'progression' ? `Progression (${unit})` : mode === 'all' ? '' : KEY_LABEL[mode];
+    sort === 'average'
+      ? `Moyenne (${unit})`
+      : sort === 'bestVolley'
+        ? `Record (${unit})`
+        : sort === 'progression'
+          ? `Progression (${unit})`
+          : mode === 'all'
+            ? ''
+            : KEY_LABEL[mode];
 
   const row = (r: ScoreRankingRow, pos: string, unrankedRow = false) => {
     const p = profileOf(r.playerId);
@@ -94,59 +119,145 @@ export function Rankings({ profiles, games, onOpen, onBack, title = 'Classements
         <h2>{title}</h2>
       </header>
       <div className="lib-filters">
-        <Segmented value={mode} options={RANKING_MODES} onChange={setMode} />
+        <Segmented
+          value={family}
+          options={[
+            { value: 'classic', label: 'Modes classiques' },
+            { value: 'extra', label: 'Autres jeux' },
+          ]}
+          onChange={setFamily}
+        />
+      </div>
+      <div className="lib-filters">
+        {family === 'classic' ? (
+          <Segmented value={mode} options={RANKING_MODES} onChange={setMode} />
+        ) : (
+          <Segmented value={extraMode} options={EXTRA_GAMES.map((g) => ({ value: g.id, label: g.name }))} onChange={setExtraMode} />
+        )}
         <Segmented value={format} options={FORMAT_FILTERS} onChange={setFormat} />
       </div>
       <div className="lib-filters">
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
-      <div className="lib-filters">
-        <span className="label">Classer par</span>
-        <div className="segmented">
-          {SORTS.map((o) => (
-            <button
-              key={o.value}
-              className={sort === o.value ? 'selected' : ''}
-              disabled={o.value !== 'winRate' && !scored}
-              onClick={() => setSort(o.value)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <span className="tile-label">
-          {!scored
-            ? 'Choisissez 301/501/701, Cricket ou Chiffre aléatoire pour classer par moyenne, record ou progression.'
-            : sort === 'progression'
-              ? range.from
-                ? 'Écart de moyenne avec la période précédente de même durée.'
-                : 'Choisissez une période pour mesurer la progression.'
-              : ''}
-        </span>
-      </div>
-
-      {note && <div className="tile-label rankings-note">{note}</div>}
-      {ranked.length + unranked.length === 0 ? (
-        <div className="lib-empty">Aucune partie terminée pour ces filtres (l’entraînement ne compte pas).</div>
+      {family === 'extra' ? (
+        <>
+          {note && <div className="tile-label rankings-note">{note}</div>}
+          <ExtraTable
+            mode={extraMode}
+            rows={extraRankings(games, profiles, { mode: extraMode, format, ...range }, minGames)}
+            minGames={minGames}
+            profileOf={profileOf}
+            onOpen={onOpen}
+          />
+        </>
       ) : (
-        <div className="ranking-table">
-          <div className="ranking-row head">
-            <span>#</span>
-            <span />
-            <span>Joueur</span>
-            <span className="ranking-num">Parties</span>
-            <span className="ranking-num">Victoires</span>
-            <span className="ranking-num">% victoires</span>
-            <span className="ranking-num">{lastHead}</span>
+        <>
+          <div className="lib-filters">
+            <span className="label">Classer par</span>
+            <div className="segmented">
+              {SORTS.map((o) => (
+                <button
+                  key={o.value}
+                  className={sort === o.value ? 'selected' : ''}
+                  disabled={o.value !== 'winRate' && !scored}
+                  onClick={() => setSort(o.value)}
+                >
+                  {o.label}
+                </button>
+              ))}
+            </div>
+            <span className="tile-label">
+              {!scored
+                ? 'Choisissez 301/501/701, Cricket ou Chiffre aléatoire pour classer par moyenne, record ou progression.'
+                : sort === 'progression'
+                  ? range.from
+                    ? 'Écart de moyenne avec la période précédente de même durée.'
+                    : 'Choisissez une période pour mesurer la progression.'
+                  : ''}
+            </span>
           </div>
-          {ranked.map((r, i) => row(r, String(i + 1)))}
-          {unranked.length > 0 && (
-            <>
-              <div className="label ranking-sep">Moins de {minGames} partie{minGames > 1 ? 's' : ''} : pas encore classés</div>
-              {unranked.map((r) => row(r, '–', true))}
-            </>
+
+          {note && <div className="tile-label rankings-note">{note}</div>}
+          {ranked.length + unranked.length === 0 ? (
+            <div className="lib-empty">Aucune partie terminée pour ces filtres (l’entraînement ne compte pas).</div>
+          ) : (
+            <div className="ranking-table">
+              <div className="ranking-row head">
+                <span>#</span>
+                <span />
+                <span>Joueur</span>
+                <span className="ranking-num">Parties</span>
+                <span className="ranking-num">Victoires</span>
+                <span className="ranking-num">% victoires</span>
+                <span className="ranking-num">{lastHead}</span>
+              </div>
+              {ranked.map((r, i) => row(r, String(i + 1)))}
+              {unranked.length > 0 && (
+                <>
+                  <div className="label ranking-sep">
+                    Moins de {minGames} partie{minGames > 1 ? 's' : ''} : pas encore classés
+                  </div>
+                  {unranked.map((r) => row(r, '–', true))}
+                </>
+              )}
+            </div>
           )}
-        </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Classement d'un des autres jeux : taux de victoire, puis statistique propre au jeu. */
+function ExtraTable({
+  mode,
+  rows,
+  minGames,
+  profileOf,
+  onOpen,
+}: {
+  mode: ExtraMode;
+  rows: { ranked: ExtraRankingRow[]; unranked: ExtraRankingRow[] };
+  minGames: number;
+  profileOf: (id: string) => Profile;
+  onOpen: (id: string) => void;
+}) {
+  const def = extraGame(mode);
+  const row = (r: ExtraRankingRow, pos: string, unranked = false) => {
+    const p = profileOf(r.playerId);
+    return (
+      <button key={r.playerId} className={`ranking-row${unranked ? ' unranked' : ''}`} onClick={() => onOpen(r.playerId)}>
+        <span className="ranking-pos">{pos}</span>
+        <Avatar avatar={p.avatar} color={p.color} size={48} />
+        <span className="ranking-name">{r.name}</span>
+        <span className="ranking-num">{r.games}</span>
+        <span className="ranking-num">{r.wins}</span>
+        <span className="ranking-num">{pct(r.winRate)}</span>
+        <span className={`ranking-num ${r.best === null ? 'nd' : ''}`}>{r.best ?? ND}</span>
+      </button>
+    );
+  };
+  if (rows.ranked.length + rows.unranked.length === 0)
+    return <div className="lib-empty">Aucune partie de {def.name} terminée pour ces filtres.</div>;
+  return (
+    <div className="ranking-table">
+      <div className="ranking-row head">
+        <span>#</span>
+        <span />
+        <span>Joueur</span>
+        <span className="ranking-num">Parties</span>
+        <span className="ranking-num">Victoires</span>
+        <span className="ranking-num">% victoires</span>
+        <span className="ranking-num">{def.score.label}</span>
+      </div>
+      {rows.ranked.map((r, i) => row(r, String(i + 1)))}
+      {rows.unranked.length > 0 && (
+        <>
+          <div className="label ranking-sep">
+            Moins de {minGames} partie{minGames > 1 ? 's' : ''} : pas encore classés
+          </div>
+          {rows.unranked.map((r) => row(r, '–', true))}
+        </>
       )}
     </div>
   );
