@@ -17,6 +17,37 @@ const text = (t: string, size: number) => (c: string) => (
 );
 
 const GLYPHS: Record<IconName, (c: string) => JSX.Element> = {
+  t501: text('501', 13),
+  cricket: (c) => (
+    <>
+      <circle cx="16" cy="16" r="11" fill="none" stroke={c} strokeWidth="2.4" />
+      <circle cx="16" cy="16" r="6" fill="none" stroke={c} strokeWidth="2.4" />
+      <circle cx="16" cy="16" r="2.2" fill={c} />
+    </>
+  ),
+  clock: (c) => (
+    <>
+      <circle cx="16" cy="16" r="11" fill="none" stroke={c} strokeWidth="2.6" />
+      <path d="M16 9 V16 L21 19" stroke={c} strokeWidth="2.6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  dice: (c) => (
+    <>
+      <rect x="6" y="6" width="20" height="20" rx="4.5" fill="none" stroke={c} strokeWidth="2.6" />
+      <circle cx="11.5" cy="11.5" r="2" fill={c} />
+      <circle cx="16" cy="16" r="2" fill={c} />
+      <circle cx="20.5" cy="20.5" r="2" fill={c} />
+    </>
+  ),
+  plus: (c) => <path d="M16 7 V25 M7 16 H25" stroke={c} strokeWidth="3.4" strokeLinecap="round" />,
+  grid: (c) => (
+    <>
+      <rect x="6" y="6" width="8.5" height="8.5" rx="2.2" fill={c} />
+      <rect x="17.5" y="6" width="8.5" height="8.5" rx="2.2" fill={c} />
+      <rect x="6" y="17.5" width="8.5" height="8.5" rx="2.2" fill={c} />
+      <rect x="17.5" y="17.5" width="8.5" height="8.5" rx="2.2" fill={c} />
+    </>
+  ),
   up: (c) => <path d="M16 26 V7 M8 14 L16 6 L24 14" stroke={c} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />,
   down: (c) => (
     <path d="M16 6 V25 M8 18 L16 26 L24 18" stroke={c} strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />

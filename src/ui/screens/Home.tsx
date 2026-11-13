@@ -8,6 +8,8 @@ import type { LiveGame } from '../../online/saloons';
 import { Avatar } from '../components/Avatar';
 import { SaloonHeader, SaloonRail } from '../components/Saloons';
 import { Logo } from '../components/Logo';
+import { GameIcon } from '../components/GameIcon';
+import type { Category, IconName } from '../../extra-games/catalog';
 import { PLACE_NAMES } from './Setup';
 import { MODE_NAMES } from '../../game-setup/setup';
 import { lightEnabled, sendLight, setLightEnabled } from '../../light/light';
@@ -44,12 +46,13 @@ interface Props {
   onImport?: () => void;
 }
 
-const MODES: { mode: GameMode; title: string; sub: string }[] = [
-  { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions' },
-  { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull' },
-  { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre' },
-  { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche' },
-  { mode: 'training', title: 'Entraînement', sub: 'On part de 0 et on additionne, sans limite' },
+/** Les modes principaux, présentés comme les cartes du catalogue « Autres jeux » (icône, nom, une ligne). */
+const MODES: { mode: GameMode; title: string; sub: string; icon: IconName; tint: Category }[] = [
+  { mode: 'x01', title: '301 · 501 · 701', sub: 'Décompte, busts et finitions', icon: 't501', tint: 'classic' },
+  { mode: 'cricket', title: 'Cricket', sub: 'Fermer 15 à 20 et le Bull', icon: 'cricket', tint: 'precision' },
+  { mode: 'clock', title: 'Horloge', sub: 'Du 1 au 20, dans l’ordre', icon: 'clock', tint: 'quick' },
+  { mode: 'random', title: 'Chiffre aléatoire', sub: 'Un numéro tiré au sort par manche', icon: 'dice', tint: 'house' },
+  { mode: 'training', title: 'Entraînement', sub: 'On part de 0 et on additionne, sans limite', icon: 'plus', tint: 'team' },
 ];
 
 type RemoteAction = 'create' | 'join';
@@ -205,15 +208,19 @@ export function Home(props: Props) {
         ) : (
           <div className="home-modes">
             {MODES.map((m) => (
-              <button key={m.mode} className="home-mode btn-primary" disabled={busy} onClick={() => create(m.mode)}>
+              <button key={m.mode} className="home-mode" disabled={busy} onClick={() => create(m.mode)}>
+                <GameIcon def={{ icon: m.icon, categories: [m.tint] }} size={64} />
                 <span className="home-mode-title">{m.title}</span>
                 <span className="home-mode-sub">{m.sub}</span>
               </button>
             ))}
             {place === 'same' && (
               <button className="home-mode home-mode-extra" disabled={busy} onClick={props.onOtherGames}>
-                <span className="home-mode-title">Autres jeux</span>
-                <span className="home-mode-sub">21 jeux de bar : Killer, Golf, Baseball, La Bombe…</span>
+                <GameIcon def={{ icon: 'grid', categories: ['quick'] }} size={56} />
+                <span className="home-mode-text">
+                  <span className="home-mode-title">Autres jeux</span>
+                  <span className="home-mode-sub">21 jeux de bar : Killer, Golf, Baseball, La Bombe…</span>
+                </span>
               </button>
             )}
           </div>

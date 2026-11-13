@@ -20,6 +20,13 @@ export const CATEGORIES: { value: Category; label: string }[] = [
 
 /** Icône dessinée de la carte (voir src/ui/components/GameIcon.tsx). */
 export type IconName =
+  // Modes principaux et tuile « Autres jeux » de l'accueil.
+  | 't501'
+  | 'cricket'
+  | 'clock'
+  | 'dice'
+  | 'plus'
+  | 'grid'
   | 'up'
   | 'half'
   | 'killer'
