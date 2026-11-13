@@ -5,6 +5,7 @@ import { randomView } from './randomView';
 import { trainingView } from './trainingView';
 import type { ModeView } from './types';
 import { x01View } from './x01View';
+import { EXTRA_VIEWS } from './extra';
 
 export const MODE_VIEWS: Record<GameMode, ModeView> = {
   x01: x01View,
@@ -12,4 +13,5 @@ export const MODE_VIEWS: Record<GameMode, ModeView> = {
   clock: clockView,
   random: randomView,
   training: trainingView,
+  ...EXTRA_VIEWS,
 };

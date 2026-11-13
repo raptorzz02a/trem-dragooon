@@ -373,3 +373,39 @@
     font-size: 15px;
   }
 }
+
+/* Autres jeux : le jeu choisi à la place du choix du mode. */
+.setup-extra-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--bg-raised);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+}
+
+.setup-extra-name {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.setup-extra-name strong {
+  font-size: 24px;
+}
+
+.setup-extra-name span {
+  color: var(--text-dim);
+  font-size: 15px;
+}
+
+.setup-extra-head button {
+  padding: 0 18px;
+}
+
+.setup-defaults {
+  margin-top: 8px;
+  background: transparent;
+  border: 2px solid var(--gold);
+  color: var(--gold-bright);
+}

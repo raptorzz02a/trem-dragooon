@@ -1,0 +1,80 @@
+.killer-input {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.killer-zones button {
+  min-height: 64px;
+  font-size: 22px;
+}
+
+.killer-players {
+  flex: none;
+  max-height: 45%;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  align-content: start;
+}
+
+.killer-player {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-rows: auto auto;
+  align-items: center;
+  column-gap: 12px;
+  text-align: left;
+  padding: 12px 14px;
+  min-height: 92px;
+}
+
+.killer-player .killer-number {
+  grid-row: span 2;
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--gold, #ffd24d);
+  min-width: 2.2ch;
+  text-align: center;
+}
+
+.killer-player .killer-name {
+  font-size: 18px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.killer-player.me {
+  outline: 2px dashed var(--danger, #e5484d);
+  outline-offset: -2px;
+}
+
+.killer-player .board-chip {
+  justify-self: start;
+}
+
+.killer-miss {
+  min-height: 80px;
+  font-size: 26px;
+}
+
+.killer-target {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/* Téléphone : pas la place pour la cible, les boutons joueurs suffisent. */
+@media (max-width: 700px) {
+  .killer-target {
+    display: none;
+  }
+  .killer-players {
+    max-height: none;
+  }
+}

@@ -77,7 +77,7 @@ describe('salle d’attente', () => {
 
   it('n’accepte que les réglages proposés à l’écran', () => {
     const room = lobby('Ju', 'Max');
-    const bad = { ...room.setup, mode: 'golf', x01: { startScore: 123, out: 'double', maxRounds: null } } as never;
+    const bad = { ...room.setup, mode: 'shanghai', x01: { startScore: 123, out: 'double', maxRounds: null } } as never;
     const set = applyMessage(room, 'p1', { type: 'setup', setup: bad });
     expect(set.setup.mode).toBe('x01');
     expect(set.setup.x01.startScore).toBe(501);

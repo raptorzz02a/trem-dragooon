@@ -4,6 +4,7 @@ import { cricketRules } from './modes/cricket';
 import { randomRules } from './modes/random';
 import { trainingRules } from './modes/training';
 import { x01Rules } from './modes/x01';
+import { EXTRA_RULES } from './extra';
 import { topRanked, type ModeRules } from './rules';
 import type {
   ClockOptions,
@@ -29,11 +30,22 @@ export const MAX_TEAMS = 5;
 
 export const DEFAULT_OPTIONS = {
   x01: { startScore: 501, out: 'double', maxRounds: null } satisfies X01Options,
-  cricket: { bull: true, variant: 'standard', maxRounds: 20 } satisfies CricketOptions,
-  clock: { order: 'asc', required: 'any', advanceByMultiplier: false, bullFinish: 'any' } satisfies ClockOptions,
+  cricket: {
+    bull: true,
+    variant: 'standard',
+    maxRounds: 20,
+  } satisfies CricketOptions,
+  clock: {
+    order: 'asc',
+    required: 'any',
+    advanceByMultiplier: false,
+    bullFinish: 'any',
+  } satisfies ClockOptions,
   random: { rounds: 20, targets: [] } satisfies RandomOptions,
   training: {} satisfies TrainingOptions,
 } as const;
+
+export { DEFAULT_EXTRA_OPTIONS } from './extra';
 
 const RULES: Record<GameMode, ModeRules<any>> = {
   x01: x01Rules,
@@ -41,6 +53,7 @@ const RULES: Record<GameMode, ModeRules<any>> = {
   clock: clockRules,
   random: randomRules,
   training: trainingRules,
+  ...EXTRA_RULES,
 };
 
 /** Vérifie la composition de la partie. Lève une erreur explicite si elle est invalide. */
@@ -59,6 +72,7 @@ export function validateConfig(config: GameConfig): void {
   } else if (sides.some((s) => s.playerIds.length !== 1)) {
     throw new Error('En individuel, chaque côté compte un seul joueur.');
   }
+  RULES[config.mode]?.validate?.(config);
 }
 
 /** Joueur qui lance pour un côté donné : les membres d'une équipe se relaient à chaque manche. */
@@ -82,12 +96,35 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
   let darts: ThrownDart[] = [];
   const turns: TurnRecord[] = [];
   // Objet mutable : TypeScript ne suit pas les affectations faites dans les fonctions internes.
-  const game: { status: GameState['status']; winners: number[] } = { status: 'in_progress', winners: [] };
+  const game: { status: GameState['status']; winners: number[] } = {
+    status: 'in_progress',
+    winners: [],
+  };
   let ignoredEvents = 0;
 
-  const ctx = () => ({ round: Math.floor(turnIndex / sideCount), sideIndex: turnIndex % sideCount });
+  const ctx = () => ({
+    round: Math.floor(turnIndex / sideCount),
+    sideIndex: turnIndex % sideCount,
+  });
+
+  /** Tous les côtés ont joué la manche : le mode dit si la partie s'arrête. */
+  const roundCheck = () => {
+    const { round, sideIndex } = ctx();
+    if (sideIndex !== sideCount - 1) return;
+    const end = rules.onRoundEnd(modeState, round);
+    if (end) {
+      game.status = 'finished';
+      game.winners = end.winners;
+    }
+  };
 
   const startTurn = () => {
+    // Côtés éliminés : leur tour est sauté (au plus un tour complet, la partie se termine avant).
+    for (let guard = 0; rules.skipSide?.(modeState, ctx().sideIndex) && guard < sideCount; guard++) {
+      roundCheck();
+      turnIndex++;
+      if (game.status === 'finished') return;
+    }
     darts = [];
     if (rules.onTurnStart) modeState = rules.onTurnStart(modeState, ctx());
     turnStartState = modeState;
@@ -95,14 +132,16 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
 
   const closeTurn = (outcome: TurnOutcome) => {
     const { round, sideIndex } = ctx();
-    turns.push({ turnIndex, round, sideIndex, playerId: playerFor(config, sideIndex, round), darts, outcome });
-    if (outcome !== 'win' && sideIndex === sideCount - 1) {
-      const end = rules.onRoundEnd(modeState, round);
-      if (end) {
-        game.status = 'finished';
-        game.winners = end.winners;
-      }
-    }
+    if (rules.onTurnEnd && outcome !== 'bust' && outcome !== 'win') modeState = rules.onTurnEnd(modeState, { round, sideIndex });
+    turns.push({
+      turnIndex,
+      round,
+      sideIndex,
+      playerId: playerFor(config, sideIndex, round),
+      darts,
+      outcome,
+    });
+    if (outcome !== 'win') roundCheck();
     turnIndex++;
     if (game.status === 'in_progress') startTurn();
   };
@@ -120,21 +159,33 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
     if (event.type === 'finish') {
       // Fin demandée : la volée entamée est gardée, la partie s'arrête là, classée sur les points du moment.
       const { round, sideIndex } = ctx();
-      if (darts.length > 0) turns.push({ turnIndex, round, sideIndex, playerId: playerFor(config, sideIndex, round), darts, outcome: 'ended' });
+      if (darts.length > 0)
+        turns.push({
+          turnIndex,
+          round,
+          sideIndex,
+          playerId: playerFor(config, sideIndex, round),
+          darts,
+          outcome: 'ended',
+        });
       game.status = 'finished';
       game.winners = topRanked(rules.ranking(modeState));
       return;
     }
     assertValidDart(event.dart);
     const result = rules.applyDart(modeState, { ...ctx(), dartIndex: darts.length }, event.dart);
-    darts.push({ dart: event.dart, eventIndex, points: result.bust ? 0 : result.points });
+    darts.push({
+      dart: event.dart,
+      eventIndex,
+      points: result.bust ? 0 : result.points,
+    });
     if (result.bust) {
       modeState = turnStartState;
       closeTurn('bust');
-    } else if (result.win) {
+    } else if (result.win || result.winners) {
       modeState = result.state;
       game.status = 'finished';
-      game.winners = [ctx().sideIndex];
+      game.winners = result.winners ?? [ctx().sideIndex];
       closeTurn('win');
     } else {
       modeState = result.state;
@@ -159,7 +210,16 @@ export function computeState(config: GameConfig, events: readonly GameEvent[]): 
   let ranking = rules.ranking(modeState);
   if (game.status === 'finished') ranking = putWinnersFirst(ranking, game.winners);
 
-  return { config, status: game.status, winners: game.winners, ranking, current, turns, mode: modeState, ignoredEvents };
+  return {
+    config,
+    status: game.status,
+    winners: game.winners,
+    ranking,
+    current,
+    turns,
+    mode: modeState,
+    ignoredEvents,
+  };
 }
 
 /** Une victoire immédiate (Cricket) place le gagnant premier même si un autre a plus de points. */
@@ -170,7 +230,10 @@ function putWinnersFirst(ranking: RankEntry[], winners: number[]): RankEntry[] {
   rest.forEach((r, i) => {
     const prev = rest[i - 1];
     const tied = prev !== undefined && prev.rank === r.rank;
-    reranked.push({ ...r, rank: tied ? reranked[i - 1]!.rank : first.length + i + 1 });
+    reranked.push({
+      ...r,
+      rank: tied ? reranked[i - 1]!.rank : first.length + i + 1,
+    });
   });
   return [...first, ...reranked];
 }

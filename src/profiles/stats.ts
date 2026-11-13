@@ -1,7 +1,7 @@
 import { computeState } from '../game-engine/engine';
 import { BULL, isDouble } from '../game-engine/darts';
 import { targetOf } from '../game-engine/modes/random';
-import { MODES } from '../game-setup/setup';
+import { isClassicMode } from '../game-setup/setup';
 import type { GameMode, GameState, RandomOptions, TurnRecord, X01Options } from '../game-engine/types';
 import type { CricketState } from '../game-engine/modes/cricket';
 import type { ClockState } from '../game-engine/modes/clock';
@@ -39,7 +39,7 @@ export function playerGames(records: GameRecord[], playerId: string, filter: Sta
     const { session } = record;
     if (session.status !== 'finished') continue; // abandonnées et annulées : ni victoire ni défaite
     const { config } = session;
-    if (!MODES.includes(config.mode)) continue; // jeu retiré (ancien Shanghai) : plus compté
+    if (!isClassicMode(config.mode)) continue; // jeu retiré (ancien Shanghai) : plus compté
     if (filter.mode && config.mode !== filter.mode) continue;
     if (filter.format === 'solo' && config.teamMode) continue;
     if (filter.format === 'team' && !config.teamMode) continue;

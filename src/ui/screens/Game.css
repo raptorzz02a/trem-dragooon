@@ -786,3 +786,106 @@
     display: none;
   }
 }
+
+/* Autres jeux */
+.board li.out {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.board-chip {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.board-chip.bad {
+  color: var(--danger);
+}
+
+.board-chip.gold {
+  background: var(--gold);
+  color: #1a1a12;
+}
+
+.hearts {
+  color: var(--danger);
+  letter-spacing: 1px;
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+.hearts i {
+  font-style: normal;
+  opacity: 0.25;
+}
+
+.target-strip {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.target-strip span {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 2px solid var(--line, rgba(255, 255, 255, 0.15));
+  color: var(--text-dim);
+}
+
+.target-strip span.done {
+  opacity: 0.45;
+}
+
+.target-strip span.current {
+  border-color: var(--gold);
+  background: var(--gold);
+  color: #1a1a12;
+}
+
+.game-rules {
+  font-size: 16px;
+}
+
+.dt-dots {
+  display: inline-flex;
+  gap: 3px;
+}
+.dt-dots i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+.dt-dots i.ok {
+  background: var(--green-bright);
+}
+.dt-dots i.ko {
+  background: var(--danger);
+}
+.target-strip span.bad {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.pyr-mini {
+  display: inline-flex;
+  gap: 3px;
+}
+.pyr-mini i {
+  width: 12px;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+.pyr-mini i.ok {
+  background: var(--green-bright);
+}
+.pyr-mini i.now {
+  background: var(--gold);
+}

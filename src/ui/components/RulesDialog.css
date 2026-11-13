@@ -1,0 +1,43 @@
+.rules-dialog {
+  max-width: 760px;
+  border-radius: 22px;
+}
+
+.rules-head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rules-name {
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.rules-meta {
+  font-size: 16px;
+  color: var(--text-dim);
+}
+
+.rules-bubble {
+  margin: 0;
+  font-size: 21px;
+  line-height: 1.4;
+}
+
+.rules-lines {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 6px 16px;
+  margin: 0;
+  font-size: 18px;
+}
+
+.rules-lines dt {
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.rules-lines dd {
+  margin: 0;
+}

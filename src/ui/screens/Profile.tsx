@@ -19,7 +19,7 @@ import { Avatar } from '../components/Avatar';
 import { ProfileEditor } from '../components/ProfileEditor';
 import { dateTime, duration, ND, num, pct } from '../format';
 import { MODE_VIEWS } from '../modes';
-import { MODES } from '../../game-setup/setup';
+import { isClassicMode } from '../../game-setup/setup';
 import { playerCsv } from '../../profiles/export';
 import { isScoredMode, type ScoredMode } from '../../profiles/scores';
 import type { AppSettings } from '../../settings/settings';
@@ -28,6 +28,8 @@ import { DartHeatmap } from '../components/DartHeatmap';
 import { heatmap, MAX_POINTS } from '../../profiles/heatmap';
 import { ALL_TIME, PeriodFilter, periodRange, type Period } from '../components/PeriodFilter';
 import { ProgressionTab, RecordCards, ScoredModePicker, ScoresTab } from './ProfileTabs';
+import { ExtrasTab } from './ProfileExtras';
+import { extraPlayerGames } from '../../extra-games/stats';
 import './Library.css';
 
 type ModeFilter = GameMode | 'all';
@@ -188,7 +190,7 @@ function History({ records, playerId, filter }: { records: GameRecord[]; playerI
   const rows = records
     .filter((r) => {
       const c = r.session.config;
-      if (!MODES.includes(c.mode)) return false; // jeu retiré (ancien Shanghai)
+      if (!isClassicMode(c.mode)) return false; // jeu retiré (ancien Shanghai)
       if (!c.sides.some((s) => s.playerIds.includes(playerId))) return false;
       if (r.session.status !== 'finished' && r.session.status !== 'abandoned') return false;
       if (filter.mode && c.mode !== filter.mode) return false;
@@ -256,7 +258,7 @@ interface Props {
 const ALL_SALOONS = 'all';
 const DELETED_SALOONS = 'deleted';
 
-type Tab = 'summary' | 'scores' | 'progress' | 'heatmap' | 'history';
+type Tab = 'summary' | 'scores' | 'progress' | 'heatmap' | 'history' | 'extras';
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'summary', label: 'Résumé' },
@@ -264,6 +266,7 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'progress', label: 'Progression' },
   { value: 'heatmap', label: 'Heat map' },
   { value: 'history', label: 'Historique' },
+  { value: 'extras', label: 'Autres jeux' },
 ];
 
 function download(name: string, content: string, type: string) {
@@ -318,6 +321,11 @@ export function Profile({
   const filter: StatsFilter = { mode: mode === 'all' ? undefined : mode, format, ...range };
   const list = useMemo(() => playerGames(games, profile.id, filter), [games, profile.id, mode, format, range.from, range.to]);
   const s = summary(list);
+  // Les fléchettes des autres jeux s'ajoutent au total (seul chiffre partagé avec les modes classiques).
+  const extraDarts = useMemo(
+    () => (mode === 'all' ? extraPlayerGames(games, profile.id, { format, ...range }).reduce((n, g) => n + g.turns.reduce((m, t) => m + t.darts.length, 0), 0) : 0),
+    [games, profile.id, mode, format, range.from, range.to],
+  );
   const fav = favouriteHits(list);
   // Modes à score joués sur la période, du plus joué au moins joué : le premier sert par défaut aux onglets de score.
   const played = (['x01', 'cricket', 'random', 'training'] as const)
@@ -358,7 +366,7 @@ export function Profile({
         <Segmented value={format} options={FORMAT_FILTERS} onChange={setFormat} />
       </div>
       <div className="lib-filters no-print">
-        <Segmented value={mode} options={MODE_FILTERS} onChange={setMode} />
+        {tab !== 'extras' && <Segmented value={mode} options={MODE_FILTERS} onChange={setMode} />}
         <PeriodFilter value={period} onChange={setPeriod} />
       </div>
       {saloonOptions && saloonOptions.length > 2 && (
@@ -384,8 +392,8 @@ export function Profile({
                   <span className="tile-label">Parties terminées</span>
                 </div>
                 <div className="tile">
-                  <span className="tile-value">{s.darts.toLocaleString('fr-FR')}</span>
-                  <span className="tile-label">Fléchettes lancées</span>
+                  <span className="tile-value">{(s.darts + extraDarts).toLocaleString('fr-FR')}</span>
+                  <span className="tile-label">Fléchettes lancées{extraDarts > 0 ? ' (autres jeux compris)' : ''}</span>
                 </div>
                 <div className="tile">
                   <span className="tile-value">{s.wins}</span>
@@ -464,6 +472,8 @@ export function Profile({
         )}
 
         {tab === 'heatmap' && <HeatmapTab games={list} />}
+
+        {tab === 'extras' && <ExtrasTab records={games} playerId={profile.id} filter={{ format, ...range }} />}
 
         {tab === 'history' && (
           <div className="profile-history">

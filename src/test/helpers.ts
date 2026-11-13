@@ -1,4 +1,4 @@
-import { computeState, DEFAULT_OPTIONS } from '../game-engine/engine';
+import { computeState, DEFAULT_EXTRA_OPTIONS, DEFAULT_OPTIONS } from '../game-engine/engine';
 import { parseDart } from '../game-engine/darts';
 import type { GameConfig, GameEvent, GameState, ModeOptions, Side } from '../game-engine/types';
 
@@ -24,7 +24,7 @@ export function config<M extends ModeOptions['mode']>(
 ): GameConfig {
   return {
     mode,
-    options: { ...DEFAULT_OPTIONS[mode], ...options },
+    options: { ...({ ...DEFAULT_OPTIONS, ...DEFAULT_EXTRA_OPTIONS } as Record<string, object>)[mode], ...options },
     sides,
     teamMode: sides.some((s) => s.playerIds.length > 1) || sides[0]?.id.startsWith('t') === true,
     training: mode === 'training' || sides.flatMap((s) => s.playerIds).length === 1,

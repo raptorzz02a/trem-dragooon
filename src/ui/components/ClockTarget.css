@@ -71,3 +71,22 @@
 .ct-bullseye.ct-off {
   fill: #141c17;
 }
+
+.ct-seg.ct-danger path {
+  fill: var(--danger);
+}
+
+.ct-seg.ct-danger text {
+  fill: var(--text);
+  font-size: 14px;
+}
+
+.ct-seg.ct-out path {
+  fill: #141c17;
+}
+
+.ct-seg.ct-out text {
+  fill: var(--text-dim);
+  opacity: 0.4;
+  text-decoration: line-through;
+}

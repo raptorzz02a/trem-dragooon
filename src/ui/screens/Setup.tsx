@@ -1,7 +1,11 @@
 import type { ReactNode } from 'react';
 import { MAX_TEAMS, MIN_TEAMS } from '../../game-engine/engine';
 import type { ClockOptions, CricketOptions, RandomOptions, X01Options } from '../../game-engine/types';
-import { MODE_NAMES, MODES, TEAM_NOTES, type GameSetup } from '../../game-setup/setup';
+import { DEFAULT_SETUP, MODE_NAMES, MODES, TEAM_NOTES, type GameSetup } from '../../game-setup/setup';
+import { defaultValues, extraGame, isExtraMode, playersLabel, type ExtraGameDef } from '../../extra-games/catalog';
+import { useState } from 'react';
+import { GameIcon } from '../components/GameIcon';
+import { RulesDialog } from '../components/RulesDialog';
 import type { RoomPlace } from '../../online/protocol';
 import './Setup.css';
 
@@ -34,7 +38,29 @@ export function Choice<T extends string | number | boolean>(props: {
 
 type Update = (patch: Partial<GameSetup>) => void;
 
+/** Réglages d'un des « Autres jeux », lus dans sa fiche du catalogue. */
+function ExtraRules({ def, setup, update, disabled }: { def: ExtraGameDef; setup: GameSetup; update: Update; disabled: boolean }) {
+  const values = setup.extra?.[def.id] ?? defaultValues(def);
+  const set = (key: string, value: string | number) =>
+    update({ extra: { ...(setup.extra ?? DEFAULT_SETUP.extra), [def.id]: { ...values, [key]: value } } });
+  return (
+    <>
+      {def.settings.map((st) => (
+        <Choice
+          key={st.key}
+          disabled={disabled}
+          label={st.label}
+          value={values[st.key] ?? st.default}
+          options={st.choices.map((c) => ({ value: c.value, label: c.label }))}
+          onChange={(v) => set(st.key, v)}
+        />
+      ))}
+    </>
+  );
+}
+
 function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Update; disabled: boolean }) {
+  if (isExtraMode(setup.mode)) return <ExtraRules def={extraGame(setup.mode)} setup={setup} update={update} disabled={disabled} />;
   switch (setup.mode) {
     case 'x01': {
       const o = setup.x01;
@@ -192,43 +218,66 @@ export function SetupPanel(props: {
   const maxTeams = Math.min(MAX_TEAMS, Math.max(MIN_TEAMS, props.playerCount));
   const disabled = !host;
 
+  const extra = isExtraMode(setup.mode) ? extraGame(setup.mode) : null;
+  const [rules, setRules] = useState(false);
+
   return (
     <section className="setup-rules">
-      <Choice
-        disabled={disabled}
-        label="Où jouez-vous ?"
-        value={props.place}
-        options={[
-          { value: 'same' as const, label: PLACE_NAMES.same },
-          { value: 'remote' as const, label: PLACE_NAMES.remote },
-        ]}
-        onChange={props.onPlace}
-      />
-      <div className="setup-note">
-        {props.place === 'same'
-          ? 'Tout le monde joue sur la même cible : cet appareil saisit les fléchettes de tous.'
-          : 'Chacun joue sur sa cible et saisit ses fléchettes sur son téléphone pendant son tour.'}
-      </div>
+      {extra ? (
+        <>
+          <div className="setup-extra-head">
+            <GameIcon def={extra} size={56} />
+            <div className="setup-extra-name">
+              <strong>{extra.name}</strong>
+              <span>
+                {playersLabel(extra)} · Même cible uniquement
+              </span>
+            </div>
+            <button onClick={() => setRules(true)}>? Règles</button>
+          </div>
+          {rules && <RulesDialog def={extra} onClose={() => setRules(false)} />}
+        </>
+      ) : (
+        <>
+          <Choice
+            disabled={disabled}
+            label="Où jouez-vous ?"
+            value={props.place}
+            options={[
+              { value: 'same' as const, label: PLACE_NAMES.same },
+              { value: 'remote' as const, label: PLACE_NAMES.remote },
+            ]}
+            onChange={props.onPlace}
+          />
+          <div className="setup-note">
+            {props.place === 'same'
+              ? 'Tout le monde joue sur la même cible : cet appareil saisit les fléchettes de tous.'
+              : 'Chacun joue sur sa cible et saisit ses fléchettes sur son téléphone pendant son tour.'}
+          </div>
 
-      <Choice
-        disabled={disabled}
-        label="Jeu"
-        value={setup.mode}
-        options={MODES.map((m) => ({ value: m, label: m === 'x01' ? '301 · 501 · 701' : MODE_NAMES[m] }))}
-        onChange={(mode) => update({ mode })}
-      />
+          <Choice
+            disabled={disabled}
+            label="Jeu"
+            value={setup.mode}
+            options={MODES.map((m) => ({ value: m, label: m === 'x01' ? '301 · 501 · 701' : MODE_NAMES[m] }))}
+            onChange={(mode) => update({ mode })}
+          />
+        </>
+      )}
       <ModeRules setup={setup} update={update} disabled={disabled} />
 
-      <Choice
-        disabled={disabled}
-        label="Formule"
-        value={setup.teamMode}
-        options={[
-          { value: false, label: 'Individuel' },
-          { value: true, label: 'Équipes' },
-        ]}
-        onChange={(teamMode) => update({ teamMode })}
-      />
+      {(!extra || extra.teams) && (
+        <Choice
+          disabled={disabled}
+          label="Formule"
+          value={setup.teamMode}
+          options={[
+            { value: false, label: 'Individuel' },
+            { value: true, label: 'Équipes' },
+          ]}
+          onChange={(teamMode) => update({ teamMode })}
+        />
+      )}
       {setup.teamMode && (
         <>
           <Choice
@@ -261,6 +310,14 @@ export function SetupPanel(props: {
         ]}
         onChange={(randomizeOrder) => update({ randomizeOrder })}
       />
+      {extra && host && (
+        <button
+          className="setup-defaults"
+          onClick={() => update({ extra: { ...(setup.extra ?? DEFAULT_SETUP.extra), [extra.id]: defaultValues(extra) }, teamMode: false, randomizeOrder: true })}
+        >
+          ↺ Règles par défaut
+        </button>
+      )}
     </section>
   );
 }

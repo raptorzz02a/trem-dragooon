@@ -1,0 +1,92 @@
+.dart-board {
+  width: 100%;
+  height: 100%;
+}
+
+.db-rim {
+  fill: #0b100d;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.dart-board path,
+.dart-board circle:not(.db-rim) {
+  stroke: #0b100d;
+  stroke-width: 0.8;
+  transition: fill 200ms, opacity 200ms;
+}
+
+/* Couleurs d'une vraie cible, assombries : simples noir/crème, anneaux rouge/vert. */
+.db-single {
+  fill: #161d19;
+}
+.db-single.db-light {
+  fill: #2a332c;
+}
+.db-ring {
+  fill: #5a2424;
+}
+.db-ring.db-green-ring,
+.db-bull {
+  fill: #1f4a32;
+}
+.db-bullseye {
+  fill: #5a2424;
+}
+
+.db-label {
+  font-size: 11px;
+  font-weight: 800;
+  fill: var(--text-dim);
+}
+.db-label-gold {
+  fill: var(--gold-bright);
+  font-size: 15px;
+}
+.db-label-green,
+.db-label-red {
+  fill: var(--text);
+  font-size: 14px;
+}
+.db-label-soft {
+  fill: var(--gold-bright);
+  font-size: 14px;
+}
+.db-label-out {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+
+.dart-board .db-gold {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 5px rgba(204, 174, 94, 0.95));
+}
+.dart-board .db-green {
+  fill: var(--green-bright);
+  filter: drop-shadow(0 0 4px rgba(61, 200, 120, 0.8));
+}
+.dart-board .db-red {
+  fill: var(--danger);
+  filter: drop-shadow(0 0 4px rgba(229, 72, 77, 0.8));
+}
+.dart-board .db-soft {
+  fill: rgba(204, 174, 94, 0.22);
+}
+.dart-board .db-out {
+  opacity: 0.3;
+}
+.dart-board .db-pulse {
+  animation: db-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes db-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dart-board .db-pulse {
+    animation: none;
+  }
+}

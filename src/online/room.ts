@@ -14,6 +14,7 @@ import {
   type GameSession,
 } from '../game-session/session';
 import type { Rng } from '../teams/teams';
+import { isExtraMode } from '../extra-games/catalog';
 import type { ClientMessage, OnlineIdentity, OnlinePlayer, RoomPlace, RoomView } from './protocol';
 import { PUBLIC_SALOON_ID, type LiveSummary } from './saloons';
 
@@ -70,11 +71,21 @@ export function liveSummary(room: Room, watchers: number): LiveSummary | null {
   if (room.status === 'playing' && room.session && room.session.status !== 'in_progress' && room.session.status !== 'ready') return null;
   // Les comptes de la partie (hôte spectateur compris) la voient avec son code, pour la reprendre depuis n'importe quel appareil.
   const playerIds = room.players.map((p) => p.id);
-  return { mode: room.setup.mode, place: room.place, status: room.status === 'playing' ? 'playing' : 'lobby', players, playerIds, watchers };
+  return {
+    mode: room.setup.mode,
+    place: room.place,
+    status: room.status === 'playing' ? 'playing' : 'lobby',
+    players,
+    playerIds,
+    watchers,
+  };
 }
 
 function cleanIdentity(identity: OnlineIdentity, others: RoomPlayer[]): OnlineIdentity {
-  let name = String(identity.name ?? '').trim().slice(0, MAX_NAME_LENGTH) || 'Joueur';
+  let name =
+    String(identity.name ?? '')
+      .trim()
+      .slice(0, MAX_NAME_LENGTH) || 'Joueur';
   // Deux surnoms identiques seraient impossibles à distinguer au tableau.
   const taken = (n: string) => others.some((p) => p.name.toLocaleLowerCase('fr') === n.toLocaleLowerCase('fr'));
   for (let i = 2; taken(name); i++) name = `${identity.name.trim().slice(0, MAX_NAME_LENGTH - 3)} ${i}`;
@@ -98,7 +109,16 @@ export function joinRoom(
     (accountId ? room.players.find((p) => p.id === accountId) : undefined);
   if (known) {
     // Avec un compte, son pseudo et son avatar actuels remplacent ceux du salon.
-    const player = { ...known, ...(accountId === known.id ? cleanIdentity(identity, room.players.filter((p) => p.id !== known.id)) : {}), connected: true };
+    const player = {
+      ...known,
+      ...(accountId === known.id
+        ? cleanIdentity(
+            identity,
+            room.players.filter((p) => p.id !== known.id),
+          )
+        : {}),
+      connected: true,
+    };
     return { room: replacePlayer(room, player), player };
   }
   if (room.status !== 'lobby') throw new Error('La partie a déjà commencé : impossible de la rejoindre.');
@@ -114,7 +134,10 @@ export function joinRoom(
 
 /** Nouveau joueur en bas de la liste ; en équipes, il rejoint la moins nombreuse. */
 function addPlayer(room: Room, player: RoomPlayer): Room {
-  const team = smallestTeam(room.setup, room.players.map((p) => p.id));
+  const team = smallestTeam(
+    room.setup,
+    room.players.map((p) => p.id),
+  );
   return {
     ...room,
     players: [...room.players, player],
@@ -209,7 +232,9 @@ export function canUndo(room: Room | RoomView, playerId: string): boolean {
 /** Seul l'hôte termine un entraînement, pendant la partie. */
 export function canFinish(room: Room | RoomView, playerId: string): boolean {
   const session = room.session;
-  return room.status === 'playing' && !!session && session.status === 'in_progress' && sessionCanFinish(session) && room.hostId === playerId;
+  return (
+    room.status === 'playing' && !!session && session.status === 'in_progress' && sessionCanFinish(session) && room.hostId === playerId
+  );
 }
 
 /**
@@ -258,13 +283,16 @@ export function applyMessage(
       assertHost(room, playerId);
       assertLobby(room);
       const setup = cleanSetup(message.setup, room.setup);
-      return { ...room, setup: { ...setup, teamOf: { ...room.setup.teamOf, ...setup.teamOf } } };
+      // Les « Autres jeux » se jouent seulement sur la même cible.
+      const place = isExtraMode(setup.mode) ? 'same' : room.place;
+      return { ...room, place, setup: { ...setup, teamOf: { ...room.setup.teamOf, ...setup.teamOf } } };
     }
 
     case 'place':
       assertHost(room, playerId);
       assertLobby(room);
       if (message.place !== 'same' && message.place !== 'remote') throw new Error('Choix invalide.');
+      if (message.place === 'remote' && isExtraMode(room.setup.mode)) throw new Error('Les autres jeux se jouent sur la même cible.');
       return { ...room, place: message.place };
 
     case 'removePlayer': {
@@ -309,13 +337,15 @@ export function applyMessage(
     case 'start': {
       assertHost(room, playerId);
       assertLobby(room);
+      if (room.place !== 'same' && isExtraMode(room.setup.mode)) throw new Error('Les autres jeux se jouent sur la même cible.');
       const players = startingPlayers(room);
       const problem = setupProblem(room.setup, players);
       if (problem) throw new Error(problem);
       const config = buildConfig(room.setup, players, rng);
       const session = startSession(createSession(`online-${room.code}-${Date.parse(now) || 0}`, config, now), now);
       // À distance, les absents ne sont pas embarqués ; l'hôte spectateur reste dans le salon pour saisir.
-      const kept = room.place === 'same' ? room.players : room.players.filter((p) => p.id === room.hostId || players.some((x) => x.id === p.id));
+      const kept =
+        room.place === 'same' ? room.players : room.players.filter((p) => p.id === room.hostId || players.some((x) => x.id === p.id));
       return { ...room, players: kept, status: 'playing', session };
     }
 
@@ -351,9 +381,7 @@ export function applyMessage(
     case 'leave': {
       // Dans la salle d'attente, le joueur disparaît ; en pleine partie, sa place reste (il peut revenir).
       const rest =
-        room.status === 'lobby'
-          ? { ...room, players: room.players.filter((p) => p.id !== playerId) }
-          : setConnected(room, playerId, false);
+        room.status === 'lobby' ? { ...room, players: room.players.filter((p) => p.id !== playerId) } : setConnected(room, playerId, false);
       return ensureHost(rest.hostId === playerId && room.status === 'lobby' ? { ...rest, hostId: '' } : rest);
     }
 

@@ -1,4 +1,4 @@
-import type { GameMode, TurnRecord, X01Options } from '../game-engine/types';
+import type { ClassicMode, GameMode, TurnRecord, X01Options } from '../game-engine/types';
 import type { CricketState } from '../game-engine/modes/cricket';
 import { MIN_RANKED_GAMES, playerGames, rankings, summary, x01VariantLabel, type PlayerGame, type RankingRow, type StatsFilter } from './stats';
 import type { GameRecord, Profile } from './types';
@@ -8,7 +8,7 @@ import type { GameRecord, Profile } from './types';
 // Une valeur incalculable vaut null (affichée « non disponible »), jamais 0.
 
 /** Modes où une volée a une valeur chiffrée : points (301/501/701, Chiffre aléatoire, Entraînement) ou marques (Cricket). */
-export type ScoredMode = Exclude<GameMode, 'clock'>;
+export type ScoredMode = Exclude<ClassicMode, 'clock'>;
 
 export const isScoredMode = (mode: GameMode | undefined): mode is ScoredMode =>
   mode === 'x01' || mode === 'cricket' || mode === 'random' || mode === 'training';
