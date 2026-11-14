@@ -176,7 +176,7 @@ export const golfView: ModeView = {
 const be = (s: GameState) => s.mode as BermudaState;
 
 export const bermudaView: ModeView = {
-  title: ({ state }) => `Bermuda · objectif ${be(state).goal}`,
+  title: ({ state }) => `▲ des Bermudes · objectif ${be(state).goal}`,
   hero: ({ state }) => ({ label: 'À viser', value: formatZone(be(state).targets[roundOf(state)]!) }),
   hint: ({ state }) => {
     const s = be(state);

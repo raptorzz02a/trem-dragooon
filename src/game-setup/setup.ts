@@ -186,7 +186,7 @@ export function cleanSetup(input: unknown, base: GameSetup = DEFAULT_SETUP): Gam
     cricket: {
       variant: pick(c.variant, ['standard', 'cutthroat'] as const, base.cricket.variant),
       bull: pick(c.bull, [true, false], base.cricket.bull),
-      maxRounds: pick(c.maxRounds, [15, 20, 25], base.cricket.maxRounds),
+      maxRounds: pick(c.maxRounds, [null, 20], base.cricket.maxRounds),
     },
     clock: {
       order: pick(h.order, ['asc', 'desc', 'board'] as const, base.clock.order),

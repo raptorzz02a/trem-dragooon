@@ -5,7 +5,7 @@ import { config, events, play, players, teams } from '../../test/helpers';
 import type { GameConfig, ModeOptions } from '../types';
 import type { BaseballState } from './baseball';
 import { baseballTotal } from './baseball';
-import type { BermudaState } from './bermuda';
+import { drawBermudaTargets, type BermudaState } from './bermuda';
 import type { BigSixState } from './bigsix';
 import type { BombeState } from './bombe';
 import type { Bobs27State } from './bobs27';
@@ -101,6 +101,24 @@ describe('Bermuda', () => {
     const s = play(c(), 'T14 T14 T14 / 50 50 50 /');
     expect(s.status).toBe('finished');
     expect(s.winners).toEqual([0]);
+  });
+  it('tirage pondéré : haut 32,5 %, bas 32,5 %, triple 15 %, double 15 %, Bull 5 %, sans répétition', () => {
+    let seed = 7;
+    const rng = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+    const counts: Record<string, number> = { SO: 0, SI: 0, T: 0, D: 0, B: 0 };
+    const draws = 20000;
+    for (let i = 0; i < draws; i++) {
+      const t = drawBermudaTargets(rng);
+      expect(t).toHaveLength(82);
+      expect(new Set(t.map((z) => `${z.segment}${z.ring}`)).size).toBe(82);
+      const z = t[0]!;
+      counts[z.segment === 25 ? 'B' : z.ring]!++;
+    }
+    expect(counts.SO! / draws).toBeCloseTo(0.325, 1);
+    expect(counts.SI! / draws).toBeCloseTo(0.325, 1);
+    expect(counts.T! / draws).toBeCloseTo(0.15, 1);
+    expect(counts.D! / draws).toBeCloseTo(0.15, 1);
+    expect(counts.B! / draws).toBeCloseTo(0.05, 1);
   });
 });
 

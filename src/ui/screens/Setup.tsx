@@ -10,7 +10,7 @@ import type { RoomPlace } from '../../online/protocol';
 import './Setup.css';
 
 /** Rangée de choix exclusifs. */
-export function Choice<T extends string | number | boolean>(props: {
+export function Choice<T extends string | number | boolean | null>(props: {
   label: string;
   value: T;
   options: { value: T; label: ReactNode; disabled?: boolean }[];
@@ -114,9 +114,12 @@ function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Upda
           />
           <Choice
             disabled={disabled}
-            label="Manches maximum"
+            label="Manches"
             value={o.maxRounds}
-            options={[15, 20, 25].map((v) => ({ value: v, label: v }))}
+            options={[
+              { value: null, label: 'Illimité' },
+              { value: 20, label: '20 manches' },
+            ]}
             onChange={(maxRounds) => set({ maxRounds })}
           />
         </>
@@ -188,8 +191,8 @@ function ModeRules({ setup, update, disabled }: { setup: GameSetup; update: Upda
     case 'training':
       return (
         <div className="setup-note">
-          Chaque fléchette rapporte sa valeur, sans bust ni limite. L’hôte termine l’entraînement quand il veut : la partie
-          compte dans les statistiques, pas dans les victoires.
+          Chaque fléchette rapporte sa valeur, sans bust ni limite. L’hôte termine l’entraînement quand il veut : la partie compte dans les
+          statistiques, pas dans les victoires.
         </div>
       );
   }
@@ -229,9 +232,7 @@ export function SetupPanel(props: {
             <GameIcon def={extra} size={56} />
             <div className="setup-extra-name">
               <strong>{extra.name}</strong>
-              <span>
-                {playersLabel(extra)} · Même cible uniquement
-              </span>
+              <span>{playersLabel(extra)} · Même cible uniquement</span>
             </div>
             <button onClick={() => setRules(true)}>? Règles</button>
           </div>
@@ -313,7 +314,13 @@ export function SetupPanel(props: {
       {extra && host && (
         <button
           className="setup-defaults"
-          onClick={() => update({ extra: { ...(setup.extra ?? DEFAULT_SETUP.extra), [extra.id]: defaultValues(extra) }, teamMode: false, randomizeOrder: true })}
+          onClick={() =>
+            update({
+              extra: { ...(setup.extra ?? DEFAULT_SETUP.extra), [extra.id]: defaultValues(extra) },
+              teamMode: false,
+              randomizeOrder: true,
+            })
+          }
         >
           ↺ Règles par défaut
         </button>

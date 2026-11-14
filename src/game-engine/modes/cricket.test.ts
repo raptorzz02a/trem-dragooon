@@ -88,6 +88,13 @@ describe('C. Cricket', () => {
     expect(s.points).toEqual([0, 20]);
   });
 
+  it('par défaut, manches illimitées : la partie continue tant que personne n’a tout fermé', () => {
+    expect(cs(play(std, '')).options.maxRounds).toBeNull();
+    const s = play(std, Array(60).fill('0 0 0').join(' '));
+    expect(s.status).not.toBe('finished');
+    expect(play(std, closeAllP1).status).toBe('finished');
+  });
+
   it('limite de manches : plus de points, puis plus de marques', () => {
     const s = play(config('cricket', { maxRounds: 1 }), 'T20 S20 0 T19 0 0');
     expect(s.status).toBe('finished');

@@ -1,0 +1,223 @@
+import { assertValidDart } from './darts';
+import { clockRules } from './modes/clock';
+import { cricketRules } from './modes/cricket';
+import { randomRules } from './modes/random';
+import { trainingRules } from './modes/training';
+import { x01Rules } from './modes/x01';
+import { EXTRA_RULES } from './extra';
+import { topRanked } from './rules';
+export const DARTS_PER_TURN = 3;
+export const MAX_PLAYERS = 10;
+export const MIN_TEAMS = 2;
+export const MAX_TEAMS = 5;
+export const DEFAULT_OPTIONS = {
+    x01: { startScore: 501, out: 'double', maxRounds: null },
+    cricket: {
+        bull: true,
+        variant: 'standard',
+        maxRounds: null,
+    },
+    clock: {
+        order: 'asc',
+        required: 'any',
+        advanceByMultiplier: false,
+        bullFinish: 'any',
+    },
+    random: { rounds: 20, targets: [] },
+    training: {},
+};
+export { DEFAULT_EXTRA_OPTIONS } from './extra';
+const RULES = {
+    x01: x01Rules,
+    cricket: cricketRules,
+    clock: clockRules,
+    random: randomRules,
+    training: trainingRules,
+    ...EXTRA_RULES,
+};
+/** Vérifie la composition de la partie. Lève une erreur explicite si elle est invalide. */
+export function validateConfig(config) {
+    const { sides, teamMode } = config;
+    const players = sides.flatMap((s) => s.playerIds);
+    if (players.length < 1)
+        throw new Error('Il faut au moins un joueur.');
+    if (players.length > MAX_PLAYERS)
+        throw new Error(`${MAX_PLAYERS} joueurs maximum.`);
+    if (new Set(players).size !== players.length)
+        throw new Error('Un joueur ne peut être que dans une seule équipe.');
+    if (new Set(sides.map((s) => s.id)).size !== sides.length)
+        throw new Error('Identifiants de côté en double.');
+    if (sides.some((s) => s.playerIds.length === 0))
+        throw new Error('Chaque équipe doit avoir au moins un joueur.');
+    if (teamMode) {
+        if (sides.length < MIN_TEAMS || sides.length > MAX_TEAMS) {
+            throw new Error(`Il faut entre ${MIN_TEAMS} et ${MAX_TEAMS} équipes.`);
+        }
+    }
+    else if (sides.some((s) => s.playerIds.length !== 1)) {
+        throw new Error('En individuel, chaque côté compte un seul joueur.');
+    }
+    RULES[config.mode]?.validate?.(config);
+}
+/** Joueur qui lance pour un côté donné : les membres d'une équipe se relaient à chaque manche. */
+export function playerFor(config, sideIndex, round) {
+    const side = config.sides[sideIndex];
+    return side.playerIds[round % side.playerIds.length];
+}
+/**
+ * Recalcule entièrement l'état de la partie à partir de la configuration et de la liste des événements.
+ * C'est la seule source de vérité : annulation et correction consistent à modifier la liste puis à rejouer.
+ */
+export function computeState(config, events) {
+    validateConfig(config);
+    const rules = RULES[config.mode];
+    const sideCount = config.sides.length;
+    let modeState = rules.init(config);
+    let turnStartState = modeState;
+    let turnIndex = 0;
+    let darts = [];
+    const turns = [];
+    // Objet mutable : TypeScript ne suit pas les affectations faites dans les fonctions internes.
+    const game = {
+        status: 'in_progress',
+        winners: [],
+    };
+    let ignoredEvents = 0;
+    const ctx = () => ({
+        round: Math.floor(turnIndex / sideCount),
+        sideIndex: turnIndex % sideCount,
+    });
+    /** Tous les côtés ont joué la manche : le mode dit si la partie s'arrête. */
+    const roundCheck = () => {
+        const { round, sideIndex } = ctx();
+        if (sideIndex !== sideCount - 1)
+            return;
+        const end = rules.onRoundEnd(modeState, round);
+        if (end) {
+            game.status = 'finished';
+            game.winners = end.winners;
+        }
+    };
+    const startTurn = () => {
+        // Côtés éliminés : leur tour est sauté (au plus un tour complet, la partie se termine avant).
+        for (let guard = 0; rules.skipSide?.(modeState, ctx().sideIndex) && guard < sideCount; guard++) {
+            roundCheck();
+            turnIndex++;
+            if (game.status === 'finished')
+                return;
+        }
+        darts = [];
+        if (rules.onTurnStart)
+            modeState = rules.onTurnStart(modeState, ctx());
+        turnStartState = modeState;
+    };
+    const closeTurn = (outcome) => {
+        const { round, sideIndex } = ctx();
+        if (rules.onTurnEnd && outcome !== 'bust' && outcome !== 'win')
+            modeState = rules.onTurnEnd(modeState, { round, sideIndex });
+        turns.push({
+            turnIndex,
+            round,
+            sideIndex,
+            playerId: playerFor(config, sideIndex, round),
+            darts,
+            outcome,
+        });
+        if (outcome !== 'win')
+            roundCheck();
+        turnIndex++;
+        if (game.status === 'in_progress')
+            startTurn();
+    };
+    startTurn();
+    events.forEach((event, eventIndex) => {
+        if (game.status === 'finished') {
+            ignoredEvents++;
+            return;
+        }
+        if (event.type === 'endTurn') {
+            closeTurn('ended');
+            return;
+        }
+        if (event.type === 'finish') {
+            // Fin demandée : la volée entamée est gardée, la partie s'arrête là, classée sur les points du moment.
+            const { round, sideIndex } = ctx();
+            if (darts.length > 0)
+                turns.push({
+                    turnIndex,
+                    round,
+                    sideIndex,
+                    playerId: playerFor(config, sideIndex, round),
+                    darts,
+                    outcome: 'ended',
+                });
+            game.status = 'finished';
+            game.winners = topRanked(rules.ranking(modeState));
+            return;
+        }
+        assertValidDart(event.dart);
+        const result = rules.applyDart(modeState, { ...ctx(), dartIndex: darts.length }, event.dart);
+        darts.push({
+            dart: event.dart,
+            eventIndex,
+            points: result.bust ? 0 : result.points,
+        });
+        if (result.bust) {
+            modeState = turnStartState;
+            closeTurn('bust');
+        }
+        else if (result.win || result.winners) {
+            modeState = result.state;
+            game.status = 'finished';
+            game.winners = result.winners ?? [ctx().sideIndex];
+            closeTurn('win');
+        }
+        else {
+            modeState = result.state;
+            if (result.endTurn)
+                closeTurn('done');
+            else if (darts.length >= DARTS_PER_TURN)
+                closeTurn('complete');
+        }
+    });
+    let current = null;
+    if (game.status === 'in_progress') {
+        const { round, sideIndex } = ctx();
+        current = {
+            turnIndex,
+            round,
+            sideIndex,
+            playerId: playerFor(config, sideIndex, round),
+            darts,
+            dartsLeft: DARTS_PER_TURN - darts.length,
+        };
+    }
+    let ranking = rules.ranking(modeState);
+    if (game.status === 'finished')
+        ranking = putWinnersFirst(ranking, game.winners);
+    return {
+        config,
+        status: game.status,
+        winners: game.winners,
+        ranking,
+        current,
+        turns,
+        mode: modeState,
+        ignoredEvents,
+    };
+}
+/** Une victoire immédiate (Cricket) place le gagnant premier même si un autre a plus de points. */
+function putWinnersFirst(ranking, winners) {
+    const first = ranking.filter((r) => winners.includes(r.sideIndex)).map((r) => ({ ...r, rank: 1 }));
+    const rest = ranking.filter((r) => !winners.includes(r.sideIndex));
+    const reranked = [];
+    rest.forEach((r, i) => {
+        const prev = rest[i - 1];
+        const tied = prev !== undefined && prev.rank === r.rank;
+        reranked.push({
+            ...r,
+            rank: tied ? reranked[i - 1].rank : first.length + i + 1,
+        });
+    });
+    return [...first, ...reranked];
+}

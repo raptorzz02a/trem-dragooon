@@ -41,7 +41,8 @@ export interface CricketOptions {
   bull: boolean;
   /** standard : les points vont au tireur. cutthroat : aux adversaires, le plus bas gagne. */
   variant: 'standard' | 'cutthroat';
-  maxRounds: number;
+  /** Nombre maximal de manches. null = illimité : la partie s'arrête quand un joueur a tout fermé. */
+  maxRounds: number | null;
 }
 
 export interface ClockOptions {

@@ -130,7 +130,7 @@ export const MORE_GAMES: ExtraGameDef[] = [
   },
   {
     id: 'bermuda',
-    name: 'Bermuda',
+    name: '▲ des Bermudes',
     sub: 'Une zone tirée au sort à chaque manche',
     categories: ['classic', 'team'],
     icon: 'tri',
@@ -138,7 +138,7 @@ export const MORE_GAMES: ExtraGameDef[] = [
     maxPlayers: MAX_PLAYERS,
     teams: true,
     bubble:
-      'À chaque manche, la borne tire une zone de la cible : un double, un triple, un simple haut ou bas, le Bull 25 ou le Bull 50. Touche-la pour marquer sa valeur. Si tu la rates complètement, tu perds sa valeur simple. Le premier à l’objectif gagne.',
+      'À chaque manche, la borne tire une zone de la cible : un simple haut (32,5 %), un simple bas (32,5 %), un triple (15 %), un double (15 %) ou le Bull 25 / 50 (5 %). Touche-la pour marquer sa valeur. Si tu la rates complètement, tu perds sa valeur simple. Le premier à l’objectif gagne.',
     rules: {
       goal: 'Atteindre l’objectif de points le premier',
       points: 'Une touche sur la zone rapporte la valeur de la fléchette (T14 = 42)',
