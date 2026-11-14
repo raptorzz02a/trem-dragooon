@@ -1,7 +1,8 @@
 # Réinstaller la borne sur un nouveau PC
 
 Ce guide remonte tout le système sur un PC Windows neuf : l'appli TREM-DRAGOOON (en ligne), le pont de
-l'ampoule Yeelight et la saisie par caméra Dart Sense. Compter environ 45 minutes.
+l'ampoule Yeelight et la saisie par caméra Dart Sense. Le plus simple est l'installateur en un double-clic
+(section 3, environ 20 minutes, surtout du téléchargement) ; les sections 4 à 9 font la même chose à la main.
 
 Rien n'est stocké sur le PC lui-même : les comptes, les parties et les stats sont sur le serveur en ligne.
 On ne perd donc rien en changeant de PC, il suffit de se reconnecter.
@@ -14,8 +15,22 @@ On ne perd donc rien en changeant de PC, il suffit de se reconnecter.
 | Pont de l'ampoule (`bridge/pont-yeelight.mjs`) | Sur le PC, avec Node.js | Transmet les effets lumineux à l'ampoule Yeelight. Facultatif. |
 | Dart Sense (`trem_sense.py` + modèle `weights.pt`) | Sur le PC, avec Python | Lit la caméra et saisit les fléchettes tout seul. Facultatif. |
 | `trem-dragooon.bat` | Dossier de démarrage de Windows | Lance les deux ponts puis l'appli en plein écran à l'ouverture de session. |
+| `mise-a-jour.bat` | Bureau | Récupère la dernière version (`git pull`) et recopie les scripts caméra dans Dart Sense. |
+| `installer.bat` + `installer.ps1` | Dossier `borne` du dépôt, ou package zip | Installe tout sur un PC neuf (section 3). |
 
 Sans pont ni Dart Sense, l'appli marche quand même : on saisit au pavé et il n'y a pas d'effets lumineux.
+
+### Dossiers sur le PC
+
+```
+C:\Users\<compte>\trem-dragooon\        dépôt de la borne (git clone), avec bridge\, borne\, dart-sense\
+C:\darts\dart-sense-main\                dépôt Dart Sense (weights.pt, get_scores.py)
+    trem_sense.py, test_camera.py        copiés depuis trem-dragooon\dart-sense\
+    .venv\                               environnement Python 3.11 (ultralytics, opencv-python, openvino)
+    weights_openvino_model\              modèle accéléré, créé une fois
+Dossier de démarrage (shell:startup)    trem-dragooon.bat (copie réglée : adresse de l'ampoule)
+Bureau                                  Mise a jour TREM-DRAGOOON.bat
+```
 
 ## 2. Prérequis
 
@@ -26,19 +41,22 @@ Sans pont ni Dart Sense, l'appli marche quand même : on saisit au pavé et il n
 - **Connexion Internet** (l'appli est en ligne).
 - **Caméra** : la Crosstour CT9000 branchée en **USB, mode « PC Camera »** (appuyer sur OK à la connexion
   pour choisir PC Camera), ou une webcam USB 1080p (Logitech C920/C922). Une ou deux caméras.
-- Ampoule **Yeelight** avec le **Contrôle LAN** activé (appli Yeelight, réglages de l'ampoule), sur le même
-  réseau que le PC.
+- Ampoule **Yeelight** (facultatif) avec le **Contrôle LAN** activé (appli Yeelight, réglages de l'ampoule),
+  sur le même réseau que le PC.
 
 ### Logiciels à installer
 
 | Logiciel | Version | Où le trouver | Remarque |
 | --- | --- | --- | --- |
-| **Python** | **3.11** (3.11.9 testé) | [python.org/downloads/windows](https://www.python.org/downloads/windows/) : « Windows installer (64-bit) » | Cocher **Add python.exe to PATH**. Éviter 3.13 et plus : PyTorch et OpenVINO y sont moins bien suivis. |
-| **Node.js** | 20 LTS ou plus | [nodejs.org](https://nodejs.org) : installeur « LTS » | Seulement pour le pont de l'ampoule. |
+| **Python** | **3.11** (3.11.9 testé) | [python-3.11.9-amd64.exe](https://www.python.org/ftp/python/3.11.9/python-3.11.9-amd64.exe) | Cocher **Add python.exe to PATH**. Éviter 3.13 et plus : PyTorch et OpenVINO y sont moins bien suivis. |
+| **Node.js** | 20 LTS ou plus | [nodejs.org/fr/download](https://nodejs.org/fr/download) : installeur « LTS » | Seulement pour le pont de l'ampoule : inutile sans ampoule. |
 | **Git** | récent | [git-scm.com/download/win](https://git-scm.com/download/win) | Pour récupérer le dossier de la borne et le mettre à jour. Sinon, télécharger le ZIP depuis GitHub. |
-| **Microsoft Edge** | déjà dans Windows | | Le `.bat` ouvre l'appli avec Edge. |
+| **Microsoft Edge** | déjà dans Windows | [microsoft.com/fr-fr/edge/download](https://www.microsoft.com/fr-fr/edge/download) | Le `.bat` ouvre l'appli avec Edge. |
 
-Paquets Python (installés à l'étape 4, dans un environnement à part) :
+L'installateur de la section 3 installe lui-même Git, Python 3.11 et Node.js s'ils manquent (avec `winget`,
+présent dans Windows 10 et 11).
+
+Paquets Python (installés à l'étape 5, dans un environnement à part) :
 
 | Paquet | Sert à |
 | --- | --- |
@@ -52,7 +70,32 @@ Ne pas garder une vieille `ultralytics` 8.2.x : elle plante avec les PyTorch ré
 Tout se tape dans **PowerShell** (menu Démarrer, « PowerShell », pas « PowerShell ISE »). Si PowerShell
 refuse `npm`, taper `npm.cmd`.
 
-## 3. Récupérer le dossier de la borne
+## 3. Installation en un double-clic
+
+1. Copier le dossier du package (`trem-dragooon-installation`) sur le PC, ou prendre `borne\` dans le dépôt.
+2. Double-cliquer sur **`installer.bat`**. Si Windows affiche « Windows a protégé votre ordinateur » :
+   **Informations complémentaires**, puis **Exécuter quand même**.
+3. Répondre aux deux questions : ampoule Yeelight ou non, et son adresse IP (Entrée = recherche automatique).
+4. Laisser faire. Si Windows demande l'autorisation d'installer Git, Python ou Node : **Oui**.
+
+L'installateur, dans l'ordre :
+
+| Étape | Ce qu'il fait |
+| --- | --- |
+| 1 | Vérifie Git, Python 3.11, Node.js (seulement avec une ampoule) et Edge ; installe ceux qui manquent avec winget. |
+| 2 | Télécharge le dépôt de la borne dans `C:\Users\<compte>\trem-dragooon` (ou le met à jour s'il est déjà là). |
+| 3 | Télécharge Dart Sense dans `C:\darts\dart-sense-main` et y copie `trem_sense.py` et `test_camera.py`. |
+| 4 | Crée l'environnement Python `.venv` et installe `ultralytics`, `opencv-python`, `openvino`. |
+| 5 | Prépare le modèle accéléré OpenVINO. |
+| 6 | Place `trem-dragooon.bat` dans le dossier de démarrage, réglé pour l'ampoule (ou sans pont s'il n'y en a pas), et `Mise a jour TREM-DRAGOOON.bat` sur le Bureau. |
+| 7 | Propose de lancer la borne tout de suite. |
+
+On peut le relancer sans risque : ce qui est déjà fait est sauté. Si Git, Python ou Node vient d'être installé
+et n'est « pas encore visible », fermer la fenêtre et relancer `installer.bat`.
+
+Ensuite : brancher la caméra (section 6, essai) et coupler avec l'appli (section 9).
+
+## 4. Installation à la main : dossier de la borne
 
 ```powershell
 cd $HOME
@@ -62,9 +105,9 @@ git clone https://github.com/raptorzz02a/trem-dragooon.git
 Le dossier arrive dans `C:\Users\<compte>\trem-dragooon`. C'est là que le `.bat` cherche le pont de
 l'ampoule. Pas besoin de `npm install` sur la borne : le pont n'a aucune dépendance.
 
-Pour les mises à jour plus tard : `cd $HOME\trem-dragooon` puis `git pull`.
+Pour les mises à jour plus tard : `mise-a-jour.bat` (section 10).
 
-## 4. Installer Dart Sense
+## 5. Installer Dart Sense
 
 1. **Télécharger Dart Sense** : [github.com/bnww/dart-sense](https://github.com/bnww/dart-sense), bouton
    **Code**, **Download ZIP**. Extraire dans `C:\darts\` pour obtenir `C:\darts\dart-sense-main\`, avec
@@ -97,7 +140,7 @@ Pour les mises à jour plus tard : `cd $HOME\trem-dragooon` puis `git pull`.
 
    Un dossier `weights_openvino_model` apparaît à côté de `weights.pt`.
 
-## 5. Brancher et vérifier la caméra
+## 6. Brancher et vérifier la caméra
 
 1. Brancher la caméra en USB (Crosstour : mode **PC Camera**).
 2. Lister les caméras vues par Windows :
@@ -123,7 +166,7 @@ Pour les mises à jour plus tard : `cd $HOME\trem-dragooon` puis `git pull`.
 Placement : caméra à hauteur du centre de la cible, 20 à 40° sur le côté, à 40-60 cm, la cible remplissant
 le carré central de l'image, éclairage blanc constant (anneau LED). Détails dans `docs/dart-sense.md`.
 
-## 6. Pont de l'ampoule
+## 7. Pont de l'ampoule
 
 ```powershell
 cd $HOME\trem-dragooon
@@ -134,7 +177,7 @@ Il cherche l'ampoule et affiche `Pont prêt : ampoule 192.168.x.y`. Noter cette 
 au pont (`--ip`). Pour qu'elle ne change pas, la réserver dans la box (bail DHCP fixe pour l'ampoule).
 Si Windows demande d'autoriser Node sur le réseau : **réseaux privés**. `Ctrl+C` pour arrêter.
 
-## 7. Démarrage automatique
+## 8. Démarrage automatique
 
 1. Copier `borne\trem-dragooon.bat` du dossier de la borne dans le dossier de démarrage : `Windows + R`, taper
    `shell:startup`, Entrée, puis coller le fichier dans la fenêtre qui s'ouvre.
@@ -146,7 +189,7 @@ Si Windows demande d'autoriser Node sur le réseau : **réseaux privés**. `Ctrl
    | `set DARTSENSE=` | `C:\darts\dart-sense-main` | Dart Sense est dans un autre dossier |
    | `set CAMERA=` | `auto` | une caméra précise est voulue (`1`, ou `1,2` pour deux) |
    | `set DEFINITION=` | `1920x1080` | la caméra ne fait pas de 1080p |
-   | `--ip 192.168.1.10` (étape 1 du fichier) | adresse de l'ampoule | l'ampoule a une autre adresse sur ce réseau |
+   | `--ip 192.168.1.10` (étape 1 du fichier) | adresse de l'ampoule | l'ampoule a une autre adresse ; sans ampoule, supprimer la ligne `start "Pont lumiere"` |
 
 3. Double-cliquer sur le `.bat` pour l'essayer. Il :
    - passe le PC en mode performances ;
@@ -154,7 +197,7 @@ Si Windows demande d'autoriser Node sur le réseau : **réseaux privés**. `Ctrl
    - prépare le modèle OpenVINO s'il manque, puis lance Dart Sense en priorité haute (fenêtre « Pont Dart Sense ») ;
    - ouvre l'appli dans Edge en plein écran avec `?ampoule=1&camera=1`.
 
-## 8. Coupler avec l'appli en ligne
+## 9. Coupler avec l'appli en ligne
 
 1. Dans l'appli ouverte par le `.bat`, **se connecter** avec son compte (pseudo et mot de passe habituels).
    La session reste ouverte sur ce PC tant qu'on ne se déconnecte pas.
@@ -167,7 +210,14 @@ Si Windows demande d'autoriser Node sur le réseau : **réseaux privés**. `Ctrl
 Pas d'import de stats à refaire : la reprise des stats de l'ancienne borne a déjà été faite, tout est sur le
 serveur.
 
-## 9. Vérifications
+## 10. Mettre à jour la borne
+
+Double-cliquer sur **Mise a jour TREM-DRAGOOON** (Bureau ; sinon `borne\mise-a-jour.bat` du dépôt). Il fait
+`git pull`, affiche les nouveautés et recopie `trem_sense.py` et `test_camera.py` dans le dossier de Dart
+Sense. Fermer ensuite les fenêtres « Pont lumiere » et « Pont Dart Sense » et relancer `trem-dragooon.bat`
+(ou redémarrer le PC). L'appli elle-même est en ligne : elle se met à jour toute seule.
+
+## 11. Vérifications
 
 - [ ] L'appli s'ouvre en plein écran et le compte est connecté.
 - [ ] Menu du compte : **Activer l'ampoule de la borne** donne un flash doré.
@@ -179,16 +229,16 @@ serveur.
       est sur secteur).
 - [ ] Après redémarrage du PC, tout se relance seul à l'ouverture de session.
 
-## 10. Dépannage rapide
+## 12. Dépannage rapide
 
 | Symptôme | Cause probable | Que faire |
 | --- | --- | --- |
 | **📷 Caméra éteinte** (rouge) | Dart Sense n'est pas lancé ou s'est arrêté | Regarder la fenêtre « Pont Dart Sense » : erreur Python, ou `Plus d image de la camera … depuis 10 s` (câble, mode PC Camera). Relancer le `.bat`. |
-| `No module named ultralytics` / `cv2` | Paquets installés dans un autre Python | Refaire l'étape 4.3 dans `.venv`. |
+| `No module named ultralytics` / `cv2` | Paquets installés dans un autre Python | Refaire l'étape 5.3 dans `.venv`. |
 | `py` introuvable | Python pas installé, ou pas dans le PATH | Réinstaller Python 3.11 en cochant **Add python.exe to PATH**. |
 | `Aucune camera ne voit la cible` | Mauvais cadrage, ou caméra en mode stockage | `test_camera.py`, recadrer, puis forcer `CAMERA=1`. |
 | **📷 Cible non repérée** (orange) | Cible trop petite, mal éclairée ou masquée | La cible doit remplir le carré central. Allumer l'anneau LED. |
 | « Pont de l'ampoule injoignable » | Fenêtre « Pont lumiere » fermée, ou mauvaise IP | Relancer le `.bat`, vérifier `--ip` et le Contrôle LAN. |
 | `node` introuvable | Node.js pas installé | Installer Node.js LTS puis rouvrir PowerShell. |
 | Edge ne parle pas aux ponts | Accès au réseau local refusé | Paramètres d'Edge, autorisations du site, autoriser **Appareils du réseau local**. |
-| Très peu d'images/s | Modèle non accéléré ou PC en économie d'énergie | Étape 4.4, brancher le secteur. |
+| Très peu d'images/s | Modèle non accéléré ou PC en économie d'énergie | Étape 5.4, brancher le secteur. |

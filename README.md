@@ -34,7 +34,7 @@ npm run typecheck # vérification TypeScript
 | `bridge` | Pont local de l'ampoule Yeelight, lancé sur le PC de la borne. Voir `docs/ampoule.md`. |
 | `dart-sense` | Saisie automatique par caméra (Dart Sense), lancée sur le PC de la borne. Voir `docs/dart-sense.md`. |
 | `server` | Serveur Cloudflare (Worker + Durable Objects) qui sert l'appli et les salons en ligne. |
-| `borne/trem-dragooon.bat` | Démarrage de la borne (ponts + appli plein écran), à mettre dans `shell:startup`. |
+| `borne` | `installer.bat` (installe tout sur un PC neuf), `trem-dragooon.bat` (démarrage, dans `shell:startup`), `mise-a-jour.bat` (git pull). |
 | `docs/installation.md` | Réinstaller la borne sur un nouveau PC : prérequis, Dart Sense, ampoule, démarrage, vérifications. |
 | `docs/regles.md` | Règles exactes appliquées par le moteur. |
 | `docs/guide-utilisateur.md` | Guide utilisateur (livrable 05). |
