@@ -33,7 +33,7 @@ export const DEFAULT_OPTIONS = {
   cricket: {
     bull: true,
     variant: 'standard',
-    maxRounds: 20,
+    maxRounds: null,
   } satisfies CricketOptions,
   clock: {
     order: 'asc',

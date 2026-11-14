@@ -10,14 +10,39 @@ export interface BermudaOptions {
   targets: Zone[];
 }
 
-/** Toutes les cibles possibles : double, triple, simple haut, simple bas de chaque numéro, Bull 25 et Bull 50. */
+/**
+ * Probabilité de chaque famille de cible à chaque manche (règle de ju) : simple haut 32,5 %, simple bas 32,5 %,
+ * triple 15 %, double 15 %, Bull 5 % (Bull 25 ou Bull 50, moitié-moitié).
+ */
+export const BERMUDA_WEIGHTS = [
+  { weight: 32.5, zones: NUMBERS.map((n): Zone => ({ segment: n, ring: 'SO' })) },
+  { weight: 32.5, zones: NUMBERS.map((n): Zone => ({ segment: n, ring: 'SI' })) },
+  { weight: 15, zones: NUMBERS.map((n): Zone => ({ segment: n, ring: 'T' })) },
+  { weight: 15, zones: NUMBERS.map((n): Zone => ({ segment: n, ring: 'D' })) },
+  {
+    weight: 5,
+    zones: [
+      { segment: BULL, ring: 'S' },
+      { segment: BULL, ring: 'D' },
+    ] as Zone[],
+  },
+] as const;
+
+/**
+ * Tire la suite des cibles : à chaque manche, une famille selon BERMUDA_WEIGHTS, puis une cible de cette famille
+ * pas encore sortie. Jamais deux fois la même cible ; une famille épuisée sort du tirage et les autres gardent
+ * leurs proportions entre elles.
+ */
 export function drawBermudaTargets(rng: () => number = Math.random): Zone[] {
-  const all: Zone[] = [
-    ...NUMBERS.flatMap((n) => (['D', 'T', 'SO', 'SI'] as const).map((ring) => ({ segment: n, ring }))),
-    { segment: BULL, ring: 'S' },
-    { segment: BULL, ring: 'D' },
-  ];
-  return shuffle(all, rng);
+  const pools = BERMUDA_WEIGHTS.map((f) => ({ weight: f.weight, zones: shuffle(f.zones, rng) }));
+  const out: Zone[] = [];
+  for (;;) {
+    const open = pools.filter((p) => p.zones.length > 0);
+    if (open.length === 0) return out;
+    let r = rng() * open.reduce((t, p) => t + p.weight, 0);
+    const pool = open.find((p) => (r -= p.weight) < 0) ?? open[open.length - 1]!;
+    out.push(pool.zones.pop()!);
+  }
 }
 
 export interface BermudaState {
@@ -30,7 +55,7 @@ export interface BermudaState {
 }
 
 /**
- * Bermuda (règles de ju) : une zone tirée au sort par manche, jamais deux fois la même. Une touche rapporte la valeur
+ * Triangle des Bermudes (« ▲ des Bermudes », règles de ju) : une zone tirée au sort par manche, jamais deux fois la même. Une touche rapporte la valeur
  * de la fléchette ; une volée sans touche retire la valeur simple de la cible. Le premier à l'objectif gagne
  * (on finit la manche).
  */

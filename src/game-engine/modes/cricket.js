@@ -1,0 +1,75 @@
+import { BULL } from '../darts';
+import { rankBy, topRanked } from '../rules';
+export const CRICKET_NUMBERS = [20, 19, 18, 17, 16, 15];
+export function isClosed(state, side, targetIndex) {
+    return state.marks[side][targetIndex] >= 3;
+}
+export function hasClosedAll(state, side) {
+    return state.marks[side].every((m) => m >= 3);
+}
+function compareSides(state, a, b) {
+    const byPoints = state.options.variant === 'cutthroat'
+        ? state.points[a] - state.points[b]
+        : state.points[b] - state.points[a];
+    return byPoints || state.totalMarks[b] - state.totalMarks[a];
+}
+export const cricketRules = {
+    init(config) {
+        const options = config.options;
+        const targets = [...CRICKET_NUMBERS, ...(options.bull ? [BULL] : [])];
+        const n = config.sides.length;
+        return {
+            options,
+            targets,
+            marks: Array.from({ length: n }, () => targets.map(() => 0)),
+            points: Array(n).fill(0),
+            totalMarks: Array(n).fill(0),
+        };
+    },
+    applyDart(state, ctx, dart) {
+        const t = state.targets.indexOf(dart.segment);
+        if (t < 0)
+            return { state, points: 0 };
+        const me = ctx.sideIndex;
+        const hits = dart.multiplier; // Bull 25 = 1 marque, Bull 50 = 2 marques
+        const already = state.marks[me][t];
+        const extra = Math.max(0, already + hits - 3);
+        const value = state.targets[t];
+        const marks = state.marks.map((row) => row.slice());
+        marks[me][t] = Math.min(3, already + hits);
+        const points = state.points.slice();
+        const totalMarks = state.totalMarks.slice();
+        totalMarks[me] = totalMarks[me] + hits;
+        // Les marques en trop rapportent tant qu'au moins un adversaire n'a pas fermé le numéro.
+        const open = state.marks.map((_, s) => s).filter((s) => s !== me && state.marks[s][t] < 3);
+        let scored = 0;
+        if (extra > 0 && open.length > 0) {
+            scored = extra * value;
+            if (state.options.variant === 'cutthroat') {
+                for (const s of open)
+                    points[s] = points[s] + scored;
+            }
+            else {
+                points[me] = points[me] + scored;
+            }
+        }
+        const next = { ...state, marks, points, totalMarks };
+        return { state: next, points: scored, win: isWinner(next, me) };
+    },
+    onRoundEnd(state, round) {
+        const max = state.options.maxRounds;
+        if (max == null || round + 1 < max)
+            return null;
+        return { winners: topRanked(this.ranking(state)) };
+    },
+    ranking(state) {
+        return rankBy(state.points.length, (a, b) => compareSides(state, a, b), (s) => state.points[s]);
+    },
+};
+/** Tout fermé, et score au moins égal (standard) ou au plus égal (cut-throat) à chaque adversaire. */
+function isWinner(state, side) {
+    if (!hasClosedAll(state, side))
+        return false;
+    const mine = state.points[side];
+    return state.points.every((p, s) => s === side ? true : state.options.variant === 'cutthroat' ? mine <= p : mine >= p);
+}

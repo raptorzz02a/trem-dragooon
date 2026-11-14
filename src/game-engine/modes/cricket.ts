@@ -24,10 +24,7 @@ export function hasClosedAll(state: CricketState, side: number): boolean {
 }
 
 function compareSides(state: CricketState, a: number, b: number): number {
-  const byPoints =
-    state.options.variant === 'cutthroat'
-      ? state.points[a]! - state.points[b]!
-      : state.points[b]! - state.points[a]!;
+  const byPoints = state.options.variant === 'cutthroat' ? state.points[a]! - state.points[b]! : state.points[b]! - state.points[a]!;
   return byPoints || state.totalMarks[b]! - state.totalMarks[a]!;
 }
 
@@ -78,12 +75,17 @@ export const cricketRules: ModeRules<CricketState> = {
   },
 
   onRoundEnd(state, round) {
-    if (round + 1 < state.options.maxRounds) return null;
+    const max = state.options.maxRounds;
+    if (max == null || round + 1 < max) return null;
     return { winners: topRanked(this.ranking(state)) };
   },
 
   ranking(state) {
-    return rankBy(state.points.length, (a, b) => compareSides(state, a, b), (s) => state.points[s]!);
+    return rankBy(
+      state.points.length,
+      (a, b) => compareSides(state, a, b),
+      (s) => state.points[s]!,
+    );
   },
 };
 
@@ -91,7 +93,5 @@ export const cricketRules: ModeRules<CricketState> = {
 function isWinner(state: CricketState, side: number): boolean {
   if (!hasClosedAll(state, side)) return false;
   const mine = state.points[side]!;
-  return state.points.every((p, s) =>
-    s === side ? true : state.options.variant === 'cutthroat' ? mine <= p : mine >= p,
-  );
+  return state.points.every((p, s) => (s === side ? true : state.options.variant === 'cutthroat' ? mine <= p : mine >= p));
 }

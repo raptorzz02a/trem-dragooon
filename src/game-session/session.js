@@ -1,0 +1,101 @@
+import { computeState } from '../game-engine/engine';
+import { assertValidDart, cleanDart } from '../game-engine/darts';
+import { randomOrder } from '../teams/teams';
+const nowIso = () => new Date().toISOString();
+export function createSession(id, config, now = nowIso()) {
+    computeState(config, []); // valide la configuration
+    return { id, config, status: 'ready', events: [], corrections: [], createdAt: now, startedAt: null, endedAt: null };
+}
+export function startSession(session, now = nowIso()) {
+    if (session.status !== 'ready')
+        throw new Error('La partie n’est pas prête à démarrer.');
+    return { ...session, status: 'in_progress', startedAt: now };
+}
+export function sessionState(session) {
+    return computeState(session.config, session.events);
+}
+/** Rejoue les événements et met le statut à jour (une correction peut terminer ou rouvrir la partie). */
+function withEvents(session, events, now, extra = {}) {
+    const state = computeState(session.config, events);
+    const finished = state.status === 'finished';
+    return {
+        ...session,
+        ...extra,
+        // Les événements devenus inutiles après une fin de partie anticipée sont retirés.
+        events: state.ignoredEvents > 0 ? events.slice(0, events.length - state.ignoredEvents) : events,
+        status: finished ? 'finished' : 'in_progress',
+        endedAt: finished ? (session.status === 'finished' ? session.endedAt : now) : null,
+    };
+}
+function assertPlaying(session) {
+    if (session.status !== 'in_progress')
+        throw new Error('Aucune partie en cours : action refusée.');
+}
+export function throwDart(session, dart, now = nowIso()) {
+    assertPlaying(session);
+    assertValidDart(dart);
+    return withEvents(session, [...session.events, { type: 'dart', dart: cleanDart(dart) }], now);
+}
+/** Termine la volée avant la troisième fléchette, sans fléchette fictive. */
+export function endTurn(session, now = nowIso()) {
+    assertPlaying(session);
+    return withEvents(session, [...session.events, { type: 'endTurn' }], now);
+}
+/** Modes sans fin imposée : la partie se termine quand on le demande. */
+export const canFinish = (session) => session.config.mode === 'training';
+/**
+ * Termine un entraînement : la partie est enregistrée avec les points du moment.
+ * Une annulation la rouvre, comme après une victoire.
+ */
+export function finishGame(session, now = nowIso()) {
+    assertPlaying(session);
+    if (!canFinish(session))
+        throw new Error('Cette partie se termine toute seule.');
+    if (!session.events.some((e) => e.type === 'dart'))
+        throw new Error('Aucune fléchette lancée : rien à enregistrer.');
+    return withEvents(session, [...session.events, { type: 'finish' }], now);
+}
+/**
+ * Annule la dernière action, y compris si elle a fait passer au joueur suivant
+ * ou si elle a donné la victoire (la partie est alors rouverte).
+ */
+export function undoLast(session, now = nowIso()) {
+    if (session.status !== 'in_progress' && session.status !== 'finished') {
+        throw new Error('Cette partie ne peut plus être modifiée.');
+    }
+    if (session.events.length === 0)
+        return session;
+    return withEvents(session, session.events.slice(0, -1), now);
+}
+/**
+ * Corrige une fléchette déjà validée (volée en cours ou passée). La partie est rejouée :
+ * scores, vainqueur et statut sont recalculés, et la correction est tracée.
+ */
+export function correctDart(session, eventIndex, dart, now = nowIso()) {
+    if (session.status !== 'in_progress' && session.status !== 'finished') {
+        throw new Error('Cette partie ne peut plus être corrigée.');
+    }
+    assertValidDart(dart);
+    const event = session.events[eventIndex];
+    if (!event || event.type !== 'dart')
+        throw new Error('Aucune fléchette à cette position.');
+    const events = session.events.slice();
+    // Corrigée à la main : la position vue par la caméra ne correspond plus, on l'oublie.
+    events[eventIndex] = { type: 'dart', dart: { segment: dart.segment, multiplier: dart.multiplier } };
+    const corrections = [...session.corrections, { at: now, eventIndex, before: event.dart, after: dart }];
+    return withEvents(session, events, now, { corrections });
+}
+/** Abandon volontaire : la partie est conservée mais ne compte ni comme victoire ni comme défaite. */
+export function abandonSession(session, now = nowIso()) {
+    assertPlaying(session);
+    return { ...session, status: 'abandoned', endedAt: now };
+}
+export function cancelSession(session, now = nowIso()) {
+    if (session.status === 'finished')
+        throw new Error('Une partie terminée ne peut pas être annulée.');
+    return { ...session, status: 'cancelled', endedAt: now };
+}
+/** Configuration d'une revanche : mêmes règles, mêmes équipes, ordre de passage tiré au sort. */
+export function rematchConfig(config, rng = Math.random) {
+    return { ...config, sides: randomOrder(config.sides, rng) };
+}

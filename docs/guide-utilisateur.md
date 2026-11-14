@@ -139,7 +139,8 @@ Le pavé ne montre que les numéros utiles, avec un bouton Raté.
 
 - **Variante Cut-Throat** : les points vont aux adversaires qui n'ont pas fermé le numéro, et c'est le plus
   petit score qui gagne.
-- **Manches maximum** : passé ce nombre de manches, le classement se fait aux points.
+- **Manches** : **Illimité** (par défaut), la partie dure jusqu'à ce qu'un joueur ait tout fermé ; avec
+  **20 manches**, passé la 20e manche, le classement se fait aux points.
 
 ![Cricket](images/cricket.png)
 
