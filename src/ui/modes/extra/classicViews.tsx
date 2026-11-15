@@ -125,14 +125,14 @@ export const golfView: ModeView = {
   hero: ({ state }) => ({ label: 'Trou', value: Math.min(roundOf(state) + 1, go(state).holes) }),
   hint: ({ state }) => (
     <>
-      Triple 1 · Double 2 · Simple 3 · rien 4 · la dernière fléchette compte, <strong>Fin de tour</strong> = je garde ce coup
+      Triple 1 · Double 2 · Simple 3 · rien 4 · ta meilleure fléchette compte
     </>
   ),
   dartLabel: (d) => (d.dart.segment === 0 ? '0' : `${'SDT'[d.dart.multiplier - 1]}${d.dart.segment}`),
   dartNote: (d) => `${d.points} coup${d.points > 1 ? 's' : ''}`,
-  volleyTotal: (darts) => (darts.length ? String(darts.at(-1)!.points) : '4'),
+  volleyTotal: (darts) => (darts.length ? String(Math.min(...darts.map((d) => d.points))) : '4'),
   turnResult: (turn, ctx) => {
-    const strokes = turn.darts.at(-1)?.points ?? 4;
+    const strokes = Math.min(4, ...turn.darts.map((d) => d.points));
     return { text: `${ctx.nameOf(turn.playerId)} : trou ${turn.round + 1} en ${STROKE_NAMES[strokes]}`, bad: strokes === 4 };
   },
   endSummary: (ctx) =>

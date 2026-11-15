@@ -70,10 +70,15 @@ describe("Bob's 27", () => {
 
 describe('Golf', () => {
   const c = () => cfg('golf', { holes: 9 });
-  it('la dernière fléchette compte, Fin de tour garde le coup', () => {
+  it('la meilleure fléchette de la volée compte', () => {
     expect(golfTotal(st<GolfState>(play(c(), 'D1 / ')), 0)).toBe(2);
-    expect(golfTotal(st<GolfState>(play(c(), 'D1 S5 S1')), 0)).toBe(3);
+    expect(golfTotal(st<GolfState>(play(c(), 'D1 S5 S1')), 0)).toBe(2);
+    expect(golfTotal(st<GolfState>(play(c(), 'S1 D1 /')), 0)).toBe(2);
     expect(golfTotal(st<GolfState>(play(c(), '/')), 0)).toBe(4);
+  });
+  it('trou 2 : D2 puis S17 et T3 à côté = 2 coups (pas 4)', () => {
+    const s = play(c(), '/ / D2 S17 T3');
+    expect(st<GolfState>(s).cards[0]).toEqual([4, 2]);
   });
   it('un triple termine le trou', () => {
     const s = play(c(), 'T1');

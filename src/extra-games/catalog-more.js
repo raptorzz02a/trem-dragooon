@@ -89,7 +89,7 @@ export const MORE_GAMES = [
             goal: 'Finir le parcours en le moins de coups',
             points: 'Sur le numéro du trou : triple 1 coup, double 2, simple 3, rien 4',
             win: 'Le plus petit total',
-            warning: 'C’est ta dernière fléchette qui compte : appuie sur « Fin de tour » pour garder un bon coup',
+            warning: 'C’est ta meilleure fléchette de la volée qui compte : tu peux lancer tes 3 fléchettes sans risque',
         },
         settings: [choices('holes', 'Trous', [9, 18], 18)],
         options: (v) => ({ mode: 'golf', options: { holes: num(v.holes, 18) } }),
