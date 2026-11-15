@@ -8,7 +8,7 @@ import urllib.request
 
 import numpy as np
 
-from trem_sense import BOARD_MM, Calibration, Events, VisitTracker, dart_of, drop_unsure_misses, fresh_frames, fuse, position_of, score_of, serve
+from trem_sense import BOARD_MM, Calibration, Events, VisitTracker, dart_of, fresh_frames, select_darts, fuse, position_of, score_of, serve
 
 A, B, C = [0.3, 0.3], [0.6, 0.6], [0.5, 0.2]
 
@@ -159,8 +159,24 @@ class ScoreTest(unittest.TestCase):
 class UnsureMissTest(unittest.TestCase):
     def test_low_confidence_miss_is_dropped(self):
         coords = np.array([mm(-172, -135.6), mm(62.8, -127.1), mm(0, -190)])
-        kept = drop_unsure_misses(coords, [0.19, 0.3, 0.8])
-        self.assertEqual([score_of(c) for c in kept], ['S1', 'miss'])
+        kept = select_darts(coords, [0.19, 0.3, 0.8])
+        self.assertEqual(sorted(score_of(coords[i]) for i in kept), ['S1', 'miss'])
+
+    def test_off_board_is_always_dropped(self):
+        # Fixation de la cible entre le 16 et le 19, au bord : vue a 0.47 (et parfois plus) sans flechette.
+        coords = np.array([mm(-130, 175), mm(-160, 160)])
+        self.assertEqual(select_darts(coords, [0.47, 0.9]), [])
+
+    def test_phantom_does_not_take_a_real_dart_slot(self):
+        phantom = mm(-130, 175)
+        darts = [mm(0, -100), mm(50, 50), mm(-60, 20)]
+        coords = np.array([phantom] + darts)
+        kept = select_darts(coords, [0.9, 0.3, 0.2, 0.1])
+        self.assertEqual(kept, [1, 2, 3])
+
+    def test_keeps_three_most_confident(self):
+        coords = np.array([mm(0, -100), mm(50, 50), mm(-60, 20), mm(10, 10)])
+        self.assertEqual(select_darts(coords, [0.3, 0.9, 0.2, 0.6]), [1, 3, 0])
 
 
 class PositionTest(unittest.TestCase):

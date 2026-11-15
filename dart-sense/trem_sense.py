@@ -34,6 +34,9 @@ SEGMENTS = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 
 # Rayons interieurs en mm (get_scores.py) : bull 50, bull 25, simple, triple, simple, double, hors cible.
 RINGS = [(170.0, 'miss'), (160.0, 'D'), (107.4, 'S'), (97.4, 'T'), (15.9 + 0.8, 'S'), (6.35 + 0.8, 'SB'), (0.0, 'DB')]
 MISS_CONF = 0.5  # une detection hors cible moins sure que ca est ignoree (reflet, ailette)
+# Au-dela (2,5 cm apres le double), une detection est toujours ignoree, meme sure : c'est le bord de la cible,
+# une fixation ou le mur. Une vraie flechette a cet endroit vaut 0 de toute facon (ratee au retrait).
+OFF_BOARD_MM = 195.0
 
 
 def score_of(pred):
@@ -406,41 +409,51 @@ class Calibration:
 
 
 def analyse(model, scorer, frame, conf, calibration=None):
-    """Carre central, resultat du modele et flechettes sur la cible (None si la cible n'est pas reperee)."""
+    """Carre central, resultat du modele, flechettes retenues sur la cible (None si la cible n'est pas reperee)
+    et numeros des detections de flechettes ignorees (dessinees en gris dans la fenetre)."""
     h, w = frame.shape[:2]
     size = min(h, w)
     x0, y0 = (w - size) // 2, (h - size) // 2
     # Le modele a ete entraine sur des images carrees ou la cible remplit le cadre.
     square = frame[y0:y0 + size, x0:x0 + size]
     result = model(square, conf=conf, verbose=False)[0]
-    points, darts = scorer.process_yolo_output(result)
+    points, _ = scorer.process_yolo_output(result)
     if calibration is not None:
         # Au moins 3 points visibles maintenant (personne devant la cible), le reste vient de la memoire.
         if calibration.update(result) < 3:
-            return square, result, None
+            return square, result, None, set()
         points = calibration.coords()
     if np.count_nonzero(np.all(points != -1, axis=1)) < 4:
-        return square, result, None
+        return square, result, None, set()
     H = scorer.find_homography(points, size)
-    darts = darts[np.all((darts >= 0) & (darts <= 1), axis=1)] if len(darts) else darts
-    coords = scorer.transform_to_boardplane(H[0], darts, size) if len(darts) else np.zeros((0, 2))
-    return square, result, drop_unsure_misses(coords, dart_confidences(result))
+    # Toutes les detections de flechettes, pas seulement les 3 premieres comme process_yolo_output :
+    # une fausse detection hors cible ne doit pas prendre la place d'une vraie flechette.
+    boxes = [(i, b[:2], c) for i, (k, b, c) in enumerate(zip(result.boxes.cls.tolist(), result.boxes.xywhn.tolist(),
+                                                             result.boxes.conf.tolist()))
+             if int(k) == 4 and 0 <= b[0] <= 1 and 0 <= b[1] <= 1]
+    if not boxes:
+        return square, result, np.zeros((0, 2)), set()
+    coords = scorer.transform_to_boardplane(H[0], np.array([b for _, b, _ in boxes]), size)
+    keep = select_darts(coords, [c for _, _, c in boxes])
+    ignored = {boxes[j][0] for j in range(len(boxes)) if j not in keep}
+    return square, result, (coords[keep] if keep else np.zeros((0, 2))), ignored
 
 
-def dart_confidences(result):
-    """Confiance des flechettes, dans l'ordre de process_yolo_output (les 3 premieres de classe 4)."""
-    return [c for k, c in zip(result.boxes.cls.tolist(), result.boxes.conf.tolist()) if int(k) == 4][:3]
+def select_darts(coords, confs):
+    """Indices des flechettes a garder : 3 au plus, les plus sures, sans les fausses detections hors cible.
 
-
-def drop_unsure_misses(coords, confs):
-    """Ecarte les detections hors cible peu sures (un reflet ou une ailette pris pour une flechette).
-
-    Une vraie flechette hors cible n'a pas besoin d'etre vue : au retrait, elle compte comme ratee.
+    Ignore tout ce qui est au-dela de OFF_BOARD_MM (bord de la cible, fixation, mur) et les detections
+    hors cible peu sures (reflet, ailette). Une vraie flechette hors cible n'a pas besoin d'etre vue :
+    au retrait, elle compte comme ratee.
     """
-    if len(coords) != len(confs):
-        return coords
-    keep = [i for i, (c, conf) in enumerate(zip(coords, confs)) if conf >= MISS_CONF or score_of(c) != 'miss']
-    return coords[keep] if len(keep) else np.zeros((0, 2))
+    keep = []
+    for i, (c, conf) in enumerate(zip(coords, confs)):
+        r = np.hypot(float(c[0]) - 0.5, float(c[1]) - 0.5) * BOARD_MM
+        if r > OFF_BOARD_MM or (conf < MISS_CONF and score_of(c) == 'miss'):
+            continue
+        keep.append(i)
+    keep.sort(key=lambda i: -confs[i])
+    return keep[:3]
 
 
 def detect_cameras(model, scorer, size, conf, count=6):
@@ -531,7 +544,7 @@ def run(args):
         last_time = now
         timing.report(sources)
 
-        views = [coords for _, _, coords in analysed if coords is not None]
+        views = [a[2] for a in analysed if a[2] is not None]
         if not views:
             # Cible non reperee (quelqu'un devant, mauvais cadrage) : on ne compte rien, sinon on croirait a un retrait.
             events.set_status(camera='cible', fps=fps, volee=tracker.codes, cameras=len(frames))
@@ -541,7 +554,7 @@ def run(args):
 
         if not args.sans_fenetre:
             panels = []
-            for (square, result, coords), cal in zip(analysed, calibrations):  # chaque camera a deja ete analysee une fois
+            for (square, result, coords, ignored), cal in zip(analysed, calibrations):  # chaque camera a deja ete analysee une fois
                 view = square.copy()
                 size = view.shape[0]
                 th = max(1, size // 400)
@@ -549,8 +562,9 @@ def run(args):
                 for x, y in cal.coords():
                     if x >= 0:
                         cv2.drawMarker(view, (int(x * size), int(y * size)), (255, 255, 255), cv2.MARKER_CROSS, 14 * th, 2 * th)
-                for box, k, c in zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist()):
-                    color = (0, 200, 255) if int(k) == 4 else (0, 255, 0)
+                for j, (box, k, c) in enumerate(zip(result.boxes.xywh.tolist(), result.boxes.cls.tolist(), result.boxes.conf.tolist())):
+                    # Flechette : jaune si retenue, gris si ignoree (hors cible) ; point de repere : vert.
+                    color = ((140, 140, 140) if j in ignored else (0, 200, 255)) if int(k) == 4 else (0, 255, 0)
                     cv2.circle(view, (int(box[0]), int(box[1])), 6 * th, color, th)
                     if int(k) == 4:
                         cv2.putText(view, f'{c:.2f}', (int(box[0]) + 8 * th, int(box[1])), cv2.FONT_HERSHEY_SIMPLEX, 0.8 * th, color, 2 * th)
