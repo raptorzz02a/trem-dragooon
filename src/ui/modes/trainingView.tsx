@@ -1,5 +1,6 @@
 import { trainingAverage, type TrainingState } from '../../game-engine/modes/training';
 import type { GameState } from '../../game-engine/types';
+import { TrainingRecap } from '../components/TrainingRecap';
 import { ListBoard } from './ListBoard';
 import type { ModeView } from './types';
 
@@ -27,6 +28,7 @@ export const trainingView: ModeView = {
   volleyTotal: (darts) => String(sum(darts.map((d) => d.points))),
   turnResult: (turn, ctx) => ({ text: `${ctx.nameOf(turn.playerId)} : ${plural(sum(turn.darts.map((d) => d.points)), 'point')}` }),
   winLabel: ({ state }) => (state.config.sides.length > 1 ? 'Entraînement terminé · meilleur total' : 'Entraînement terminé'),
+  endSummary: (ctx) => <TrainingRecap ctx={ctx} />,
   rankValue: (r, { state }) => `${r.value} pts · ${plural(tr(state).darts[r.sideIndex]!, 'fléchette')} · moy. 3 fl. ${avg(state, r.sideIndex)}`,
   board: (ctx) => (
     <ListBoard ctx={ctx} row={(i) => ({ value: tr(ctx.state).scores[i]!, detail: `moy. ${avg(ctx.state, i)}` })} />

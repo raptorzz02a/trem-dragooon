@@ -116,7 +116,21 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   await phone.locator('.end-winner').waitFor();
   const endText = await borne.locator('.dialog.end').innerText();
   check('fin : entraînement terminé, classé sur les points', /entraînement terminé/i.test(endText) && endText.includes('230 pts'), endText.replace(/\n/g, ' | '));
+  // Bilan de la partie : Ju a lancé T20 T20 T20 puis 50 ; Pierre 25 D10 S1.
+  const recap = async (p) => (await p.locator('.recap').innerText()).replace(/\s+/g, ' ');
+  const tile = async (p, label) => (await p.locator('.recap-tile', { hasText: label }).locator('.recap-value').innerText()).trim();
+  const juTiles = [await tile(borne, 'Score total'), await tile(borne, 'Fléchettes lancées'), await tile(borne, 'Moyenne'), await tile(borne, 'Plus haute volée')];
+  check('bilan de Ju : 230 pts, 4 fléchettes, moy. 172,5, meilleure volée 180', juTiles.join('/') === '230/4/172,5/180', juTiles.join('/'));
+  const juRecap = await recap(borne);
+  check('bilan de Ju : 75 % de triples, 25 % de bull, T20 75 %', /Triples 75 %/.test(juRecap) && /Bull 25 %/.test(juRecap) && /T20 75 %/.test(juRecap), juRecap);
   await shot(borne, '07-fin-borne.png');
+  await borne.locator('.recap-players button', { hasText: PIERRE }).click();
+  const pierreTiles = [await tile(borne, 'Score total'), await tile(borne, 'Fléchettes lancées'), await tile(borne, 'Plus haute volée')];
+  check('bilan de Pierre : 46 pts, 3 fléchettes, volée 46', pierreTiles.join('/') === '46/3/46', pierreTiles.join('/'));
+  const pierreRecap = await recap(borne);
+  check('bilan de Pierre : D10 et S1 dans les secteurs touchés', /D10 33 %/.test(pierreRecap) && /S1 33 %/.test(pierreRecap), pierreRecap);
+  check('bilan aussi sur le téléphone', (await phone.locator('.recap').count()) === 1);
+  await shot(borne, '07b-fin-borne-pierre.png');
   await shot(phone, '08-fin-telephone.png');
   await borne.getByText('Changer les réglages').click();
   await borne.getByText('Fermer', { exact: true }).click();

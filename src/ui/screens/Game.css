@@ -362,6 +362,9 @@
 
 .end {
   min-width: 720px;
+  max-width: calc(100vw - 24px);
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
 }
 
 .end-winner {
@@ -649,6 +652,10 @@
 
 /* Téléphone en portrait (mode en ligne) : une seule colonne, joueur actif puis pavé, scores en bas. */
 @media (max-width: 700px) {
+  .end {
+    min-width: 0;
+    max-height: none;
+  }
   .hint-chips {
     gap: 4px;
     margin-left: 8px;

@@ -121,6 +121,14 @@ const dart = (x, y) => {
   await p.locator('.game-finish').click();
   await p.getByText('Terminer', { exact: true }).click();
   await p.locator('.end-winner').waitFor();
+  // Bilan de la partie sur l'écran de fin : la carte de cette partie, et toutes les fléchettes dans les chiffres.
+  await p.locator('.recap').waitFor({ timeout: 5000 });
+  const endDots = await p.locator('.recap .hm-dots circle').count();
+  check('fin de partie : heat map de la partie (45 impacts caméra)', endDots === 45, String(endDots));
+  const recapText = await p.locator('.recap').innerText();
+  check('fin de partie : 48 fléchettes lancées', /48\s*\n?\s*Fléchettes lancées/.test(recapText), recapText.replace(/\n/g, ' | '));
+  check('fin de partie : 3 saisies à la main signalées', recapText.includes('3 fléchettes saisies à la main'));
+  await shot('05-fin-bilan.png');
   await p.getByText('Changer les réglages').click();
   await p.getByText('Fermer', { exact: true }).click();
   await p.locator('.home-account-name').waitFor();

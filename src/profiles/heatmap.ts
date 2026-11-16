@@ -3,6 +3,7 @@
 // compte dans les statistiques, mais n'a pas de position, donc pas de point sur la carte.
 
 import { formatDart, type DartPos } from '../game-engine/darts';
+import type { TurnRecord } from '../game-engine/types';
 import type { PlayerGame } from './stats';
 
 export interface Impact extends DartPos {
@@ -24,14 +25,17 @@ export interface Heatmap {
 export const MAX_POINTS = 3000;
 
 export function heatmap(games: PlayerGame[]): Heatmap {
+  return heatmapOfTurns(games.flatMap((g) => g.turns));
+}
+
+/** Même carte, à partir de volées (ex. celles d'une seule partie, sur l'écran de fin). */
+export function heatmapOfTurns(turns: TurnRecord[]): Heatmap {
   const points: Impact[] = [];
   let manual = 0;
-  for (const g of games) {
-    for (const t of g.turns) {
-      for (const { dart } of t.darts) {
-        if (!dart.pos) manual++;
-        else if (points.length < MAX_POINTS) points.push({ x: dart.pos.x, y: dart.pos.y, zone: formatDart(dart) });
-      }
+  for (const t of turns) {
+    for (const { dart } of t.darts) {
+      if (!dart.pos) manual++;
+      else if (points.length < MAX_POINTS) points.push({ x: dart.pos.x, y: dart.pos.y, zone: formatDart(dart) });
     }
   }
   if (!points.length) return { points, manual, center: null, spread: null };
