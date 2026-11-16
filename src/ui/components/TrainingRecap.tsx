@@ -23,14 +23,6 @@ export function TrainingRecap({ ctx }: { ctx: ViewContext }) {
   const r = useMemo(() => recap(turns), [turns]);
   const map = useMemo(() => heatmapOfTurns(turns), [turns]);
 
-  const rings: [string, number][] = [
-    ['Simples', r.rings.single],
-    ['Doubles', r.rings.double],
-    ['Triples', r.rings.triple],
-    ['Bull', r.rings.bull],
-    ['Ratés', r.rings.miss],
-  ];
-
   return (
     <section className="recap" aria-label="Statistiques de la partie">
       {playerIds.length > 1 && (
@@ -72,25 +64,18 @@ export function TrainingRecap({ ctx }: { ctx: ViewContext }) {
               <span className="recap-label">Plus haute volée</span>
             </div>
           </div>
-          <div className="recap-rings">
-            {rings.map(([label, value]) => (
-              <div key={label} className="recap-ring">
-                <span className="recap-ring-label">{label}</span>
-                <span className="recap-bar">
-                  <span style={{ width: `${value}%` }} />
-                </span>
-                <span className="recap-ring-value">{pct(value)}</span>
-              </div>
-            ))}
-          </div>
           {r.zones.length > 0 && (
             <div className="recap-zones">
               <div className="recap-label">Secteurs touchés</div>
-              <div className="recap-chips">
+              <div className="recap-rings">
                 {r.zones.map((z) => (
-                  <span key={z.zone} className={`recap-chip ${z.zone === '0' ? 'miss' : ''}`}>
-                    <strong>{zoneName(z.zone)}</strong> {pct(z.share)}
-                  </span>
+                  <div key={z.zone} className={`recap-ring ${z.zone === '0' ? 'miss' : ''}`}>
+                    <span className="recap-ring-label">{zoneName(z.zone)}</span>
+                    <span className="recap-bar">
+                      <span style={{ width: `${z.share}%` }} />
+                    </span>
+                    <span className="recap-ring-value">{pct(z.share)}</span>
+                  </div>
                 ))}
               </div>
             </div>

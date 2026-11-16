@@ -77,6 +77,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  max-height: 262px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
 .recap-ring {
@@ -88,6 +91,12 @@
 
 .recap-ring-label {
   font-size: 16px;
+  font-weight: 700;
+}
+
+.recap-ring.miss .recap-ring-label,
+.recap-ring.miss .recap-ring-value {
+  color: var(--text-dim);
 }
 
 .recap-bar {
@@ -113,26 +122,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.recap-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  max-height: 104px;
-  overflow-y: auto;
-}
-
-.recap-chip {
-  font-size: 15px;
-  padding: 3px 8px;
-  border-radius: 8px;
-  background: var(--bg);
-  border: 1px solid var(--line);
-}
-
-.recap-chip.miss {
-  color: var(--text-dim);
 }
 
 @media (max-width: 700px) {

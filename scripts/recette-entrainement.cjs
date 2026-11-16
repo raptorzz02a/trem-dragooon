@@ -122,7 +122,7 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const juTiles = [await tile(borne, 'Score total'), await tile(borne, 'Fléchettes lancées'), await tile(borne, 'Moyenne'), await tile(borne, 'Plus haute volée')];
   check('bilan de Ju : 230 pts, 4 fléchettes, moy. 172,5, meilleure volée 180', juTiles.join('/') === '230/4/172,5/180', juTiles.join('/'));
   const juRecap = await recap(borne);
-  check('bilan de Ju : 75 % de triples, 25 % de bull, T20 75 %', /Triples 75 %/.test(juRecap) && /Bull 25 %/.test(juRecap) && /T20 75 %/.test(juRecap), juRecap);
+  check('bilan de Ju : barres par secteur, T20 75 % puis Bull 50 25 %', /Secteurs touchés T20 75 % Bull 50 25 %/.test(juRecap) && (await borne.locator('.recap-ring').count()) === 2, juRecap);
   await shot(borne, '07-fin-borne.png');
   await borne.locator('.recap-players button', { hasText: PIERRE }).click();
   const pierreTiles = [await tile(borne, 'Score total'), await tile(borne, 'Fléchettes lancées'), await tile(borne, 'Plus haute volée')];
