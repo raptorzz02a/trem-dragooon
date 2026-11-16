@@ -13,8 +13,8 @@ export interface GolfState {
   holes: number;
   /** Coups de chaque trou joué, par côté. */
   cards: number[][];
-  /** Coups de la dernière fléchette de la volée en cours (null : aucune fléchette). */
-  last: number | null;
+  /** Meilleur coup (le plus petit) de la volée en cours (null : aucune fléchette). */
+  best: number | null;
 }
 
 /** Coups d'une fléchette sur le trou : triple 1, double 2, simple 3, à côté 4. */
@@ -22,19 +22,20 @@ export const golfStrokes = (dart: Dart, hole: number) => (dart.segment === hole 
 
 export const golfTotal = (s: GolfState, side: number) => s.cards[side]!.reduce((a, b) => a + b, 0);
 
-/** Golf : la dernière fléchette lancée compte ; « Fin de tour » garde le coup. Le plus petit total gagne. */
+/** Golf : la meilleure fléchette de la volée compte (pratique avec la caméra). Le plus petit total gagne. */
 export const golfRules: ModeRules<GolfState> = {
   init(config: GameConfig) {
-    return { holes: (config.options as GolfOptions).holes, cards: perSide(config, [] as number[]), last: null };
+    return { holes: (config.options as GolfOptions).holes, cards: perSide(config, [] as number[]), best: null };
   },
-  onTurnStart: (s) => ({ ...s, last: null }),
+  onTurnStart: (s) => ({ ...s, best: null }),
   applyDart(s, ctx, dart) {
     const strokes = golfStrokes(dart, ctx.round + 1);
     // Un triple (1 coup) ne peut pas être amélioré : le trou s'arrête là.
-    return { state: { ...s, last: strokes }, points: strokes, endTurn: strokes === 1 };
+    const best = Math.min(s.best ?? GOLF_MISS, strokes);
+    return { state: { ...s, best }, points: strokes, endTurn: best === 1 };
   },
   onTurnEnd(s, ctx) {
-    return { ...s, cards: setAt(s.cards, ctx.sideIndex, [...s.cards[ctx.sideIndex]!, s.last ?? GOLF_MISS]) };
+    return { ...s, cards: setAt(s.cards, ctx.sideIndex, [...s.cards[ctx.sideIndex]!, s.best ?? GOLF_MISS]) };
   },
   onRoundEnd(s, round) {
     return round + 1 >= s.holes ? { winners: topRanked(this.ranking(s)) } : null;

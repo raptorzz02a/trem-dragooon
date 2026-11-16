@@ -82,9 +82,9 @@ export const golfView = {
     hint: ({ state }) => (_jsxs(_Fragment, { children: ["Triple 1 \u00B7 Double 2 \u00B7 Simple 3 \u00B7 rien 4 \u00B7 la derni\u00E8re fl\u00E9chette compte, ", _jsx("strong", { children: "Fin de tour" }), " = je garde ce coup"] })),
     dartLabel: (d) => (d.dart.segment === 0 ? '0' : `${'SDT'[d.dart.multiplier - 1]}${d.dart.segment}`),
     dartNote: (d) => `${d.points} coup${d.points > 1 ? 's' : ''}`,
-    volleyTotal: (darts) => (darts.length ? String(darts.at(-1).points) : '4'),
+    volleyTotal: (darts) => (darts.length ? String(Math.min(...darts.map((d) => d.points))) : '4'),
     turnResult: (turn, ctx) => {
-        const strokes = turn.darts.at(-1)?.points ?? 4;
+        const strokes = Math.min(4, ...turn.darts.map((d) => d.points));
         return { text: `${ctx.nameOf(turn.playerId)} : trou ${turn.round + 1} en ${STROKE_NAMES[strokes]}`, bad: strokes === 4 };
     },
     endSummary: (ctx) => winnerLine(ctx, (w) => `${plural(golfTotal(go(ctx.state), w), 'coup')} · ${go(ctx.state).cards[w].filter((c) => c === 1).length} birdie(s)`),
