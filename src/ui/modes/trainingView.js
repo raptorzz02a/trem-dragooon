@@ -1,5 +1,6 @@
 import { jsx as _jsx, Fragment as _Fragment, jsxs as _jsxs } from "react/jsx-runtime";
 import { trainingAverage } from '../../game-engine/modes/training';
+import { TrainingRecap } from '../components/TrainingRecap';
 import { ListBoard } from './ListBoard';
 const tr = (state) => state.mode;
 const sum = (points) => points.reduce((a, b) => a + b, 0);
@@ -20,6 +21,7 @@ export const trainingView = {
     volleyTotal: (darts) => String(sum(darts.map((d) => d.points))),
     turnResult: (turn, ctx) => ({ text: `${ctx.nameOf(turn.playerId)} : ${plural(sum(turn.darts.map((d) => d.points)), 'point')}` }),
     winLabel: ({ state }) => (state.config.sides.length > 1 ? 'Entraînement terminé · meilleur total' : 'Entraînement terminé'),
+    endSummary: (ctx) => _jsx(TrainingRecap, { ctx: ctx }),
     rankValue: (r, { state }) => `${r.value} pts · ${plural(tr(state).darts[r.sideIndex], 'fléchette')} · moy. 3 fl. ${avg(state, r.sideIndex)}`,
     board: (ctx) => (_jsx(ListBoard, { ctx: ctx, row: (i) => ({ value: tr(ctx.state).scores[i], detail: `moy. ${avg(ctx.state, i)}` }) })),
     pad: () => ({}),

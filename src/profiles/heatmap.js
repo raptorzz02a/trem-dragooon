@@ -5,16 +5,18 @@ import { formatDart } from '../game-engine/darts';
 /** Au-delà, la carte devient illisible et lente : on garde les plus récentes (les parties arrivent de la plus récente à la plus ancienne). */
 export const MAX_POINTS = 3000;
 export function heatmap(games) {
+    return heatmapOfTurns(games.flatMap((g) => g.turns));
+}
+/** Même carte, à partir de volées (ex. celles d'une seule partie, sur l'écran de fin). */
+export function heatmapOfTurns(turns) {
     const points = [];
     let manual = 0;
-    for (const g of games) {
-        for (const t of g.turns) {
-            for (const { dart } of t.darts) {
-                if (!dart.pos)
-                    manual++;
-                else if (points.length < MAX_POINTS)
-                    points.push({ x: dart.pos.x, y: dart.pos.y, zone: formatDart(dart) });
-            }
+    for (const t of turns) {
+        for (const { dart } of t.darts) {
+            if (!dart.pos)
+                manual++;
+            else if (points.length < MAX_POINTS)
+                points.push({ x: dart.pos.x, y: dart.pos.y, zone: formatDart(dart) });
         }
     }
     if (!points.length)

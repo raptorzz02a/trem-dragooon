@@ -20,7 +20,7 @@ function band(r1, r2, center) {
 const plural = (n, word) => `${n} ${word}${n > 1 ? 's' : ''}`;
 const zoneName = (z) => (z === '0' ? 'Hors cible' : z === '25' ? 'Bull 25' : z === '50' ? 'Bull 50' : z);
 /** Heat map : halo de densité et point par fléchette vue par la caméra. Touchez une zone pour son détail. */
-export function DartHeatmap({ data }) {
+export function DartHeatmap({ data, table = true }) {
     const [active, setActive] = useState(null);
     const counts = useMemo(() => {
         const m = new Map();
@@ -43,5 +43,5 @@ export function DartHeatmap({ data }) {
                         const odd = i % 2 ? 'odd' : 'even';
                         const [lx, ly] = point(R.label, angle);
                         return (_jsxs("g", { children: [_jsx("path", { d: band(R.bull, R.trebleIn, angle), ...zoneProps(`S${num}`, `hm-single ${odd}`) }), _jsx("path", { d: band(R.trebleIn, R.trebleOut, angle), ...zoneProps(`T${num}`, `hm-ring ${odd}`) }), _jsx("path", { d: band(R.trebleOut, R.doubleIn, angle), ...zoneProps(`S${num}`, `hm-single ${odd}`) }), _jsx("path", { d: band(R.doubleIn, R.doubleOut, angle), ...zoneProps(`D${num}`, `hm-ring ${odd}`) }), _jsx("text", { x: lx, y: ly, className: `hm-label ${active && /^[SDT]/.test(active) && active.slice(1) === String(num) ? 'active' : ''}`, children: num })] }, num));
-                    }), _jsx("circle", { r: R.bull, ...zoneProps('25', 'hm-bull') }), _jsx("circle", { r: R.bullseye, ...zoneProps('50', 'hm-bullseye') }), _jsx("g", { className: "hm-halo", filter: "url(#hm-blur)", children: data.points.map((p, i) => (_jsx("circle", { cx: p.x, cy: p.y, r: "9" }, i))) }), _jsx("g", { className: "hm-dots", children: data.points.map((p, i) => (_jsx("circle", { cx: p.x, cy: p.y, r: "3.4", className: active && p.zone === active ? 'active' : '' }, i))) })] }), _jsx("figcaption", { className: "chart-tip", children: active ? tip(active) : 'Touchez une zone pour le détail' }), _jsx(DataTable, { head: ['Zone', 'Fléchettes', 'Part'], rows: ranked.map(([zone, c]) => [zoneName(zone), c, `${Math.round((100 * c) / n)} %`]) })] }));
+                    }), _jsx("circle", { r: R.bull, ...zoneProps('25', 'hm-bull') }), _jsx("circle", { r: R.bullseye, ...zoneProps('50', 'hm-bullseye') }), _jsx("g", { className: "hm-halo", filter: "url(#hm-blur)", children: data.points.map((p, i) => (_jsx("circle", { cx: p.x, cy: p.y, r: "9" }, i))) }), _jsx("g", { className: "hm-dots", children: data.points.map((p, i) => (_jsx("circle", { cx: p.x, cy: p.y, r: "3.4", className: active && p.zone === active ? 'active' : '' }, i))) })] }), _jsx("figcaption", { className: "chart-tip", children: active ? tip(active) : 'Touchez une zone pour le détail' }), table && (_jsx(DataTable, { head: ['Zone', 'Fléchettes', 'Part'], rows: ranked.map(([zone, c]) => [zoneName(zone), c, `${Math.round((100 * c) / n)} %`]) }))] }));
 }

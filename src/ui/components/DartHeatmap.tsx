@@ -25,7 +25,7 @@ const plural = (n: number, word: string) => `${n} ${word}${n > 1 ? 's' : ''}`;
 const zoneName = (z: string) => (z === '0' ? 'Hors cible' : z === '25' ? 'Bull 25' : z === '50' ? 'Bull 50' : z);
 
 /** Heat map : halo de densité et point par fléchette vue par la caméra. Touchez une zone pour son détail. */
-export function DartHeatmap({ data }: { data: Heatmap }) {
+export function DartHeatmap({ data, table = true }: { data: Heatmap; table?: boolean }) {
   const [active, setActive] = useState<string | null>(null);
   const counts = useMemo(() => {
     const m = new Map<string, number>();
@@ -82,10 +82,12 @@ export function DartHeatmap({ data }: { data: Heatmap }) {
         </g>
       </svg>
       <figcaption className="chart-tip">{active ? tip(active) : 'Touchez une zone pour le détail'}</figcaption>
-      <DataTable
-        head={['Zone', 'Fléchettes', 'Part']}
-        rows={ranked.map(([zone, c]) => [zoneName(zone), c, `${Math.round((100 * c) / n)} %`])}
-      />
+      {table && (
+        <DataTable
+          head={['Zone', 'Fléchettes', 'Part']}
+          rows={ranked.map(([zone, c]) => [zoneName(zone), c, `${Math.round((100 * c) / n)} %`])}
+        />
+      )}
     </figure>
   );
 }
