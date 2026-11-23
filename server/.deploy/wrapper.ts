@@ -7,7 +7,8 @@ const table = files as Record<string, { type: string; body: string }>;
 
 function serve(request: Request): Response {
   const path = new URL(request.url).pathname;
-  const file = table[path] ?? table['/index.html']!;
+  // /tableau comme /tableau.html : la page de la tablette, avec ou sans extension.
+  const file = table[path] ?? table[`${path}.html`] ?? table['/index.html']!;
   const bytes = Uint8Array.from(atob(file.body), (c) => c.charCodeAt(0));
   const cache = path.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'no-cache';
   return new Response(bytes, { headers: { 'Content-Type': file.type, 'Cache-Control': cache } });

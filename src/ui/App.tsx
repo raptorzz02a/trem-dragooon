@@ -17,13 +17,14 @@ import { Community } from './screens/Community';
 import { Home } from './screens/Home';
 import { OtherGames } from './screens/OtherGames';
 import { ImportLocal, localData } from './screens/ImportLocal';
+import { Displays } from './screens/Displays';
 import { RoomScreen } from './screens/Room';
 import { WatchScreen } from './screens/Watch';
 import { Welcome } from './screens/Welcome';
 
 // Tout se joue avec des comptes en ligne : sur la même cible (un appareil saisit pour tous) ou à distance.
 
-type Screen = 'home' | 'room' | 'players' | 'mystats' | 'import' | 'admin' | 'watch' | 'games';
+type Screen = 'home' | 'room' | 'players' | 'mystats' | 'import' | 'admin' | 'watch' | 'games' | 'displays';
 
 /** Code reçu par un lien de partage (?partie=ABC234, ou ?salon= pour les anciens liens), retiré de l'adresse une fois lu. */
 function sharedCode(): string | null {
@@ -197,6 +198,8 @@ export function App() {
 
   if (screen === 'import') return <ImportLocal onBack={home} />;
 
+  if (screen === 'displays') return <Displays onBack={home} />;
+
   if (screen === 'admin' && accountState.admin) return <Admin myId={account.id} onBack={home} />;
 
   const current = currentOnlineRoom();
@@ -234,6 +237,7 @@ export function App() {
         onLogout={accountState.logout}
         onAdmin={accountState.admin ? () => setScreen('admin') : undefined}
         onImport={hasLocalStats ? () => setScreen('import') : undefined}
+        onDisplays={() => setScreen('displays')}
       />
       {editError && <div className="online-banner online-banner-error">{editError}</div>}
       {saloonMessage && (

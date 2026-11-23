@@ -47,6 +47,14 @@ import {
   type SaloonRole,
 } from '../src/online/saloons';
 import type { GameSetup } from '../src/game-setup/setup';
+import {
+  cleanDisplaySettings,
+  DEFAULT_DISPLAY_SETTINGS,
+  isPairCode,
+  type DisplayInfo,
+  type DisplaySettings,
+  type DisplayStatus,
+} from '../src/online/display';
 import { MIN_RANKED_GAMES } from '../src/profiles/stats';
 import { DELETED_NAME, type GameRecord } from '../src/profiles/types';
 
@@ -61,6 +69,13 @@ const MAX_FAILURES = 10;
 const LOCK_MS = 15 * 60 * 1000;
 /** Essais ratés du mot de passe d'un saloon avant blocage (par compte, pour ne bloquer que celui qui essaie). */
 const MAX_SALOON_FAILURES = 5;
+/** Tablette « tableau de scores » jamais reliée : oubliée après ce délai. */
+const DISPLAY_PAIR_TTL_MS = 60 * 60 * 1000;
+/** Passage d'une tablette noté au plus une fois par minute. */
+const DISPLAY_SEEN_EVERY_MS = 60 * 1000;
+const MAX_PENDING_DISPLAYS = 200;
+/** Tablettes par compte. */
+const MAX_DISPLAYS = 5;
 /** La date de dernière utilisation n'est réécrite qu'au plus une fois par tranche de ce délai. */
 const SEEN_EVERY_MS = 10 * 60 * 1000;
 
@@ -203,6 +218,15 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
       CREATE TABLE IF NOT EXISTS password_requests (
         account_id TEXT PRIMARY KEY,
         created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS displays (
+        id TEXT PRIMARY KEY,
+        secret_hash TEXT NOT NULL UNIQUE,
+        pair_code TEXT,
+        account_id TEXT,
+        settings TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        seen_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS saloon_failures (
         saloon_id TEXT NOT NULL,
@@ -991,6 +1015,118 @@ export class AccountsObject extends DurableObject<AccountsEnv> {
     if (!me || !this.isMember(me.id, id)) return null;
     const row = this.sql.exec<{ code: string }>('SELECT code FROM live_rooms WHERE saloon_id = ? AND watch_key = ?', id, String(watchKey ?? '')).toArray()[0];
     return row?.code ?? null;
+  }
+
+  // Tablettes « tableau de scores » : appairées à un compte avec un code à 4 chiffres, elles suivent ses parties.
+
+  /** Nouvelle tablette : un secret qu'elle garde, et le code qu'elle affiche pour être reliée depuis la borne. */
+  async displayPair(): Promise<{ secret: string; pairCode: string }> {
+    const now = Date.now();
+    // Tablettes jamais reliées : effacées au bout d'une heure, leur code redevient libre.
+    this.sql.exec('DELETE FROM displays WHERE account_id IS NULL AND seen_at < ?', now - DISPLAY_PAIR_TTL_MS);
+    const pending = this.sql.exec<{ n: number }>('SELECT COUNT(*) AS n FROM displays WHERE account_id IS NULL').one().n;
+    if (pending >= MAX_PENDING_DISPLAYS) throw new Error('Trop de tablettes en attente : réessaie dans un moment.');
+    const taken = new Set(this.sql.exec<{ pair_code: string }>('SELECT pair_code FROM displays WHERE pair_code IS NOT NULL').toArray().map((r) => r.pair_code));
+    let pairCode = '';
+    do pairCode = String(crypto.getRandomValues(new Uint32Array(1))[0]! % 10000).padStart(4, '0');
+    while (taken.has(pairCode));
+    const secret = randomHex(24);
+    this.sql.exec(
+      'INSERT INTO displays VALUES (?, ?, ?, NULL, ?, ?, ?)',
+      randomHex(8),
+      await sha256(secret),
+      pairCode,
+      JSON.stringify(DEFAULT_DISPLAY_SETTINGS),
+      new Date(now).toISOString(),
+      now,
+    );
+    return { secret, pairCode };
+  }
+
+  private async displayRow(secret: unknown) {
+    if (typeof secret !== 'string' || !secret) return null;
+    const row = this.sql
+      .exec<{ id: string; pair_code: string | null; account_id: string | null; settings: string; seen_at: number }>(
+        'SELECT id, pair_code, account_id, settings, seen_at FROM displays WHERE secret_hash = ?',
+        await sha256(secret),
+      )
+      .toArray()[0];
+    if (!row) return null;
+    const now = Date.now();
+    if (now - row.seen_at > DISPLAY_SEEN_EVERY_MS) this.sql.exec('UPDATE displays SET seen_at = ? WHERE id = ?', now, row.id);
+    return row;
+  }
+
+  /** Partie en cours du compte (joueur ou hôte), la plus récente, lancée de préférence. */
+  private liveCodeOf(accountId: string): string | null {
+    this.sql.exec('DELETE FROM live_rooms WHERE updated_at < ?', Date.now() - LIVE_GAME_TTL_MS);
+    const rows = this.sql
+      .exec<{ code: string; summary: string }>('SELECT code, summary FROM live_rooms ORDER BY updated_at DESC')
+      .toArray()
+      .map((r) => ({ code: r.code, summary: JSON.parse(r.summary) as LiveSummary }))
+      .filter((r) => r.summary.hostId === accountId || (r.summary.playerIds ?? []).includes(accountId));
+    return (rows.find((r) => r.summary.status === 'playing') ?? rows[0])?.code ?? null;
+  }
+
+  /** Ce que la tablette demande régulièrement : est-elle reliée, ses réglages, la partie à suivre. */
+  async displayStatus(secret: unknown): Promise<DisplayStatus | null> {
+    const row = await this.displayRow(secret);
+    if (!row) return null;
+    const settings = cleanDisplaySettings(JSON.parse(row.settings));
+    if (!row.account_id) return { paired: false, pairCode: row.pair_code ?? '', settings, game: null };
+    return { paired: true, settings, game: this.liveCodeOf(row.account_id) };
+  }
+
+  /** Code de la partie que la tablette doit regarder (null : pas reliée ou aucune partie). */
+  async displayGame(secret: unknown): Promise<string | null> {
+    const row = await this.displayRow(secret);
+    return row?.account_id ? this.liveCodeOf(row.account_id) : null;
+  }
+
+  private displayInfo(row: { id: string; settings: string; created_at: string; seen_at: number }): DisplayInfo {
+    return { id: row.id, createdAt: row.created_at, seenAt: new Date(row.seen_at).toISOString(), settings: cleanDisplaySettings(JSON.parse(row.settings)) };
+  }
+
+  private myDisplays(accountId: string) {
+    return this.sql
+      .exec<{ id: string; settings: string; created_at: string; seen_at: number }>(
+        'SELECT id, settings, created_at, seen_at FROM displays WHERE account_id = ? ORDER BY created_at',
+        accountId,
+      )
+      .toArray();
+  }
+
+  /** Depuis la borne : relie la tablette qui affiche ce code au compte connecté. */
+  async displayLink(token: string, code: unknown): Promise<DisplayInfo> {
+    const me = await this.member(token);
+    if (!isPairCode(code)) throw new Error('Le code de la tablette a 4 chiffres.');
+    const row = this.sql
+      .exec<{ id: string; seen_at: number }>('SELECT id, seen_at FROM displays WHERE pair_code = ? AND account_id IS NULL', code)
+      .toArray()[0];
+    if (!row || Date.now() - row.seen_at > DISPLAY_PAIR_TTL_MS) throw new Error('Aucune tablette n’affiche ce code. Vérifie le code affiché sur la tablette.');
+    if (this.myDisplays(me.id).length >= MAX_DISPLAYS) throw new Error(`Pas plus de ${MAX_DISPLAYS} tablettes par compte : délie-en une d’abord.`);
+    this.sql.exec('UPDATE displays SET account_id = ?, pair_code = NULL WHERE id = ?', me.id, row.id);
+    return this.displays(token).then((list) => list.find((d) => d.id === row.id)!);
+  }
+
+  async displays(token: string): Promise<DisplayInfo[]> {
+    const me = await this.member(token);
+    return this.myDisplays(me.id).map((r) => this.displayInfo(r));
+  }
+
+  async displayUpdate(token: string, id: unknown, settings: unknown): Promise<DisplayInfo> {
+    const me = await this.member(token);
+    const row = this.myDisplays(me.id).find((r) => r.id === id);
+    if (!row) throw Object.assign(new Error('Tablette introuvable.'), { status: 404 });
+    const next: DisplaySettings = cleanDisplaySettings(settings, cleanDisplaySettings(JSON.parse(row.settings)));
+    this.sql.exec('UPDATE displays SET settings = ? WHERE id = ?', JSON.stringify(next), row.id);
+    return this.displayInfo({ ...row, settings: JSON.stringify(next) });
+  }
+
+  /** Délie la tablette : elle oublie le compte et affiche un nouveau code au passage suivant. */
+  async displayUnlink(token: string, id: unknown): Promise<void> {
+    const me = await this.member(token);
+    this.sql.exec('DELETE FROM displays WHERE id = ? AND account_id = ?', String(id ?? ''), me.id);
   }
 
   /** Réglages proposés à chaque nouvelle partie du saloon (mode choisi à l'accueil, options, équipes). */
