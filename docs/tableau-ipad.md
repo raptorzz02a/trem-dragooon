@@ -19,7 +19,7 @@ Si la page affiche une erreur de certificat sur un iPad 2 (iOS 9 ne connaît pas
 
 - La tablette repère la partie en cours du compte (joueur ou hôte, saloon quelconque) et s'y branche en spectatrice, sans compter dans « spectateurs ».
 - Écran unique : en haut le joueur qui lance (nom, moyenne, volée en cours, reste en grand) ; en bas à gauche l'**out proposé** (X01) ; en bas à droite les autres joueurs (4 lettres, reste, moyenne), 2 par ligne (3 au-delà de 6).
-- Animations : 100+ (vert), 140+ (ambre), 180 (rouge, stroboscope), avec le score en toutes lettres en anglais (« one hundred and forty-two ») ; **BUST** (score remis) ; **victoire** (nom, finish, fléchettes, meilleure volée, checkout), affichée 45 s après la fin.
+- Animations : 100+ (vert), 140+ (ambre), 180 (rouge, stroboscope), avec le score en toutes lettres en anglais (« one hundred and forty-two ») ; **BUST** (score remis) ; **victoire** (nom, finish, fléchettes, meilleure volée, checkout), affichée 20 s après la fin, même si la borne revient au salon (seule une nouvelle partie lancée l’interrompt).
 - Revanche ou nouvelle partie : la tablette bascule seule. Sans partie : écran d'attente, assombri si l'option est active.
 
 ## Réglages depuis la borne (menu › Tableau iPad)

@@ -156,7 +156,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
   var STATUS_EVERY = 10000;        // état de la tablette (réglages, partie suivie)
   var STATUS_EVERY_UNPAIRED = 4000; // en attente d'appairage : la borne vient peut-être de taper le code
   var BOARD_POLL_EVERY = 1500;     // secours sans WebSocket
-  var WIN_SHOWN_MS = 45000;        // l'écran de victoire reste affiché après la fin de partie
+  var WIN_SHOWN_MS = 20000;        // l'écran de victoire reste affiché après la fin de partie, même si la borne revient au salon
   var KEY = 'trem-tableau-secret';
 
   var secret = null;
@@ -297,7 +297,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     if (!followed) return;
     request('GET', '/api/display/board', function (status, data) {
       if (status === 200 && data && data.board) onBoard(data.board);
-      else if (status === 200) { stopFollowing(); board = null; render(); return; }
+      else if (status === 200) { stopFollowing(); if (!holdingWin()) board = null; render(); return; }
       if (followed) pollTimer = setTimeout(poll, BOARD_POLL_EVERY);
     });
   }
@@ -360,7 +360,14 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     return avg === null || avg === undefined ? '—' : (Math.round(avg * 10) / 10).toFixed(1);
   }
 
+  /** Victoire encore à l'écran : on la garde même si la borne repasse au salon ou si la partie disparaît. */
+  function holdingWin() {
+    return !!board && board.status === 'finished' && !!finishedAt && Date.now() - finishedAt < WIN_SHOWN_MS;
+  }
+
   function onBoard(next) {
+    // Seule une nouvelle partie lancée interrompt l'écran de victoire.
+    if (holdingWin() && next.status !== 'playing') return;
     var fresh = !board || next.game !== lastGame;
     board = next;
     if (next.status === 'finished' && !finishedAt) finishedAt = Date.now();
@@ -575,7 +582,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
   }
 
   // Une fois la victoire affichée assez longtemps, retour à l'écran d'attente.
-  setInterval(function () { if (board && board.status === 'finished') render(); }, 5000);
+  setInterval(function () { if (board && board.status === 'finished') render(); }, 1000);
 
   fit();
   secret = stored();

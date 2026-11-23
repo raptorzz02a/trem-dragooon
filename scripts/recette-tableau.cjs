@@ -155,8 +155,20 @@ const check = (id, ok, detail = '') => { if (!ok) failed++; console.log(ok ? 'OK
   const win = await ipad.locator('#fx').innerText();
   check('victoire : nom et finish', win.indexOf(JU.toUpperCase()) >= 0 || win.indexOf(JU) >= 0, win.replace(/\s+/g, ' '));
 
-  // 4. Réglages depuis la borne
+  // La borne repasse au salon : la victoire reste affichée 20 s, puis écran d'attente.
   await borne.locator('.end-winner').waitFor();
+  await borne.getByRole('button', { name: 'Changer les réglages' }).click();
+  await ipad.waitForTimeout(4000);
+  check('victoire gardée quand la borne revient au salon', await ipad.evaluate(() => {
+    const f = document.getElementById('fx');
+    return f.className.indexOf('on') >= 0 && f.textContent.indexOf('Victoire') >= 0;
+  }));
+  const idleAfterWin = await ipad
+    .waitForFunction(() => document.getElementById('idle').className.indexOf(' on') >= 0, null, { timeout: 25000 })
+    .then(() => true, () => false);
+  check('écran d’attente une fois la victoire passée', idleAfterWin);
+
+  // 4. Réglages depuis la borne
   await borne.goto(URL);
   await borne.locator('.home-account-toggle').click();
   await borne.getByRole('menuitem', { name: 'Tableau iPad' }).click();
