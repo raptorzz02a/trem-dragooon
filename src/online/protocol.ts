@@ -2,6 +2,7 @@ import type { Dart } from '../game-engine/darts';
 import type { GameSetup } from '../game-setup/setup';
 import type { GameSession } from '../game-session/session';
 import type { AvatarConfig } from '../profiles/types';
+import type { Board } from './display';
 
 // Messages échangés entre l'appli et le serveur de salons (WebSocket, JSON).
 
@@ -78,6 +79,8 @@ export type ClientMessage =
 export type ServerMessage =
   | { type: 'welcome'; playerId: string; token: string }
   | { type: 'room'; room: RoomView }
+  /** Tablette « tableau de scores » : l'état déjà calculé pour l'affichage, à la place de la partie complète. */
+  | { type: 'board'; board: Board }
   | { type: 'error'; message: string };
 
 /** Alphabet des codes de salon : sans 0/O ni 1/I/L, pour être dicté sans erreur. */

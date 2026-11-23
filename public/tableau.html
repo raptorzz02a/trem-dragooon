@@ -1,0 +1,587 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<!-- Ajoutée à l'écran d'accueil, la page s'ouvre en plein écran, sans la barre de Safari. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Tableau">
+<title>TREM-DRAGOOON · Tableau</title>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&amp;display=swap" rel="stylesheet">
+<style>
+/*
+  Tableau de scores pour une tablette fixée au-dessus de la cible (pensé pour un vieil iPad : iOS 9/10).
+  Volontairement sans framework ni JavaScript récent : ES5, XMLHttpRequest, pas de grille CSS.
+  Maquette : écran unique « Bar LED » (scores en afficheurs 7 segments) + animations.
+*/
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
+#stage{position:absolute;left:0;top:0;width:1024px;height:768px;background:#070707;color:#c9cec9;font-family:"Chakra Petch",-apple-system,"Helvetica Neue",sans-serif;-webkit-transform-origin:0 0;transform-origin:0 0;overflow:hidden}
+.screen{position:absolute;left:0;top:0;width:1024px;height:768px;box-sizing:border-box;display:none}
+.screen.on{display:block}
+.row{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center}
+.col{display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column}
+.between{-webkit-justify-content:space-between;justify-content:space-between}
+.center{-webkit-justify-content:center;justify-content:center}
+.lab{letter-spacing:.1em;text-transform:uppercase}
+.zone{box-sizing:border-box;border:2px solid #1c1f1c;border-radius:14px}
+.dim{opacity:.35}
+
+/* Afficheurs 7 segments */
+.digits{display:-webkit-flex;display:flex}
+.dg{position:relative;-webkit-flex-shrink:0;flex-shrink:0;-webkit-transform:skewX(-7deg);transform:skewX(-7deg)}
+.x{position:absolute;display:block}
+.red .x{background:#2a0a08}.red .x.on{background:#ff2a1f;box-shadow:0 0 18px rgba(255,42,31,.8)}
+.grn .x{background:#08230f}.grn .x.on{background:#3dff6e;box-shadow:0 0 10px rgba(61,255,110,.75)}
+.amb .x{background:#2a1c05}.amb .x.on{background:#ffb020;box-shadow:0 0 14px rgba(255,176,32,.8)}
+
+/* Écran unique */
+#main{padding:24px 32px}
+.head{height:26px;font-size:20px;font-weight:700}
+.head .mode{color:#ff5a4f}
+#top{position:absolute;left:32px;right:32px;top:66px;height:310px;padding:0 40px}
+#name{font-size:72px;font-weight:700;line-height:1;color:#3dff6e;text-shadow:0 0 18px rgba(61,255,110,.55);white-space:nowrap;overflow:hidden;max-width:330px}
+.avg{color:#ffb020;font-weight:700;text-shadow:0 0 12px rgba(255,176,32,.55)}
+.slot{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;width:92px;height:44px;margin-right:10px;box-sizing:border-box;border:2px solid #2a1c05;border-radius:8px;font-size:22px;font-weight:700;color:#6b5a3a}
+.slot.on{border-color:#ffb020;color:#ffb020;text-shadow:0 0 10px rgba(255,176,32,.6)}
+#outz{position:absolute;left:32px;top:392px;width:300px;height:352px;padding:20px 24px}
+.out{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;height:58px;margin-top:12px;box-sizing:border-box;border:2px solid #4a3208;border-radius:10px;font-size:34px;font-weight:700;color:#ffb020;text-shadow:0 0 12px rgba(255,176,32,.55)}
+.out.none{border-color:#1c1f1c;color:#3a3a3a;text-shadow:none}
+#othz{position:absolute;left:348px;right:32px;top:392px;height:352px;padding:18px 24px}
+#others{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin-top:6px}
+.oth{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;width:280px;height:70px;margin:6px 32px 6px 0;border-bottom:1px solid #1c1f1c}
+.oth:nth-child(2n){margin-right:0}
+.oth .n{font-size:28px;font-weight:700;line-height:1;color:#e8ece8;letter-spacing:.1em}
+.many .oth{width:178px;height:62px;margin-right:16px}
+.many .oth:nth-child(2n){margin-right:16px}
+.many .oth:nth-child(3n){margin-right:0}
+.many .oth .n{font-size:22px}
+
+/* Appairage et attente */
+#pair,#idle{text-align:center}
+.big{font-size:56px;font-weight:700;color:#3dff6e;text-shadow:0 0 22px rgba(61,255,110,.6);letter-spacing:.12em}
+.hint{font-size:24px;line-height:1.5;color:#c9cec9}
+
+/* Animations */
+#fx{position:absolute;left:0;top:0;width:1024px;height:768px;display:none;background:#050605;z-index:5}
+#fx.on{display:block}
+#fx .inner{position:absolute;left:0;top:0;width:1024px;height:768px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+.edge{position:absolute;display:-webkit-flex;display:flex;-webkit-justify-content:space-between;justify-content:space-between}
+.edge.v{-webkit-flex-direction:column;flex-direction:column}
+.led{width:20px;height:20px;border-radius:4px;background:#0d1a10}
+.words{font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:center;max-width:960px}
+@-webkit-keyframes chaseg{0%,25%{background:#3dff6e;box-shadow:0 0 12px rgba(61,255,110,.95)}45%,100%{background:#0d1a10;box-shadow:none}}
+@keyframes chaseg{0%,25%{background:#3dff6e;box-shadow:0 0 12px rgba(61,255,110,.95)}45%,100%{background:#0d1a10;box-shadow:none}}
+@-webkit-keyframes chasea{0%,25%{background:#ffb020;box-shadow:0 0 12px rgba(255,176,32,.95)}45%,100%{background:#1f1505;box-shadow:none}}
+@keyframes chasea{0%,25%{background:#ffb020;box-shadow:0 0 12px rgba(255,176,32,.95)}45%,100%{background:#1f1505;box-shadow:none}}
+@-webkit-keyframes chaser{0%,25%{background:#ff2a1f;box-shadow:0 0 14px rgba(255,42,31,1)}45%,100%{background:#2a0a08;box-shadow:none}}
+@keyframes chaser{0%,25%{background:#ff2a1f;box-shadow:0 0 14px rgba(255,42,31,1)}45%,100%{background:#2a0a08;box-shadow:none}}
+@-webkit-keyframes pop{0%{-webkit-transform:scale(.4);opacity:0}15%{-webkit-transform:scale(1.12);opacity:1}25%,100%{-webkit-transform:scale(1);opacity:1}}
+@keyframes pop{0%{transform:scale(.4);opacity:0}15%{transform:scale(1.12);opacity:1}25%,100%{transform:scale(1);opacity:1}}
+@-webkit-keyframes flash{0%{opacity:1}50%{opacity:.25}}
+@keyframes flash{0%{opacity:1}50%{opacity:.25}}
+@-webkit-keyframes strobe{0%{background:#050605}50%{background:#2a0606}}
+@keyframes strobe{0%{background:#050605}50%{background:#2a0606}}
+@-webkit-keyframes pulse{0%,100%{background:#050605}50%{background:#1a1204}}
+@keyframes pulse{0%,100%{background:#050605}50%{background:#1a1204}}
+@-webkit-keyframes bustbg{0%{background:#3a0705}60%,100%{background:#0b0303}}
+@keyframes bustbg{0%{background:#3a0705}60%,100%{background:#0b0303}}
+@-webkit-keyframes blink3{0%{opacity:1}10%{opacity:0}20%{opacity:1}30%{opacity:0}40%{opacity:1}50%{opacity:0}60%,100%{opacity:1}}
+@keyframes blink3{0%{opacity:1}10%{opacity:0}20%{opacity:1}30%{opacity:0}40%{opacity:1}50%{opacity:0}60%,100%{opacity:1}}
+@-webkit-keyframes shake{0%{-webkit-transform:translateX(0)}3%{-webkit-transform:translateX(-18px)}6%{-webkit-transform:translateX(16px)}9%{-webkit-transform:translateX(-10px)}12%,100%{-webkit-transform:translateX(0)}}
+@keyframes shake{0%{transform:translateX(0)}3%{transform:translateX(-18px)}6%{transform:translateX(16px)}9%{transform:translateX(-10px)}12%,100%{transform:translateX(0)}}
+@-webkit-keyframes rise{0%{-webkit-transform:translateY(40px) scale(.7);opacity:0}15%{-webkit-transform:translateY(0) scale(1.06);opacity:1}25%,100%{-webkit-transform:scale(1);opacity:1}}
+@keyframes rise{0%{transform:translateY(40px) scale(.7);opacity:0}15%{transform:translateY(0) scale(1.06);opacity:1}25%,100%{transform:scale(1);opacity:1}}
+@-webkit-keyframes glow{0%,100%{text-shadow:0 0 18px rgba(61,255,110,.5)}50%{text-shadow:0 0 44px rgba(61,255,110,1)}}
+@keyframes glow{0%,100%{text-shadow:0 0 18px rgba(61,255,110,.5)}50%{text-shadow:0 0 44px rgba(61,255,110,1)}}
+.a-pop{-webkit-animation:pop 1.6s ease-out 1 both;animation:pop 1.6s ease-out 1 both}
+.a-flash{-webkit-animation:flash .6s steps(1) infinite;animation:flash .6s steps(1) infinite}
+.a-flashfast{-webkit-animation:flash .35s steps(1) infinite;animation:flash .35s steps(1) infinite}
+.a-strobe{-webkit-animation:strobe .25s steps(1) infinite;animation:strobe .25s steps(1) infinite}
+.a-pulse{-webkit-animation:pulse 1.6s ease-in-out infinite;animation:pulse 1.6s ease-in-out infinite}
+.a-bustbg{-webkit-animation:bustbg 3s ease-out 1 both;animation:bustbg 3s ease-out 1 both}
+.a-blink3{-webkit-animation:blink3 3s steps(1) 1 both,shake 3s ease-out 1;animation:blink3 3s steps(1) 1 both,shake 3s ease-out 1}
+.a-rise{-webkit-animation:rise 3s ease-out 1 both,glow 1.2s ease-in-out 3s infinite;animation:rise 3s ease-out 1 both,glow 1.2s ease-in-out 3s infinite}
+.tile{width:240px;height:150px;margin:0 12px;box-sizing:border-box;border:2px solid #1c2a1f;border-radius:14px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="pair" class="screen">
+    <div class="col center" style="height:768px;-webkit-align-items:center;align-items:center">
+      <div class="lab" style="font-size:22px;font-weight:700;color:#ff5a4f;margin-bottom:18px">TREM-DRAGOOON · Tableau de scores</div>
+      <div class="lab" style="font-size:24px;margin-bottom:26px">Code de la tablette</div>
+      <div id="paircode" class="digits grn" role="img" style="margin-bottom:40px"></div>
+      <div class="hint">Sur la borne : menu du compte › <b>Tableau iPad</b>,<br>puis tape ce code pour relier la tablette.</div>
+      <div id="pairmsg" class="hint" style="margin-top:22px;color:#ffb020"></div>
+    </div>
+  </div>
+
+  <div id="idle" class="screen">
+    <div class="col center" style="height:768px;-webkit-align-items:center;align-items:center">
+      <div class="big">TREM-DRAGOOON</div>
+      <div class="lab hint" style="margin-top:24px">En attente d’une partie</div>
+      <div id="idlemsg" class="hint" style="margin-top:14px;font-size:18px;color:#6b706b"></div>
+    </div>
+  </div>
+
+  <div id="main" class="screen">
+    <div class="row between head lab"><span id="mode" class="mode"></span><span id="round"></span></div>
+    <div id="top" class="zone row between">
+      <div class="col" style="width:330px">
+        <span id="name" class="lab"></span>
+        <div class="row" style="margin-top:14px;-webkit-align-items:baseline;align-items:baseline"><span class="lab avg" style="font-size:18px;margin-right:12px">Moy</span><span id="avg" class="avg" style="font-size:40px;line-height:1"></span></div>
+        <div id="slots" class="row" style="margin-top:14px"></div>
+      </div>
+      <div id="score" class="digits red" role="img"></div>
+    </div>
+    <div id="outz" class="zone">
+      <div class="lab" style="font-size:15px;color:#ffb020">Out proposé</div>
+      <div id="outs"></div>
+    </div>
+    <div id="othz" class="zone">
+      <div class="lab" style="font-size:15px">Autres joueurs</div>
+      <div id="others"></div>
+    </div>
+  </div>
+
+  <div id="fx"><div class="inner" id="fxin"></div></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Réglages ----------
+  var STATUS_EVERY = 10000;        // état de la tablette (réglages, partie suivie)
+  var STATUS_EVERY_UNPAIRED = 4000; // en attente d'appairage : la borne vient peut-être de taper le code
+  var BOARD_POLL_EVERY = 1500;     // secours sans WebSocket
+  var WIN_SHOWN_MS = 45000;        // l'écran de victoire reste affiché après la fin de partie
+  var KEY = 'trem-tableau-secret';
+
+  var secret = null;
+  var settings = { dim: true, animations: true, reload: 0 };
+  var reloadSeen = null;
+  var paired = false;
+  var followed = null;   // code de la partie suivie
+  var socket = null;
+  var socketFailures = 0;
+  var pollTimer = null;
+  var board = null;
+  var lastSeq = null;
+  var lastGame = null;
+  var fxTimer = null;
+  var finishedAt = 0;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function store(value) {
+    try { if (value) localStorage.setItem(KEY, value); else localStorage.removeItem(KEY); } catch (e) { /* navigation privée */ }
+  }
+  function stored() {
+    try { return localStorage.getItem(KEY); } catch (e) { return null; }
+  }
+
+  // ---------- Mise à l'échelle : la scène fait 1024 × 768 ----------
+  function fit() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var s = Math.min(w / 1024, h / 768);
+    var st = $('stage');
+    var t = 'translate(' + Math.round((w - 1024 * s) / 2) + 'px,' + Math.round((h - 768 * s) / 2) + 'px) scale(' + s + ')';
+    st.style.webkitTransform = t;
+    st.style.transform = t;
+  }
+  window.addEventListener('resize', fit);
+  window.addEventListener('orientationchange', function () { setTimeout(fit, 300); });
+
+  // ---------- Réseau ----------
+  function request(method, path, done) {
+    var xhr = new XMLHttpRequest();
+    xhr.open(method, path, true);
+    if (secret) xhr.setRequestHeader('Authorization', 'Bearer ' + secret);
+    xhr.timeout = 10000;
+    xhr.onreadystatechange = function () {
+      if (xhr.readyState !== 4) return;
+      var data = null;
+      try { data = JSON.parse(xhr.responseText); } catch (e) { data = null; }
+      done(xhr.status, data);
+    };
+    xhr.send(null);
+  }
+
+  function pair() {
+    request('POST', '/api/display/pair', function (status, data) {
+      if (status === 200 && data && data.secret) {
+        secret = data.secret;
+        store(secret);
+        showPair(data.pairCode);
+      } else {
+        $('pairmsg').textContent = 'Serveur injoignable, nouvel essai…';
+        showScreen('pair');
+      }
+      setTimeout(checkStatus, STATUS_EVERY_UNPAIRED);
+    });
+  }
+
+  function checkStatus() {
+    if (!secret) return pair();
+    request('GET', '/api/display', function (status, data) {
+      if (status === 401) {
+        // Tablette déliée depuis la borne (ou oubliée) : nouveau code.
+        secret = null;
+        store(null);
+        stopFollowing();
+        return pair();
+      }
+      if (status !== 200 || !data) {
+        $('idlemsg').textContent = 'Connexion au serveur perdue, nouvel essai…';
+        return setTimeout(checkStatus, STATUS_EVERY_UNPAIRED);
+      }
+      $('idlemsg').textContent = '';
+      applySettings(data.settings || settings);
+      paired = !!data.paired;
+      if (!paired) {
+        stopFollowing();
+        showPair(data.pairCode);
+        return setTimeout(checkStatus, STATUS_EVERY_UNPAIRED);
+      }
+      if (data.game && data.game !== followed) follow(data.game);
+      if (!data.game && followed && (!board || board.status !== 'finished')) { stopFollowing(); board = null; }
+      render();
+      setTimeout(checkStatus, STATUS_EVERY);
+    });
+  }
+
+  function applySettings(next) {
+    settings = next;
+    if (reloadSeen === null) reloadSeen = next.reload;
+    else if (next.reload !== reloadSeen) window.location.reload();
+  }
+
+  function follow(game) {
+    stopFollowing();
+    followed = game;
+    socketFailures = 0;
+    connect();
+  }
+
+  function stopFollowing() {
+    followed = null;
+    if (socket) { var s = socket; socket = null; try { s.close(); } catch (e) { /* déjà fermé */ } }
+    if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+  }
+
+  function connect() {
+    if (!followed) return;
+    if (!window.WebSocket || socketFailures >= 3) return poll();
+    var url = (location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/api/display/ws?secret=' + encodeURIComponent(secret);
+    var ws;
+    try { ws = new WebSocket(url); } catch (e) { socketFailures = 3; return poll(); }
+    socket = ws;
+    var opened = false;
+    ws.onopen = function () { opened = true; socketFailures = 0; };
+    ws.onmessage = function (event) {
+      var msg = null;
+      try { msg = JSON.parse(event.data); } catch (e) { return; }
+      if (msg && msg.type === 'board') onBoard(msg.board);
+    };
+    ws.onclose = function () {
+      if (socket !== ws) return;
+      socket = null;
+      if (!opened) socketFailures++;
+      if (followed) setTimeout(connect, 3000);
+    };
+  }
+
+  function poll() {
+    if (!followed) return;
+    request('GET', '/api/display/board', function (status, data) {
+      if (status === 200 && data && data.board) onBoard(data.board);
+      else if (status === 200) { stopFollowing(); board = null; render(); return; }
+      if (followed) pollTimer = setTimeout(poll, BOARD_POLL_EVERY);
+    });
+  }
+
+  // ---------- Affichage ----------
+  function showScreen(id) {
+    var ids = ['pair', 'idle', 'main'];
+    for (var i = 0; i < ids.length; i++) $(ids[i]).className = 'screen' + (ids[i] === id ? ' on' : '');
+    if (id === 'idle' && settings.dim) $('idle').className += ' dim';
+  }
+
+  function showPair(code) {
+    digits($('paircode'), code || '----', 74, 128, 13, 22);
+    $('paircode').setAttribute('aria-label', 'Code ' + (code || 'en attente'));
+    $('paircode').setAttribute('data-code', code || '');
+    showScreen('pair');
+  }
+
+  var SEGS = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '', b: 'cdefg', U: 'bcdef', S: 'acdfg', t: 'defg' };
+
+  /** Dessine un nombre en afficheurs 7 segments : largeur, hauteur, épaisseur des segments, écart entre chiffres. */
+  function digits(el, text, w, h, t, gap) {
+    el.innerHTML = '';
+    var str = String(text);
+    var half = h / 2, inset = t * 0.75, vlen = half - t * 1.25;
+    var geo = {
+      a: [inset, 0, w - 2 * inset, t], g: [inset, half - t / 2, w - 2 * inset, t], d: [inset, h - t, w - 2 * inset, t],
+      f: [0, inset, t, vlen], b: [w - t, inset, t, vlen], e: [0, h - inset - vlen, t, vlen], c: [w - t, h - inset - vlen, t, vlen]
+    };
+    for (var i = 0; i < str.length; i++) {
+      var on = SEGS[str.charAt(i)] || '';
+      var dg = document.createElement('div');
+      dg.className = 'dg';
+      dg.style.width = w + 'px';
+      dg.style.height = h + 'px';
+      if (i > 0) dg.style.marginLeft = gap + 'px';
+      for (var k in geo) {
+        var s = document.createElement('span');
+        var g = geo[k];
+        s.className = 'x' + (on.indexOf(k) >= 0 ? ' on' : '');
+        s.style.left = g[0] + 'px'; s.style.top = g[1] + 'px'; s.style.width = g[2] + 'px'; s.style.height = g[3] + 'px';
+        s.style.borderRadius = (t / 2) + 'px';
+        dg.appendChild(s);
+      }
+      el.appendChild(dg);
+    }
+  }
+
+  function pad(value, n) {
+    var s = String(value);
+    while (s.length < n) s = ' ' + s;
+    return s;
+  }
+
+  function short(name) {
+    return String(name || '').replace(/\s+/g, '').toUpperCase().slice(0, 4);
+  }
+
+  function fmtAvg(avg) {
+    return avg === null || avg === undefined ? '—' : (Math.round(avg * 10) / 10).toFixed(1);
+  }
+
+  function onBoard(next) {
+    var fresh = !board || next.game !== lastGame;
+    board = next;
+    if (next.status === 'finished' && !finishedAt) finishedAt = Date.now();
+    if (next.status !== 'finished') finishedAt = 0;
+    if (fresh) {
+      // Nouvelle partie (ou première réception) : pas d'animation pour ce qui s'est passé avant.
+      lastGame = next.game;
+      lastSeq = next.last ? next.last.seq : null;
+      hideFx();
+      if (next.status === 'finished' && next.winner) showWin(next);
+    } else if (next.last && next.last.seq !== lastSeq) {
+      lastSeq = next.last.seq;
+      animate(next);
+    } else if (!next.last) {
+      lastSeq = null;
+    }
+    render();
+  }
+
+  function render() {
+    if (!paired) return;
+    if (!board || board.status === 'lobby' || (board.status === 'finished' && finishedAt && Date.now() - finishedAt > WIN_SHOWN_MS)) {
+      hideFx();
+      return showScreen('idle');
+    }
+    showScreen('main');
+    var sides = board.sides;
+    var cur = board.current !== null ? board.current : (board.last ? board.last.side : 0);
+    var side = sides[cur] || { name: '', value: 0, avg: null };
+    $('mode').textContent = board.title;
+    $('round').textContent = board.round ? 'Manche ' + board.round : '';
+    $('name').textContent = side.name;
+    $('avg').textContent = fmtAvg(side.avg);
+    // Volée en cours
+    var slots = $('slots');
+    slots.innerHTML = '';
+    for (var i = 0; i < 3; i++) {
+      var sl = document.createElement('span');
+      var d = board.darts[i];
+      sl.className = 'slot' + (d ? ' on' : '');
+      sl.textContent = d || '—';
+      slots.appendChild(sl);
+    }
+    // Score du joueur qui lance
+    var v = String(Math.abs(side.value));
+    var big = v.length <= 3 ? [144, 240, 25, 24] : [112, 200, 20, 18];
+    digits($('score'), v.length < 3 ? pad(v, 3) : v, big[0], big[1], big[2], big[3]);
+    $('score').setAttribute('aria-label', 'Reste ' + v);
+    // Out proposé
+    var outs = $('outs');
+    outs.innerHTML = '';
+    for (var j = 0; j < 3; j++) {
+      var o = document.createElement('div');
+      o.className = 'out' + (board.checkout[j] ? '' : ' none');
+      o.textContent = board.checkout[j] || '—';
+      outs.appendChild(o);
+    }
+    // Autres joueurs, dans l'ordre de passage après celui qui lance
+    var others = $('others');
+    others.innerHTML = '';
+    others.className = sides.length - 1 > 6 ? 'many' : '';
+    for (var n = 1; n < sides.length; n++) {
+      var p = sides[(cur + n) % sides.length];
+      var row = document.createElement('div');
+      row.className = 'oth';
+      var left = document.createElement('div');
+      left.className = 'col';
+      var nm = document.createElement('span');
+      nm.className = 'n';
+      nm.textContent = short(p.name);
+      left.appendChild(nm);
+      if (p.avg !== null && p.avg !== undefined) {
+        var av = document.createElement('div');
+        av.className = 'row';
+        av.style.marginTop = '4px';
+        av.innerHTML = '<span class="lab avg" style="font-size:13px;margin-right:8px">Moy</span><span class="avg" style="font-size:24px;line-height:1"></span>';
+        av.lastChild.textContent = fmtAvg(p.avg);
+        left.appendChild(av);
+      }
+      var sc = document.createElement('div');
+      sc.className = 'digits grn';
+      var pv = String(Math.abs(p.value));
+      if (sides.length - 1 > 6) digits(sc, pv.length < 3 ? pad(pv, 3) : pv, 22, 40, 5, 6);
+      else digits(sc, pv.length < 3 ? pad(pv, 3) : pv, 30, 52, 6, 8);
+      sc.setAttribute('role', 'img');
+      sc.setAttribute('aria-label', 'Reste ' + pv);
+      row.appendChild(left);
+      row.appendChild(sc);
+      others.appendChild(row);
+    }
+  }
+
+  // ---------- Animations ----------
+  var ONES = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+  var TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  /** Le score en toutes lettres, comme l'annonce un arbitre : 142 → « one hundred and forty-two ». */
+  function words(n) {
+    if (n < 20) return ONES[n];
+    if (n < 100) return TENS[Math.floor(n / 10)] + (n % 10 ? '-' + ONES[n % 10] : '');
+    var rest = n % 100;
+    return ONES[Math.floor(n / 100)] + ' hundred' + (rest ? ' and ' + words(rest) : '');
+  }
+
+  function hideFx() {
+    if (fxTimer) { clearTimeout(fxTimer); fxTimer = null; }
+    var fx = $('fx');
+    fx.className = '';
+    fx.style.background = '';
+    fx.style.border = '';
+    // Les guirlandes de LED sont posées directement dans #fx : tout sauf le contenu central part avec l'animation.
+    for (var i = fx.childNodes.length - 1; i >= 0; i--) if (fx.childNodes[i].id !== 'fxin') fx.removeChild(fx.childNodes[i]);
+    $('fxin').innerHTML = '';
+  }
+
+  function edges(fx, kind, speed) {
+    var specs = [['top:14px;left:14px;right:14px', 28, false, false], ['bottom:14px;left:14px;right:14px', 28, true, false], ['top:60px;bottom:60px;left:14px', 16, true, true], ['top:60px;bottom:60px;right:14px', 16, false, true]];
+    var count = kind === 'g' ? 2 : 4;
+    for (var e = 0; e < count; e++) {
+      var sp = specs[e];
+      var box = document.createElement('div');
+      box.className = 'edge' + (sp[3] ? ' v' : '');
+      box.style.cssText += sp[0];
+      for (var i = 0; i < sp[1]; i++) {
+        var led = document.createElement('span');
+        led.className = 'led';
+        var idx = sp[2] ? sp[1] - 1 - i : i;
+        var name = kind === 'mix' ? (Math.floor(idx / 5) % 2 ? 'chaseg' : 'chaser') : kind === 'win' ? (Math.floor(idx / 3) % 2 ? 'chasea' : 'chaseg') : 'chase' + kind;
+        var anim = name + ' ' + speed + 's linear ' + (-(idx % 10) * speed / 10) + 's infinite';
+        led.style.webkitAnimation = anim;
+        led.style.animation = anim;
+        box.appendChild(led);
+      }
+      fx.appendChild(box);
+    }
+  }
+
+  function el(tag, cls, css, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (css) e.style.cssText = css;
+    if (text !== undefined) e.textContent = text;
+    return e;
+  }
+
+  function showFx(build, ms, bg) {
+    hideFx();
+    var fx = $('fx'), inner = $('fxin');
+    fx.className = 'on' + (bg ? ' ' + bg : '');
+    build(fx, inner);
+    if (ms) fxTimer = setTimeout(function () { hideFx(); render(); }, ms);
+  }
+
+  function animate(b) {
+    if (!settings.animations) return;
+    var last = b.last;
+    var who = (b.sides[last.side] || {}).name || '';
+    if (last.outcome === 'win' && b.winner) return showWin(b);
+    if (last.outcome === 'bust') {
+      return showFx(function (fx, inner) {
+        fx.style.border = '6px solid #ff2a1f';
+        fx.style.boxSizing = 'border-box';
+        inner.appendChild(el('div', 'lab', 'font-size:28px;font-weight:700;color:#d6dad6;margin-bottom:40px', who + ' · ' + last.darts.join(' · ')));
+        var w = el('div', 'digits red a-blink3');
+        digits(w, 'bUSt', 150, 260, 27, 28);
+        inner.appendChild(w);
+        var back = el('div', 'row', 'margin-top:40px');
+        back.appendChild(el('span', 'lab', 'font-size:30px;font-weight:700;color:#d6dad6;margin-right:20px', 'Score remis à'));
+        var d = el('div', 'digits grn');
+        digits(d, String((b.sides[last.side] || {}).value || 0), 40, 70, 8, 12);
+        back.appendChild(d);
+        inner.appendChild(back);
+      }, 3200, 'a-bustbg');
+    }
+    var total = last.total;
+    if (total < 100) return;
+    var tier = total >= 180 ? 3 : total >= 140 ? 2 : 1;
+    var color = tier === 3 ? 'red' : tier === 2 ? 'amb' : 'grn';
+    var hex = tier === 3 ? '#ff2a1f' : tier === 2 ? '#ffb020' : '#3dff6e';
+    showFx(function (fx, inner) {
+      edges(fx, tier === 3 ? 'mix' : tier === 2 ? 'a' : 'g', tier === 3 ? 0.5 : tier === 2 ? 0.8 : 1.2);
+      inner.appendChild(el('div', 'lab', 'font-size:26px;font-weight:700;margin-bottom:30px', who + ' · ' + last.darts.join(' · ')));
+      var d = el('div', 'digits ' + color + ' a-pop');
+      var size = tier === 3 ? [190, 330, 34, 34] : tier === 2 ? [170, 290, 30, 30] : [160, 270, 28, 30];
+      digits(d, String(total), size[0], size[1], size[2], size[3]);
+      inner.appendChild(d);
+      inner.appendChild(el('div', 'words ' + (tier === 3 ? 'a-flashfast' : 'a-flash'), 'margin-top:30px;font-size:' + (tier === 1 ? 64 : 54) + 'px;color:' + hex + ';text-shadow:0 0 26px ' + hex, words(total)));
+    }, tier === 3 ? 4000 : 3200, tier === 3 ? 'a-strobe' : tier === 2 ? 'a-pulse' : '');
+  }
+
+  function showWin(b) {
+    if (!settings.animations) return;
+    var w = b.winner;
+    showFx(function (fx, inner) {
+      edges(fx, 'win', 1);
+      inner.appendChild(el('div', 'lab', 'font-size:34px;font-weight:700;color:#ffb020;letter-spacing:.3em', w.names.length > 1 ? 'Égalité' : 'Victoire'));
+      inner.appendChild(el('div', 'lab a-rise', 'font-size:' + (w.names.join(' ').length > 8 ? 110 : 170) + 'px;font-weight:700;line-height:1.1;color:#3dff6e;margin:18px 0', w.names.join(' · ')));
+      if (w.checkout.length) inner.appendChild(el('div', 'lab', 'font-size:24px;font-weight:700', 'Finish ' + w.checkout.join(' · ')));
+      var tiles = el('div', 'row', 'margin-top:28px');
+      var list = [['Fléchettes', w.darts], ['Meilleure volée', w.best], ['Checkout', w.checkoutPoints]];
+      for (var i = 0; i < list.length; i++) {
+        if (list[i][1] === null || list[i][1] === undefined) continue;
+        var t = el('div', 'tile');
+        t.appendChild(el('span', 'lab', 'font-size:15px;font-weight:700;color:#ffb020;margin-bottom:12px', list[i][0]));
+        var dd = el('div', 'digits grn');
+        digits(dd, String(list[i][1]), 44, 76, 8, 10);
+        t.appendChild(dd);
+        tiles.appendChild(t);
+      }
+      inner.appendChild(tiles);
+    }, 0, '');
+  }
+
+  // Une fois la victoire affichée assez longtemps, retour à l'écran d'attente.
+  setInterval(function () { if (board && board.status === 'finished') render(); }, 5000);
+
+  fit();
+  secret = stored();
+  showScreen('idle');
+  checkStatus();
+})();
+</script>
+</body>
+</html>

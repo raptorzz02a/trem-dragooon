@@ -16,6 +16,7 @@ import { Community } from './screens/Community';
 import { Home } from './screens/Home';
 import { OtherGames } from './screens/OtherGames';
 import { ImportLocal, localData } from './screens/ImportLocal';
+import { Displays } from './screens/Displays';
 import { RoomScreen } from './screens/Room';
 import { WatchScreen } from './screens/Watch';
 import { Welcome } from './screens/Welcome';
@@ -148,6 +149,8 @@ export function App() {
     }
     if (screen === 'import')
         return _jsx(ImportLocal, { onBack: home });
+    if (screen === 'displays')
+        return _jsx(Displays, { onBack: home });
     if (screen === 'admin' && accountState.admin)
         return _jsx(Admin, { myId: account.id, onBack: home });
     const current = currentOnlineRoom();
@@ -162,5 +165,5 @@ export function App() {
                 }, onOtherGames: () => setScreen('games'), onPlayers: () => setScreen('players'), onMyStats: () => setScreen('mystats'), onRecovery: () => setRenewingRecovery(true), hasRecovery: accountState.hasRecovery, onEditAccount: () => {
                     setEditError(null);
                     setEditing(true);
-                }, onPassword: () => setChangingPassword(true), onLogout: accountState.logout, onAdmin: accountState.admin ? () => setScreen('admin') : undefined, onImport: hasLocalStats ? () => setScreen('import') : undefined }), editError && _jsx("div", { className: "online-banner online-banner-error", children: editError }), saloonMessage && (_jsx("div", { className: `online-banner${saloonMessage.error ? ' online-banner-error' : ''}`, onClick: () => setSaloonMessage(null), children: saloonMessage.text })), saloonDialog === 'add' && _jsx(SaloonDialog, { state: saloons, myId: account.id, onClose: () => setSaloonDialog(null) }), saloonDialog === 'info' && _jsx(SaloonInfo, { saloon: saloons.current, state: saloons, myId: account.id, onClose: () => setSaloonDialog(null) }), editor, changingPassword && _jsx(PasswordDialog, { onSave: accountState.changePassword, onClose: () => setChangingPassword(false) }), renewingRecovery && _jsx(RenewRecoveryDialog, { state: accountState, onClose: () => setRenewingRecovery(false) }), recovery] }));
+                }, onPassword: () => setChangingPassword(true), onLogout: accountState.logout, onAdmin: accountState.admin ? () => setScreen('admin') : undefined, onImport: hasLocalStats ? () => setScreen('import') : undefined, onDisplays: () => setScreen('displays') }), editError && _jsx("div", { className: "online-banner online-banner-error", children: editError }), saloonMessage && (_jsx("div", { className: `online-banner${saloonMessage.error ? ' online-banner-error' : ''}`, onClick: () => setSaloonMessage(null), children: saloonMessage.text })), saloonDialog === 'add' && _jsx(SaloonDialog, { state: saloons, myId: account.id, onClose: () => setSaloonDialog(null) }), saloonDialog === 'info' && _jsx(SaloonInfo, { saloon: saloons.current, state: saloons, myId: account.id, onClose: () => setSaloonDialog(null) }), editor, changingPassword && _jsx(PasswordDialog, { onSave: accountState.changePassword, onClose: () => setChangingPassword(false) }), renewingRecovery && _jsx(RenewRecoveryDialog, { state: accountState, onClose: () => setRenewingRecovery(false) }), recovery] }));
 }

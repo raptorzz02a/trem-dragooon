@@ -78,6 +78,9 @@ export function useOnlineRoom(code, identity) {
                 else if (message.type === 'room') {
                     setRoom(message.room);
                 }
+                else if (message.type === 'board') {
+                    // Réservé aux tablettes « tableau de scores ».
+                }
                 else if (!joined) {
                     // Arrivée refusée (code inconnu, partie déjà lancée, salon complet) : inutile d'insister.
                     fail(message.message);

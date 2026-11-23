@@ -44,6 +44,8 @@ interface Props {
   onAdmin?: () => void;
   /** Présent si cet appareil a des stats d'avant le passage en ligne à reprendre. */
   onImport?: () => void;
+  /** Tablettes « tableau de scores » reliées au compte. */
+  onDisplays?: () => void;
 }
 
 /** Les modes principaux, présentés comme les cartes du catalogue « Autres jeux » (icône, nom, une ligne). */
@@ -143,6 +145,7 @@ export function Home(props: Props) {
                 )}
                 {menuItem(light ? 'Couper l’ampoule de la borne' : 'Activer l’ampoule de la borne', () => void toggleLight())}
                 {menuItem(camera ? 'Couper la caméra Dart Sense' : 'Activer la caméra Dart Sense', () => void toggleCamera())}
+                {props.onDisplays && menuItem('Tableau iPad', props.onDisplays)}
                 {props.onAdmin && menuItem('Administration', props.onAdmin)}
                 {menuItem('Déconnexion', props.onLogout, 'home-menu-logout')}
               </div>

@@ -4,6 +4,7 @@ import { cleanSetup } from '../src/game-setup/setup';
 import { isExtraMode } from '../src/extra-games/catalog';
 import { addLocalPlayer, applyMessage, archiveChange, closesRoom, createRoom, joinRoom, liveSummary, roomView, setConnected, type Room } from '../src/online/room';
 import { PUBLIC_SALOON_ID } from '../src/online/saloons';
+import { boardView } from '../src/online/display';
 import { AccountsObject, type AccountsEnv } from './accounts';
 
 export { AccountsObject };
@@ -95,6 +96,26 @@ async function accountRoute(request: Request, env: Env, path: string): Promise<R
     if (path === '/api/community' && method === 'GET') return json(await db.community(bearer(request), new URL(request.url).searchParams.get('saloon')));
     const player = /^\/api\/players\/([^/]+)$/.exec(path);
     if (player && method === 'GET') return json(await db.playerStats(bearer(request), decodeURIComponent(player[1]!)));
+    // Tablette « tableau de scores » : elle s'identifie par son secret ; la borne la relie et la règle.
+    if (path === '/api/display/pair' && method === 'POST') return json(await db.displayPair());
+    if (path === '/api/display' && method === 'GET') {
+      const status = await db.displayStatus(bearer(request));
+      return status ? json(status) : json({ error: 'Tablette inconnue : nouveau code.' }, 401);
+    }
+    if (path === '/api/displays' && method === 'GET') return json({ displays: await db.displays(bearer(request)) });
+    if (path === '/api/displays' && method === 'POST') {
+      const b = await body(request);
+      return json({ display: await db.displayLink(bearer(request), b.code) });
+    }
+    const display = /^\/api\/displays\/([^/]+)$/.exec(path);
+    if (display && method === 'PUT') {
+      const b = await body(request);
+      return json({ display: await db.displayUpdate(bearer(request), decodeURIComponent(display[1]!), b.settings) });
+    }
+    if (display && method === 'DELETE') {
+      await db.displayUnlink(bearer(request), decodeURIComponent(display[1]!));
+      return json({ ok: true });
+    }
     if (path === '/api/saloons' && method === 'GET') return json({ saloons: await db.saloons(bearer(request)) });
     if (path === '/api/saloons' && method === 'POST') {
       const b = await body(request);
@@ -232,6 +253,18 @@ async function route(request: Request, env: Env): Promise<Response> {
     return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(new Request(`https://partie/${code}?watch=1`, request));
   }
 
+  // La tablette suit la partie en cours du compte auquel elle est reliée, en spectatrice.
+  if (url.pathname === '/api/display/ws' || url.pathname === '/api/display/board') {
+    const code = await accounts(env).displayGame(url.searchParams.get('secret') ?? bearer(request));
+    if (url.pathname === '/api/display/board') {
+      // Secours pour les navigateurs sans WebSocket utilisable : l'état est demandé à intervalle régulier.
+      return json({ board: code ? await env.ROOMS.get(env.ROOMS.idFromName(code)).board() : null });
+    }
+    if (request.headers.get('Upgrade') !== 'websocket') return json({ error: 'WebSocket attendu.' }, 426);
+    if (!code) return json({ error: 'Aucune partie en cours.' }, 404);
+    return env.ROOMS.get(env.ROOMS.idFromName(code)).fetch(new Request(`https://partie/${code}?watch=1&display=1`, request));
+  }
+
   const ws = /^\/api\/rooms\/([^/]+)\/ws$/.exec(url.pathname);
   if (ws) {
     const code = normalizeCode(ws[1]!);
@@ -251,6 +284,8 @@ interface Attachment {
   playerId: string | null;
   /** Spectateur venu de la liste « Parties en cours » : il reçoit la partie, sans rien pouvoir y faire. */
   watcher?: boolean;
+  /** Tablette « tableau de scores » : spectatrice qui reçoit l'état déjà calculé, sans compter parmi les spectateurs. */
+  display?: boolean;
 }
 
 export class RoomObject extends DurableObject<Env> {
@@ -263,6 +298,12 @@ export class RoomObject extends DurableObject<Env> {
     return true;
   }
 
+  /** État de la partie pour une tablette « tableau de scores » qui ne peut pas garder de WebSocket. */
+  async board(): Promise<ReturnType<typeof boardView> | null> {
+    const room = await this.load();
+    return room ? boardView(roomView(room)) : null;
+  }
+
   /** Supprimée depuis la liste « Parties en cours » par son hôte ou un administrateur : comme quand l'hôte la ferme. */
   async remove(): Promise<void> {
     await this.destroy(ROOM_DELETED, 'Partie supprimée par l’hôte');
@@ -271,14 +312,18 @@ export class RoomObject extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    const watcher = new URL(request.url).searchParams.get('watch') === '1';
+    const params = new URL(request.url).searchParams;
+    const watcher = params.get('watch') === '1';
+    const display = watcher && params.get('display') === '1';
     // Mode « hibernation » : la partie ne consomme rien entre deux fléchettes.
     this.ctx.acceptWebSocket(server);
-    server.serializeAttachment({ playerId: null, watcher } satisfies Attachment);
+    server.serializeAttachment({ playerId: null, watcher, display } satisfies Attachment);
     const room = await this.load();
     if (!room) {
       this.send(server, { type: 'error', message: 'Aucune partie avec ce code. Vérifie le code ou demande-le à l’hôte.' });
       server.close(4404, 'Partie inconnue');
+    } else if (display) {
+      this.send(server, { type: 'board', board: boardView(roomView(room)) });
     } else if (watcher) {
       // Un spectateur de plus : tout le monde voit le compteur changer.
       await this.publish(room);
@@ -375,7 +420,8 @@ export class RoomObject extends DurableObject<Env> {
   }
 
   private async disconnected(socket: WebSocket): Promise<void> {
-    const { playerId, watcher } = (socket.deserializeAttachment() ?? { playerId: null }) as Attachment;
+    const { playerId, watcher, display } = (socket.deserializeAttachment() ?? { playerId: null }) as Attachment;
+    if (display) return;
     if (watcher) {
       socket.serializeAttachment({ playerId: null } satisfies Attachment);
       const room = await this.load();
@@ -423,9 +469,14 @@ export class RoomObject extends DurableObject<Env> {
 
   private async publish(room: Room): Promise<void> {
     const sockets = this.ctx.getWebSockets().map((s) => ({ s, a: s.deserializeAttachment() as Attachment | null }));
-    const watchers = sockets.filter(({ a }) => a?.watcher).length;
-    const message: ServerMessage = { type: 'room', room: roomView(room, watchers) };
-    for (const { s, a } of sockets) if (a?.playerId || a?.watcher) this.send(s, message);
+    const watchers = sockets.filter(({ a }) => a?.watcher && !a.display).length;
+    const view = roomView(room, watchers);
+    const message: ServerMessage = { type: 'room', room: view };
+    const board: ServerMessage | null = sockets.some(({ a }) => a?.display) ? { type: 'board', board: boardView(view) } : null;
+    for (const { s, a } of sockets) {
+      if (a?.display) this.send(s, board!);
+      else if (a?.playerId || a?.watcher) this.send(s, message);
+    }
     await this.report(room);
   }
 
@@ -434,7 +485,10 @@ export class RoomObject extends DurableObject<Env> {
 
   /** Tient à jour la liste « Parties en cours » du saloon, seulement quand ce qu'elle montre change. */
   private async report(room: Room, gone = false): Promise<void> {
-    const watchers = this.ctx.getWebSockets().filter((s) => (s.deserializeAttachment() as Attachment | null)?.watcher).length;
+    const watchers = this.ctx.getWebSockets().filter((s) => {
+      const a = s.deserializeAttachment() as Attachment | null;
+      return a?.watcher && !a.display;
+    }).length;
     const summary = gone ? null : liveSummary(room, watchers);
     const text = JSON.stringify(summary);
     if (text === this.reported) return;
