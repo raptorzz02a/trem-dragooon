@@ -25,6 +25,7 @@ Si la page affiche une erreur de certificat sur un iPad 2 (iOS 9 ne connaît pas
   - **Horloge** : le chiffre à viser en grand, le cadran (vert = fait, ambre = à viser), la progression ; les autres joueurs avec leur chiffre à viser.
   - **Cible du tour** (Chiffre aléatoire, Halve-it, Bob's 27) : la cible en grand (« Double », « Triple », Bull), le score et la suite des cibles de la partie.
   - **Killer** : le numéro du joueur, puis une carte par joueur avec son numéro, ses vies et son statut (killer, éliminé).
+  - **Entraînement** : comme le X01, mais la dernière volée du joueur (et son total) remplace l’out proposé.
   - Les autres jeux : nom, volée, score en grand et autres joueurs.
 - Revanche ou nouvelle partie : la tablette bascule seule. Sans partie : écran d'attente, assombri si l'option est active.
 
@@ -43,5 +44,5 @@ Limite : si l'iPad s'éteint complètement, iOS ne rouvre pas la page tout seul 
 - API : `POST /api/display/pair` (nouveau secret + code), `GET /api/display` (état, réglages, partie suivie ; 401 = déliée), WebSocket `GET /api/display/ws?secret=…` (messages `board`), secours `GET /api/display/board` interrogé toutes les 1,5 s si le WebSocket échoue trois fois. Côté borne : `GET/POST /api/displays`, `PUT/DELETE /api/displays/:id`.
 - Tablettes stockées dans la table `displays` de la base des comptes ; code non relié oublié après 1 h ; 5 tablettes au plus par compte.
 - La tablette interroge `GET /api/display` toutes les 10 s (4 s tant qu'elle n'est pas reliée), soit environ 8 600 requêtes par jour : compatible avec l'offre gratuite de Cloudflare.
-- Vues par jeu : champ `view` du tableau (`cricket`, `clock`, `targets`, `killer`, sinon `null`).
+- Vues par jeu : champ `view` du tableau (`cricket`, `clock`, `targets`, `killer`, `training`, sinon `null`).
 - Recette : `npm run online:dev` puis `node scripts/recette-tableau.cjs` ; vues par jeu sans serveur : `node scripts/recette-tableau-vues.cjs`.

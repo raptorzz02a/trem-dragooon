@@ -195,7 +195,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     </div>
     <div id="viewz" class="zone"></div>
     <div id="outz" class="zone">
-      <div class="lab" style="font-size:15px;color:#ffb020">Out proposé</div>
+      <div id="outlab" class="lab" style="font-size:15px;color:#ffb020">Out proposé</div>
       <div id="outs"></div>
     </div>
     <div id="othz" class="zone">
@@ -495,12 +495,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     $('scorez').style.display = '';
     var v = String(Math.abs(side.value));
     var sc = $('score');
-    if (kind === 'x01') {
+    if (kind === 'x01' || kind === 'training') {
       $('scorelab').textContent = '';
       var big = v.length <= 3 ? [144, 240, 25, 24] : [112, 200, 20, 18];
       sc.className = 'digits red';
       digits(sc, v.length < 3 ? pad(v, 3) : v, big[0], big[1], big[2], big[3]);
-      sc.setAttribute('aria-label', 'Reste ' + v);
+      sc.setAttribute('aria-label', (kind === 'x01' ? 'Reste ' : 'Score ') + v);
     } else if (kind === 'clock') {
       $('scorez').style.display = 'none';
       var step = view.steps[view.progress[cur]];
@@ -528,13 +528,15 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     if (kind === 'cricket') cricket(vz, view, cur);
     if (kind === 'targets') targets(vz, view);
     if (kind === 'killer') killer(vz, view, cur);
-    // Out proposé
+    // Out proposé (X01) ou dernière volée du joueur (Entraînement)
+    var list = kind === 'training' ? view.darts : board.checkout;
+    $('outlab').textContent = kind === 'training' ? 'Dernière volée' + (view.total !== null ? ' · ' + view.total : '') : 'Out proposé';
     var outs = $('outs');
     outs.innerHTML = '';
     for (var j = 0; j < 3; j++) {
       var o = document.createElement('div');
-      o.className = 'out' + (board.checkout[j] ? '' : ' none');
-      o.textContent = board.checkout[j] || '—';
+      o.className = 'out' + (list[j] ? '' : ' none');
+      o.textContent = list[j] || '—';
       outs.appendChild(o);
     }
     // Autres joueurs, dans l'ordre de passage après celui qui lance
