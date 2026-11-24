@@ -1,7 +1,14 @@
 import { suggestCheckout } from '../game-engine/checkout';
 import { formatDart } from '../game-engine/darts';
+import { BULL } from '../game-engine/darts';
+import { formatTarget, type HalveItState } from '../game-engine/extra/halveit';
+import type { Bobs27State } from '../game-engine/extra/bobs27';
+import type { KillerState } from '../game-engine/extra/killer';
+import type { ClockState, ClockStep } from '../game-engine/modes/clock';
+import type { CricketState } from '../game-engine/modes/cricket';
+import { targetOf } from '../game-engine/modes/random';
 import type { X01State } from '../game-engine/modes/x01';
-import type { GameState, X01Options } from '../game-engine/types';
+import type { GameState, RandomOptions, X01Options } from '../game-engine/types';
 import { MODE_NAMES } from '../game-setup/setup';
 import { sessionState } from '../game-session/session';
 import type { RoomView } from './protocol';
@@ -37,6 +44,20 @@ export interface BoardWinner {
   checkoutPoints: number | null;
 }
 
+/**
+ * Vue propre à certains jeux, sous la zone du joueur qui lance (null : vue X01 / générique).
+ * Les libellés de cible sont déjà écrits : « 20 », « T20 », « D16 », « Bull ».
+ */
+export type BoardView =
+  /** Cricket : marques par côté et par numéro (0 à 3 : trait, croix, rond) et points. */
+  | { kind: 'cricket'; targets: string[]; marks: number[][]; points: number[] }
+  /** Horloge : parcours commun, étape atteinte et fléchettes jouées par côté. */
+  | { kind: 'clock'; steps: string[]; progress: number[]; darts: number[] }
+  /** Une cible par manche (Chiffre aléatoire, Halve-it, Bob's 27) : la liste et la manche en cours. */
+  | { kind: 'targets'; targets: string[]; index: number }
+  /** Killer : numéro, vies, statut tueur et élimination par côté. */
+  | { kind: 'killer'; numbers: string[]; lives: number[]; maxLives: number; killer: boolean[]; out: boolean[] };
+
 export interface Board {
   status: 'lobby' | 'playing' | 'finished';
   /** Identifiant de la partie : change à chaque nouvelle partie, revanche comprise. */
@@ -52,6 +73,7 @@ export interface Board {
   checkout: string[];
   last: BoardVolley | null;
   winner: BoardWinner | null;
+  view: BoardView | null;
 }
 
 const sum = (n: number[]) => n.reduce((a, b) => a + b, 0);
@@ -73,6 +95,49 @@ function title(state: GameState): string {
     return `${o.startScore} · ${o.out === 'double' ? 'Double out' : 'Sortie simple'}`;
   }
   return MODE_NAMES[state.config.mode] ?? state.config.mode;
+}
+
+const label = (n: number) => (n === BULL ? 'Bull' : String(n));
+const stepLabel = (step: ClockStep) => ('number' in step ? String(step.number) : step.bull === 'any' ? 'Bull' : `Bull ${step.bull}`);
+
+function viewOf(state: GameState, round: number): BoardView | null {
+  const at = (n: number) => Math.max(0, Math.min(round, n - 1));
+  switch (state.config.mode) {
+    case 'cricket': {
+      const s = state.mode as CricketState;
+      return { kind: 'cricket', targets: s.targets.map(label), marks: s.marks.map((m) => m.slice()), points: s.points.slice() };
+    }
+    case 'clock': {
+      const s = state.mode as ClockState;
+      return { kind: 'clock', steps: s.steps.map(stepLabel), progress: s.progress.slice(), darts: s.dartsUsed.slice() };
+    }
+    case 'random': {
+      const o = state.config.options as RandomOptions;
+      const targets = Array.from({ length: o.rounds }, (_, r) => label(targetOf(o, r)));
+      return { kind: 'targets', targets, index: at(targets.length) };
+    }
+    case 'halveit': {
+      const targets = (state.mode as HalveItState).targets.map(formatTarget);
+      return { kind: 'targets', targets, index: at(targets.length) };
+    }
+    case 'bobs27': {
+      const targets = (state.mode as Bobs27State).targets.map((n) => (n === BULL ? 'Bull' : `D${n}`));
+      return { kind: 'targets', targets, index: at(targets.length) };
+    }
+    case 'killer': {
+      const s = state.mode as KillerState;
+      return {
+        kind: 'killer',
+        numbers: s.numbers.map(label),
+        lives: s.lives.slice(),
+        maxLives: s.maxLives,
+        killer: s.killer.slice(),
+        out: s.outOrder.map((o) => o > 0),
+      };
+    }
+    default:
+      return null;
+  }
 }
 
 function value(state: GameState, side: number): number {
@@ -99,7 +164,7 @@ function winnerOf(state: GameState, names: string[]): BoardWinner | null {
 
 /** L'état d'une partie tel que la tablette l'affiche. */
 export function boardView(room: Pick<RoomView, 'status' | 'session' | 'players'>): Board {
-  const empty: Board = { status: 'lobby', game: null, title: '', round: null, current: null, darts: [], sides: [], checkout: [], last: null, winner: null };
+  const empty: Board = { status: 'lobby', game: null, title: '', round: null, current: null, darts: [], sides: [], checkout: [], last: null, winner: null, view: null };
   const session = room.session;
   if (room.status !== 'playing' || !session) return empty;
   const state = sessionState(session);
@@ -113,11 +178,12 @@ export function boardView(room: Pick<RoomView, 'status' | 'session' | 'players'>
     x01 && current
       ? (suggestCheckout((state.mode as X01State).remaining[current.sideIndex]!, current.dartsLeft, (state.config.options as X01Options).out) ?? []).map(formatDart)
       : [];
+  const roundIndex = current ? current.round : lastTurn ? lastTurn.round : 0;
   return {
     status: finished ? 'finished' : 'playing',
     game: session.id,
     title: title(state),
-    round: current ? current.round + 1 : lastTurn ? lastTurn.round + 1 : 1,
+    round: roundIndex + 1,
     current: finished || !current ? null : current.sideIndex,
     darts: current && !finished ? current.darts.map((d) => formatDart(d.dart)) : [],
     sides: state.config.sides.map((s, i) => ({
@@ -137,6 +203,7 @@ export function boardView(room: Pick<RoomView, 'status' | 'session' | 'players'>
         }
       : null,
     winner: winnerOf(state, names),
+    view: viewOf(state, roundIndex),
   };
 }
 

@@ -69,6 +69,50 @@ describe('tableau de scores sur tablette', () => {
         expect(board.winner).toEqual({ names: ['Ju'], darts: 6, best: 180, checkout: ['T20', 'T19', 'D2'], checkoutPoints: 121 });
     });
 });
+/** Partie de ce jeu (réglages par défaut) entre ces joueurs. */
+function game(mode, ...names) {
+    const room = names.reduce((r, n) => joinRoom(r, null, who(n), token).room, createRoom('ABCDEF'));
+    const ready = applyMessage(room, 'p1', { type: 'setup', setup: { ...room.setup, mode } });
+    return applyMessage(ready, 'p1', { type: 'start' }, NOW, () => 0.999);
+}
+describe('vues propres à certains jeux', () => {
+    it('X01 et jeux sans vue dédiée : pas de vue', () => {
+        expect(boardView(roomView(x01('Ju', 'Pierre'))).view).toBeNull();
+    });
+    it('Cricket : marques (trait, croix, rond) et points par joueur', () => {
+        let room = game('cricket', 'Ju', 'Pierre');
+        room = throwAll(room, [T(20), S(19), S(19)]);
+        const view = boardView(roomView(room)).view;
+        expect(view?.kind).toBe('cricket');
+        if (view?.kind !== 'cricket')
+            return;
+        expect(view.targets).toEqual(['20', '19', '18', '17', '16', '15', 'Bull']);
+        expect(view.marks[0].slice(0, 2)).toEqual([3, 2]);
+        expect(view.marks[1].every((m) => m === 0)).toBe(true);
+    });
+    it('Horloge : parcours et progression de chacun', () => {
+        let room = game('clock', 'Ju', 'Pierre');
+        room = throwAll(room, [S(1), S(2), S(5)]);
+        const view = boardView(roomView(room)).view;
+        expect(view?.kind).toBe('clock');
+        if (view?.kind !== 'clock')
+            return;
+        expect(view.steps[0]).toBe('1');
+        expect(view.steps[view.steps.length - 1]).toMatch(/^Bull/);
+        expect(view.progress).toEqual([2, 0]);
+        expect(view.darts).toEqual([3, 0]);
+    });
+    it('Chiffre aléatoire : les cibles de la partie et la manche en cours', () => {
+        const room = game('random', 'Ju', 'Pierre');
+        const board = boardView(roomView(room));
+        expect(board.view?.kind).toBe('targets');
+        if (board.view?.kind !== 'targets')
+            return;
+        expect(board.view.targets).toHaveLength(room.session.config.options && room.session.config.options.rounds);
+        expect(board.view.index).toBe(0);
+        expect(board.view.targets.every((t) => /^(\d+|Bull)$/.test(t))).toBe(true);
+    });
+});
 describe('réglages et code des tablettes', () => {
     it('reconnaît un code à 4 chiffres', () => {
         expect(isPairCode('0427')).toBe(true);

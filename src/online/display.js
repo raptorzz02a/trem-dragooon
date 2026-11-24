@@ -1,5 +1,8 @@
 import { suggestCheckout } from '../game-engine/checkout';
 import { formatDart } from '../game-engine/darts';
+import { BULL } from '../game-engine/darts';
+import { formatTarget } from '../game-engine/extra/halveit';
+import { targetOf } from '../game-engine/modes/random';
 import { MODE_NAMES } from '../game-setup/setup';
 import { sessionState } from '../game-session/session';
 const sum = (n) => n.reduce((a, b) => a + b, 0);
@@ -21,6 +24,47 @@ function title(state) {
         return `${o.startScore} · ${o.out === 'double' ? 'Double out' : 'Sortie simple'}`;
     }
     return MODE_NAMES[state.config.mode] ?? state.config.mode;
+}
+const label = (n) => (n === BULL ? 'Bull' : String(n));
+const stepLabel = (step) => ('number' in step ? String(step.number) : step.bull === 'any' ? 'Bull' : `Bull ${step.bull}`);
+function viewOf(state, round) {
+    const at = (n) => Math.max(0, Math.min(round, n - 1));
+    switch (state.config.mode) {
+        case 'cricket': {
+            const s = state.mode;
+            return { kind: 'cricket', targets: s.targets.map(label), marks: s.marks.map((m) => m.slice()), points: s.points.slice() };
+        }
+        case 'clock': {
+            const s = state.mode;
+            return { kind: 'clock', steps: s.steps.map(stepLabel), progress: s.progress.slice(), darts: s.dartsUsed.slice() };
+        }
+        case 'random': {
+            const o = state.config.options;
+            const targets = Array.from({ length: o.rounds }, (_, r) => label(targetOf(o, r)));
+            return { kind: 'targets', targets, index: at(targets.length) };
+        }
+        case 'halveit': {
+            const targets = state.mode.targets.map(formatTarget);
+            return { kind: 'targets', targets, index: at(targets.length) };
+        }
+        case 'bobs27': {
+            const targets = state.mode.targets.map((n) => (n === BULL ? 'Bull' : `D${n}`));
+            return { kind: 'targets', targets, index: at(targets.length) };
+        }
+        case 'killer': {
+            const s = state.mode;
+            return {
+                kind: 'killer',
+                numbers: s.numbers.map(label),
+                lives: s.lives.slice(),
+                maxLives: s.maxLives,
+                killer: s.killer.slice(),
+                out: s.outOrder.map((o) => o > 0),
+            };
+        }
+        default:
+            return null;
+    }
 }
 function value(state, side) {
     if (state.config.mode === 'x01')
@@ -47,7 +91,7 @@ function winnerOf(state, names) {
 }
 /** L'état d'une partie tel que la tablette l'affiche. */
 export function boardView(room) {
-    const empty = { status: 'lobby', game: null, title: '', round: null, current: null, darts: [], sides: [], checkout: [], last: null, winner: null };
+    const empty = { status: 'lobby', game: null, title: '', round: null, current: null, darts: [], sides: [], checkout: [], last: null, winner: null, view: null };
     const session = room.session;
     if (room.status !== 'playing' || !session)
         return empty;
@@ -61,11 +105,12 @@ export function boardView(room) {
     const checkout = x01 && current
         ? (suggestCheckout(state.mode.remaining[current.sideIndex], current.dartsLeft, state.config.options.out) ?? []).map(formatDart)
         : [];
+    const roundIndex = current ? current.round : lastTurn ? lastTurn.round : 0;
     return {
         status: finished ? 'finished' : 'playing',
         game: session.id,
         title: title(state),
-        round: current ? current.round + 1 : lastTurn ? lastTurn.round + 1 : 1,
+        round: roundIndex + 1,
         current: finished || !current ? null : current.sideIndex,
         darts: current && !finished ? current.darts.map((d) => formatDart(d.dart)) : [],
         sides: state.config.sides.map((s, i) => ({
@@ -85,6 +130,7 @@ export function boardView(room) {
             }
             : null,
         winner: winnerOf(state, names),
+        view: viewOf(state, roundIndex),
     };
 }
 /** Code d'appairage affiché par la tablette : 4 chiffres, tapés sur la borne. */
