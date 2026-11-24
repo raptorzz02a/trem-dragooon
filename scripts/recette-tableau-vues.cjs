@@ -17,7 +17,8 @@ const expectations = {
   halveit: (d) => ['Halve-it : double 7', d.target === 'Cible D7' && d.tgCur === 'D7', JSON.stringify(d)],
   killer: (d) => ['Killer : 6 cartes, 1 éliminé', d.cards === 6 && d.gone === 1 && d.score === 'Numéro 16', JSON.stringify(d)],
   plain: (d) => ['jeu sans vue dédiée : score et autres joueurs, sans out', d.score === 'Score 312' && d.others === 2 && !d.outsVisible, JSON.stringify(d)],
-  x01: (d) => ['X01 inchangé : reste et out proposé', d.score === 'Reste 137' && d.outsVisible, JSON.stringify(d)],
+  training: (d) => ['Entraînement : dernière volée à la place de l’out', d.outlab === 'Dernière volée · 66' && d.outs === 'T20 S5 S1' && d.score === 'Score 412', JSON.stringify(d)],
+  x01: (d) => ['X01 inchangé : reste et out proposé', d.score === 'Reste 137' && d.outsVisible && d.outlab === 'Out proposé' && d.outs === 'T20 T19 D10', JSON.stringify(d)],
 };
 const S = (name, value, avg = null) => ({ name, color: '#f00', value, avg });
 const base = { status: 'playing', game: 'g1', round: 6, current: 0, darts: ['S20', 'T19'], checkout: [], last: null, winner: null };
@@ -33,6 +34,7 @@ const boards = {
   killer: { ...base, title: 'Killer', darts: ['D7','S3'], sides: ['Ju','Pierre','Jacques','Manon','Luca','Sophie'].map((n) => S(n, 0)),
     view: { kind: 'killer', numbers: ['16','7','11','3','19','Bull'], lives: [3,2,1,0,3,2], maxLives: 3, killer: [true,true,false,true,false,true], out: [false,false,false,true,false,false] } },
   plain: { ...base, title: 'High score', sides: [S('Ju', 312), S('Pierre', 280), S('Jacques', 199)], view: null },
+  training: { ...base, title: 'Entraînement', sides: [S('Ju', 412, 51.5)], view: { kind: 'training', darts: ['T20', 'S5', 'S1'], total: 66 } },
   x01: { ...base, title: '501 · Double out', checkout: ['T20','T19','D10'], sides: [S('Ju', 137, 62.4), S('Pierre', 241, 51)], view: null },
 };
 (async () => {
@@ -73,6 +75,8 @@ const boards = {
         score: label(document.getElementById('score')),
         others: q('#others .oth').length,
         outsVisible: document.getElementById('outz').offsetWidth > 0,
+        outlab: document.getElementById('outlab').textContent,
+        outs: [].map.call(q('#outs .out'), (o) => o.textContent).join(' '),
       };
     });
     const [id, ok, detail] = expectations[name](d);

@@ -27,7 +27,7 @@ function title(state) {
 }
 const label = (n) => (n === BULL ? 'Bull' : String(n));
 const stepLabel = (step) => ('number' in step ? String(step.number) : step.bull === 'any' ? 'Bull' : `Bull ${step.bull}`);
-function viewOf(state, round) {
+function viewOf(state, round, side) {
     const at = (n) => Math.max(0, Math.min(round, n - 1));
     switch (state.config.mode) {
         case 'cricket': {
@@ -61,6 +61,10 @@ function viewOf(state, round) {
                 killer: s.killer.slice(),
                 out: s.outOrder.map((o) => o > 0),
             };
+        }
+        case 'training': {
+            const last = scored(state, side).pop();
+            return { kind: 'training', darts: last ? last.darts.map((d) => formatDart(d.dart)) : [], total: last ? sum(last.darts.map((d) => d.points)) : null };
         }
         default:
             return null;
@@ -130,7 +134,7 @@ export function boardView(room) {
             }
             : null,
         winner: winnerOf(state, names),
-        view: viewOf(state, roundIndex),
+        view: viewOf(state, roundIndex, current && !finished ? current.sideIndex : lastTurn ? lastTurn.sideIndex : 0),
     };
 }
 /** Code d'appairage affiché par la tablette : 4 chiffres, tapés sur la borne. */

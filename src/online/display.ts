@@ -56,7 +56,9 @@ export type BoardView =
   /** Une cible par manche (Chiffre aléatoire, Halve-it, Bob's 27) : la liste et la manche en cours. */
   | { kind: 'targets'; targets: string[]; index: number }
   /** Killer : numéro, vies, statut tueur et élimination par côté. */
-  | { kind: 'killer'; numbers: string[]; lives: number[]; maxLives: number; killer: boolean[]; out: boolean[] };
+  | { kind: 'killer'; numbers: string[]; lives: number[]; maxLives: number; killer: boolean[]; out: boolean[] }
+  /** Entraînement : dernière volée du joueur qui lance, à la place de l'out proposé. */
+  | { kind: 'training'; darts: string[]; total: number | null };
 
 export interface Board {
   status: 'lobby' | 'playing' | 'finished';
@@ -100,7 +102,7 @@ function title(state: GameState): string {
 const label = (n: number) => (n === BULL ? 'Bull' : String(n));
 const stepLabel = (step: ClockStep) => ('number' in step ? String(step.number) : step.bull === 'any' ? 'Bull' : `Bull ${step.bull}`);
 
-function viewOf(state: GameState, round: number): BoardView | null {
+function viewOf(state: GameState, round: number, side: number): BoardView | null {
   const at = (n: number) => Math.max(0, Math.min(round, n - 1));
   switch (state.config.mode) {
     case 'cricket': {
@@ -134,6 +136,10 @@ function viewOf(state: GameState, round: number): BoardView | null {
         killer: s.killer.slice(),
         out: s.outOrder.map((o) => o > 0),
       };
+    }
+    case 'training': {
+      const last = scored(state, side).pop();
+      return { kind: 'training', darts: last ? last.darts.map((d) => formatDart(d.dart)) : [], total: last ? sum(last.darts.map((d) => d.points)) : null };
     }
     default:
       return null;
@@ -203,7 +209,7 @@ export function boardView(room: Pick<RoomView, 'status' | 'session' | 'players'>
         }
       : null,
     winner: winnerOf(state, names),
-    view: viewOf(state, roundIndex),
+    view: viewOf(state, roundIndex, current && !finished ? current.sideIndex : lastTurn ? lastTurn.sideIndex : 0),
   };
 }
 

@@ -113,6 +113,15 @@ describe('vues propres à certains jeux', () => {
     expect(view.darts).toEqual([3, 0]);
   });
 
+  it('Entraînement : dernière volée du joueur qui lance', () => {
+    let room = game('training', 'Ju');
+    expect(boardView(roomView(room)).view).toEqual({ kind: 'training', darts: [], total: null });
+    room = throwAll(room, [T(20), S(5), S(1)]);
+    expect(boardView(roomView(room)).view).toEqual({ kind: 'training', darts: ['T20', 'S5', 'S1'], total: 66 });
+    room = throwAll(room, [S(20)]);
+    expect(boardView(roomView(room)).view).toMatchObject({ darts: ['T20', 'S5', 'S1'] });
+  });
+
   it('Chiffre aléatoire : les cibles de la partie et la manche en cours', () => {
     const room = game('random', 'Ju', 'Pierre');
     const board = boardView(roomView(room));
