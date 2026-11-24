@@ -20,6 +20,12 @@ Si la page affiche une erreur de certificat sur un iPad 2 (iOS 9 ne connaît pas
 - La tablette repère la partie en cours du compte (joueur ou hôte, saloon quelconque) et s'y branche en spectatrice, sans compter dans « spectateurs ».
 - Écran unique : en haut le joueur qui lance (nom, moyenne, volée en cours, reste en grand) ; en bas à gauche l'**out proposé** (X01) ; en bas à droite les autres joueurs (4 lettres, reste, moyenne), 2 par ligne (3 au-delà de 6).
 - Animations : 100+ (vert), 140+ (ambre), 180 (rouge, stroboscope), avec le score en toutes lettres en anglais (« one hundred and forty-two ») ; **BUST** (score remis) ; **victoire** (nom, finish, fléchettes, meilleure volée, checkout), affichée 20 s après la fin, même si la borne revient au salon (seule une nouvelle partie lancée l’interrompt).
+- Vues propres à certains jeux, choisies seules selon le jeu lancé :
+  - **Cricket** : grille 20 → 15 + Bull, une colonne par joueur, marques comme sur la borne (trait, croix, croix entourée verte quand le chiffre est fermé), points de chacun.
+  - **Horloge** : le chiffre à viser en grand, le cadran (vert = fait, ambre = à viser), la progression ; les autres joueurs avec leur chiffre à viser.
+  - **Cible du tour** (Chiffre aléatoire, Halve-it, Bob's 27) : la cible en grand (« Double », « Triple », Bull), le score et la suite des cibles de la partie.
+  - **Killer** : le numéro du joueur, puis une carte par joueur avec son numéro, ses vies et son statut (killer, éliminé).
+  - Les autres jeux : nom, volée, score en grand et autres joueurs.
 - Revanche ou nouvelle partie : la tablette bascule seule. Sans partie : écran d'attente, assombri si l'option est active.
 
 ## Réglages depuis la borne (menu › Tableau iPad)
@@ -37,4 +43,5 @@ Limite : si l'iPad s'éteint complètement, iOS ne rouvre pas la page tout seul 
 - API : `POST /api/display/pair` (nouveau secret + code), `GET /api/display` (état, réglages, partie suivie ; 401 = déliée), WebSocket `GET /api/display/ws?secret=…` (messages `board`), secours `GET /api/display/board` interrogé toutes les 1,5 s si le WebSocket échoue trois fois. Côté borne : `GET/POST /api/displays`, `PUT/DELETE /api/displays/:id`.
 - Tablettes stockées dans la table `displays` de la base des comptes ; code non relié oublié après 1 h ; 5 tablettes au plus par compte.
 - La tablette interroge `GET /api/display` toutes les 10 s (4 s tant qu'elle n'est pas reliée), soit environ 8 600 requêtes par jour : compatible avec l'offre gratuite de Cloudflare.
-- Recette : `npm run online:dev` puis `node scripts/recette-tableau.cjs`.
+- Vues par jeu : champ `view` du tableau (`cricket`, `clock`, `targets`, `killer`, sinon `null`).
+- Recette : `npm run online:dev` puis `node scripts/recette-tableau.cjs` ; vues par jeu sans serveur : `node scripts/recette-tableau-vues.cjs`.

@@ -57,6 +57,61 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 .many .oth:nth-child(3n){margin-right:0}
 .many .oth .n{font-size:22px}
 
+/* Vues propres à certains jeux (classe k-… sur #main) */
+#mid{-webkit-align-items:center;align-items:center}
+#scorez{-webkit-align-items:flex-end;align-items:flex-end}
+.zlab{font-size:15px;font-weight:700;margin-bottom:8px}
+#viewz{position:absolute;left:32px;right:32px;display:none}
+#ring{position:relative;width:330px;height:330px;display:none}
+.k-plain #outz,.k-targets #outz,.k-clock #outz,.k-cricket #outz,.k-killer #outz,.k-cricket #othz,.k-killer #othz{display:none}
+.k-plain #othz,.k-targets #othz,.k-clock #othz{left:32px}
+.k-plain .oth,.k-targets .oth,.k-clock .oth,.k-plain .oth:nth-child(2n),.k-targets .oth:nth-child(2n),.k-clock .oth:nth-child(2n){margin-right:32px}
+.k-plain .oth:nth-child(3n),.k-targets .oth:nth-child(3n),.k-clock .oth:nth-child(3n){margin-right:0}
+.k-cricket #top,.k-killer #top{height:200px}
+.k-cricket #viewz,.k-killer #viewz{display:block;top:282px;height:462px;padding:14px 20px}
+.k-killer #viewz{border:0;padding:0}
+.k-clock #top{height:400px}
+.k-clock #ring{display:block}
+.k-clock #othz{top:482px;height:262px}
+.k-targets #viewz{display:block;top:392px;height:110px;padding:14px 24px}
+.k-targets #othz{top:518px;height:226px}
+/* Cricket : marques comme sur la borne (trait, croix, croix entourée) */
+.gr{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;height:52px}
+.gn{width:110px;font-size:30px;font-weight:700;color:#e8ece8;text-align:center}
+.gn.closed{color:#3a3f3a;text-decoration:line-through}
+.gc{-webkit-flex:1;flex:1;display:-webkit-flex;display:flex;-webkit-justify-content:center;justify-content:center;-webkit-align-items:center;align-items:center;height:48px}
+.gc.me{background:rgba(61,255,110,.07);border-radius:8px}
+.gh{-webkit-flex:1;flex:1;text-align:center;font-size:24px;font-weight:700;color:#c9cec9;letter-spacing:.1em;line-height:1.1}
+.gh.me{color:#3dff6e;text-shadow:0 0 14px rgba(61,255,110,.5)}
+.gh b{display:block;font-size:20px;color:#ffb020}
+.mk{position:relative;width:38px;height:38px}
+.mk i{position:absolute;left:-1px;top:16px;width:40px;height:6px;border-radius:3px;background:#ffb020;box-shadow:0 0 10px rgba(255,176,32,.8)}
+.mk .b1{-webkit-transform:rotate(-55deg);transform:rotate(-55deg)}
+.mk .b2{-webkit-transform:rotate(55deg);transform:rotate(55deg)}
+.mk.m3 i{left:4px;width:30px;background:#3dff6e;box-shadow:0 0 10px rgba(61,255,110,.8)}
+.mk.m3:after{content:'';position:absolute;left:0;top:0;right:0;bottom:0;border:5px solid #3dff6e;border-radius:50%;box-shadow:0 0 10px rgba(61,255,110,.8)}
+/* Horloge : cadran */
+.dot{position:absolute;width:40px;height:40px;margin:-20px 0 0 -20px;border-radius:50%;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;font-size:16px;font-weight:700;background:#141614;color:#4a504a}
+.dot.done{background:#0d2a14;color:#3dff6e;box-shadow:0 0 10px rgba(61,255,110,.5)}
+.dot.cur{background:#ffb020;color:#070707;box-shadow:0 0 18px rgba(255,176,32,.9)}
+.dot.bull{left:165px;top:165px;width:64px;height:64px;margin:-32px 0 0 -32px;font-size:14px}
+.bar{height:10px;width:300px;margin-top:12px;border-radius:5px;background:#141614;overflow:hidden}
+.bar span{display:block;height:100%;background:#3dff6e;box-shadow:0 0 10px rgba(61,255,110,.7)}
+.tgt{font-size:30px;font-weight:700;color:#ffb020;text-shadow:0 0 12px rgba(255,176,32,.55)}
+/* Cible du tour */
+.tg{width:66px;height:52px;margin-right:10px;box-sizing:border-box;border:2px solid #1c1f1c;border-radius:10px;display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;font-size:20px;font-weight:700;color:#4a504a}
+.tg.past{color:#8a908a}
+.tg.cur{border-color:#ffb020;color:#ffb020;box-shadow:0 0 14px rgba(255,176,32,.5)}
+/* Killer */
+.card{width:296px;height:140px;margin:0 16px 16px 0;box-sizing:border-box;border:2px solid #1c1f1c;border-radius:14px;padding:14px 20px;display:-webkit-flex;display:flex;-webkit-flex-direction:column;flex-direction:column;-webkit-justify-content:space-between;justify-content:space-between}
+.card:nth-child(3n){margin-right:0}
+.card.me{border-color:#3dff6e;box-shadow:0 0 18px rgba(61,255,110,.25)}
+.card.gone{opacity:.3}
+.life{width:24px;height:24px;margin-left:8px;border-radius:50%;background:#2a0a08}
+.life.on{background:#ff2a1f;box-shadow:0 0 10px rgba(255,42,31,.85)}
+.badge{font-size:14px;font-weight:700;letter-spacing:.15em;padding:4px 10px;border-radius:6px;background:#ff2a1f;color:#070707}
+.badge.no{background:transparent;color:#4a504a;border:1px solid #2a2f2a}
+
 /* Appairage et attente */
 #pair,#idle{text-align:center}
 .big{font-size:56px;font-weight:700;color:#3dff6e;text-shadow:0 0 22px rgba(61,255,110,.6);letter-spacing:.12em}
@@ -130,17 +185,21 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     <div id="top" class="zone row between">
       <div class="col" style="width:330px">
         <span id="name" class="lab"></span>
-        <div class="row" style="margin-top:14px;-webkit-align-items:baseline;align-items:baseline"><span class="lab avg" style="font-size:18px;margin-right:12px">Moy</span><span id="avg" class="avg" style="font-size:40px;line-height:1"></span></div>
+        <div id="avgrow" class="row" style="margin-top:14px;-webkit-align-items:baseline;align-items:baseline"><span id="avglab" class="lab avg" style="font-size:18px;margin-right:12px">Moy</span><span id="avg" class="avg" style="font-size:40px;line-height:1"></span></div>
+        <div id="bar" class="bar" style="display:none"><span></span></div>
         <div id="slots" class="row" style="margin-top:14px"></div>
       </div>
-      <div id="score" class="digits red" role="img"></div>
+      <div id="mid" class="col"></div>
+      <div id="scorez" class="col"><span id="scorelab" class="lab zlab"></span><div id="score" class="digits red" role="img"></div></div>
+      <div id="ring"></div>
     </div>
+    <div id="viewz" class="zone"></div>
     <div id="outz" class="zone">
       <div class="lab" style="font-size:15px;color:#ffb020">Out proposé</div>
       <div id="outs"></div>
     </div>
     <div id="othz" class="zone">
-      <div class="lab" style="font-size:15px">Autres joueurs</div>
+      <div id="othlab" class="lab" style="font-size:15px">Autres joueurs</div>
       <div id="others"></div>
     </div>
   </div>
@@ -316,7 +375,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     showScreen('pair');
   }
 
-  var SEGS = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '', b: 'cdefg', U: 'bcdef', S: 'acdfg', t: 'defg' };
+  var SEGS = { '0': 'abcdef', '1': 'bc', '2': 'abdeg', '3': 'abcdg', '4': 'bcfg', '5': 'acdfg', '6': 'acdefg', '7': 'abc', '8': 'abcdefg', '9': 'abcdfg', '-': 'g', ' ': '', b: 'cdefg', U: 'bcdef', S: 'acdfg', t: 'defg', L: 'def' };
 
   /** Dessine un nombre en afficheurs 7 segments : largeur, hauteur, épaisseur des segments, écart entre chiffres. */
   function digits(el, text, w, h, t, gap) {
@@ -397,10 +456,28 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     var sides = board.sides;
     var cur = board.current !== null ? board.current : (board.last ? board.last.side : 0);
     var side = sides[cur] || { name: '', value: 0, avg: null };
+    var view = board.view || null;
+    var kind = view ? view.kind : (side.avg !== null && side.avg !== undefined ? 'x01' : 'plain');
+    $('main').className = 'screen on k-' + kind;
     $('mode').textContent = board.title;
-    $('round').textContent = board.round ? 'Manche ' + board.round : '';
+    $('round').textContent = board.round ? (kind === 'targets' && view ? 'Manche ' + (view.index + 1) + ' / ' + view.targets.length : 'Manche ' + board.round) : '';
     $('name').textContent = side.name;
-    $('avg').textContent = fmtAvg(side.avg);
+    // Moyenne (X01, Entraînement) ou progression (Horloge)
+    var bar = $('bar');
+    bar.style.display = 'none';
+    $('avgrow').style.display = '';
+    if (kind === 'clock') {
+      var total = view.steps.length, done = view.progress[cur] || 0;
+      $('avglab').textContent = 'Progression';
+      $('avg').textContent = Math.min(done, total) + ' / ' + total;
+      bar.style.display = 'block';
+      bar.firstChild.style.width = Math.round((100 * Math.min(done, total)) / total) + '%';
+    } else if (side.avg !== null && side.avg !== undefined) {
+      $('avglab').textContent = 'Moy';
+      $('avg').textContent = fmtAvg(side.avg);
+    } else {
+      $('avgrow').style.display = 'none';
+    }
     // Volée en cours
     var slots = $('slots');
     slots.innerHTML = '';
@@ -411,11 +488,46 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
       sl.textContent = d || '—';
       slots.appendChild(sl);
     }
-    // Score du joueur qui lance
+    // Au centre : la cible (Horloge, Cible du tour) ; à droite : le score
+    var mid = $('mid');
+    mid.innerHTML = '';
+    $('ring').innerHTML = '';
+    $('scorez').style.display = '';
     var v = String(Math.abs(side.value));
-    var big = v.length <= 3 ? [144, 240, 25, 24] : [112, 200, 20, 18];
-    digits($('score'), v.length < 3 ? pad(v, 3) : v, big[0], big[1], big[2], big[3]);
-    $('score').setAttribute('aria-label', 'Reste ' + v);
+    var sc = $('score');
+    if (kind === 'x01') {
+      $('scorelab').textContent = '';
+      var big = v.length <= 3 ? [144, 240, 25, 24] : [112, 200, 20, 18];
+      sc.className = 'digits red';
+      digits(sc, v.length < 3 ? pad(v, 3) : v, big[0], big[1], big[2], big[3]);
+      sc.setAttribute('aria-label', 'Reste ' + v);
+    } else if (kind === 'clock') {
+      $('scorez').style.display = 'none';
+      var step = view.steps[view.progress[cur]];
+      target(mid, 'À viser', step || '—', true);
+      ring(view, cur);
+    } else if (kind === 'killer') {
+      $('scorelab').textContent = 'Son numéro';
+      $('scorelab').style.color = '#ffb020';
+      sc.className = 'digits amb';
+      var num = view.numbers[cur] || '';
+      digits(sc, num === 'Bull' ? 'bULL' : num, 64, 110, 12, 12);
+      sc.setAttribute('aria-label', 'Numéro ' + num);
+    } else {
+      if (kind === 'targets') target(mid, 'Cible', view.targets[view.index] || '—', false);
+      $('scorelab').textContent = kind === 'cricket' ? 'Points' : 'Score';
+      $('scorelab').style.color = '#3dff6e';
+      sc.className = 'digits grn';
+      if (kind === 'targets' || kind === 'cricket') digits(sc, v.length < 3 ? pad(v, 3) : v, 64, 110, 12, 12);
+      else digits(sc, v.length < 3 ? pad(v, 3) : v, 112, 190, 20, 18);
+      sc.setAttribute('aria-label', (kind === 'cricket' ? 'Points ' : 'Score ') + v);
+    }
+    // Zone propre au jeu
+    var vz = $('viewz');
+    vz.innerHTML = '';
+    if (kind === 'cricket') cricket(vz, view, cur);
+    if (kind === 'targets') targets(vz, view);
+    if (kind === 'killer') killer(vz, view, cur);
     // Out proposé
     var outs = $('outs');
     outs.innerHTML = '';
@@ -428,9 +540,12 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
     // Autres joueurs, dans l'ordre de passage après celui qui lance
     var others = $('others');
     others.innerHTML = '';
-    others.className = sides.length - 1 > 6 ? 'many' : '';
+    var many = sides.length - 1 > (kind === 'x01' || kind === 'targets' ? 6 : 9);
+    others.className = many ? 'many' : '';
+    $('othlab').textContent = kind === 'clock' ? 'Autres joueurs · à viser' : 'Autres joueurs';
     for (var n = 1; n < sides.length; n++) {
-      var p = sides[(cur + n) % sides.length];
+      var idx = (cur + n) % sides.length;
+      var p = sides[idx];
       var row = document.createElement('div');
       row.className = 'oth';
       var left = document.createElement('div');
@@ -447,17 +562,170 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
         av.lastChild.textContent = fmtAvg(p.avg);
         left.appendChild(av);
       }
-      var sc = document.createElement('div');
-      sc.className = 'digits grn';
+      if (kind === 'clock') {
+        var used = document.createElement('span');
+        used.className = 'avg';
+        used.style.fontSize = '18px';
+        used.style.marginTop = '4px';
+        used.textContent = (view.darts[idx] || 0) + ' fl.';
+        left.appendChild(used);
+        var t = document.createElement('span');
+        t.className = 'tgt';
+        t.setAttribute('aria-label', 'À viser ' + (view.steps[view.progress[idx]] || 'fini'));
+        t.textContent = view.steps[view.progress[idx]] || 'Fini';
+        row.appendChild(left);
+        row.appendChild(t);
+        others.appendChild(row);
+        continue;
+      }
+      var ps = document.createElement('div');
+      ps.className = 'digits grn';
       var pv = String(Math.abs(p.value));
-      if (sides.length - 1 > 6) digits(sc, pv.length < 3 ? pad(pv, 3) : pv, 22, 40, 5, 6);
-      else digits(sc, pv.length < 3 ? pad(pv, 3) : pv, 30, 52, 6, 8);
-      sc.setAttribute('role', 'img');
-      sc.setAttribute('aria-label', 'Reste ' + pv);
+      if (many) digits(ps, pv.length < 3 ? pad(pv, 3) : pv, 22, 40, 5, 6);
+      else digits(ps, pv.length < 3 ? pad(pv, 3) : pv, 30, 52, 6, 8);
+      ps.setAttribute('role', 'img');
+      ps.setAttribute('aria-label', (kind === 'x01' ? 'Reste ' : 'Score ') + pv);
       row.appendChild(left);
-      row.appendChild(sc);
+      row.appendChild(ps);
       others.appendChild(row);
     }
+  }
+
+  /** Cible en afficheurs : « 20 », « T20 » (triple 20), « D16 », « Bull ». */
+  function target(el, title, text, big) {
+    var lab = document.createElement('span');
+    lab.className = 'lab zlab';
+    lab.style.color = '#ffb020';
+    var mult = /^[DT]\d/.test(text) ? (text.charAt(0) === 'D' ? 'Double ' : 'Triple ') : '';
+    var bull = /^Bull/.test(text);
+    lab.textContent = title + (mult ? ' · ' + mult : '') + (bull && text !== 'Bull' ? ' · ' + text : '');
+    el.appendChild(lab);
+    var dg = document.createElement('div');
+    dg.className = 'digits amb';
+    dg.setAttribute('role', 'img');
+    dg.setAttribute('aria-label', title + ' ' + text);
+    var shown = bull ? 'bULL' : text.replace(/^[DT]/, '');
+    if (shown === '—') shown = '-';
+    if (bull) digits(dg, shown, 60, 104, 11, 10);
+    else if (big) digits(dg, shown, 88, 150, 16, 16);
+    else digits(dg, shown, 104, 176, 19, 18);
+    el.appendChild(dg);
+  }
+
+  var BOARD = [20, 1, 18, 4, 13, 6, 10, 15, 2, 17, 3, 19, 7, 16, 8, 11, 14, 9, 12, 5];
+
+  /** Horloge : le cadran, vert pour ce qui est fait, ambre pour ce qui est à viser. */
+  function ring(view, cur) {
+    var r = $('ring'), done = view.progress[cur] || 0;
+    var state = function (label) {
+      var first = -1, last = -1;
+      for (var i = 0; i < view.steps.length; i++) {
+        var s = view.steps[i];
+        if (s === label || (label === 'Bull' && /^Bull/.test(s))) { if (first < 0) first = i; last = i; }
+      }
+      if (first < 0) return 'off';
+      if (last < done) return 'done';
+      return first <= done ? 'cur' : '';
+    };
+    for (var i = 0; i < BOARD.length; i++) {
+      var a = (i * 18 - 90) * Math.PI / 180;
+      var st = state(String(BOARD[i]));
+      var d = document.createElement('span');
+      d.className = 'dot ' + st;
+      d.style.left = Math.round(165 + 140 * Math.cos(a)) + 'px';
+      d.style.top = Math.round(165 + 140 * Math.sin(a)) + 'px';
+      d.textContent = BOARD[i];
+      r.appendChild(d);
+    }
+    var b = document.createElement('span');
+    b.className = 'dot bull ' + state('Bull');
+    b.textContent = 'BULL';
+    r.appendChild(b);
+  }
+
+  /** Cricket : une colonne par joueur, une ligne par numéro, marques comme sur la borne. */
+  function cricket(el, view, cur) {
+    var n = view.marks.length;
+    var head = document.createElement('div');
+    head.className = 'gr';
+    head.style.height = '58px';
+    head.appendChild(cell('span', 'gn', ''));
+    for (var i = 0; i < n; i++) {
+      var h = cell('span', 'gh' + (i === cur ? ' me' : ''), short(board.sides[i] ? board.sides[i].name : ''));
+      var pts = document.createElement('b');
+      pts.textContent = view.points[i];
+      h.appendChild(pts);
+      head.appendChild(h);
+    }
+    el.appendChild(head);
+    for (var t = 0; t < view.targets.length; t++) {
+      var closed = true;
+      for (var k = 0; k < n; k++) if (view.marks[k][t] < 3) closed = false;
+      var row = document.createElement('div');
+      row.className = 'gr';
+      row.appendChild(cell('span', 'gn' + (closed ? ' closed' : ''), view.targets[t] === 'Bull' ? 'BULL' : view.targets[t]));
+      for (var j = 0; j < n; j++) {
+        var m = Math.min(3, view.marks[j][t] || 0);
+        var c = cell('div', 'gc' + (j === cur ? ' me' : ''), '');
+        if (m > 0) {
+          var mk = cell('span', 'mk m' + m, '');
+          mk.setAttribute('role', 'img');
+          mk.setAttribute('aria-label', m === 1 ? 'une marque' : m === 2 ? 'deux marques' : 'fermé');
+          mk.appendChild(cell('i', 'b1', ''));
+          if (m > 1) mk.appendChild(cell('i', 'b2', ''));
+          c.appendChild(mk);
+        }
+        row.appendChild(c);
+      }
+      el.appendChild(row);
+    }
+  }
+
+  /** Cible du tour : les cibles de la partie, passées, en cours et à venir. */
+  function targets(el, view) {
+    el.appendChild(cell('div', 'lab zlab', 'Cibles de la partie'));
+    var row = cell('div', 'row', '');
+    var max = Math.min(view.targets.length, 13);
+    var start = Math.max(0, Math.min(view.index - 4, view.targets.length - max));
+    for (var i = start; i < start + max; i++) {
+      var t = view.targets[i];
+      row.appendChild(cell('span', 'tg' + (i < view.index ? ' past' : i === view.index ? ' cur' : ''), t === 'Bull' ? 'BULL' : t));
+    }
+    el.appendChild(row);
+  }
+
+  /** Killer : une carte par joueur avec son numéro, ses vies et son statut. */
+  function killer(el, view, cur) {
+    var wrap = cell('div', 'row', '');
+    wrap.style.flexWrap = 'wrap';
+    wrap.style.webkitFlexWrap = 'wrap';
+    wrap.style.alignItems = 'flex-start';
+    for (var i = 0; i < view.numbers.length; i++) {
+      var card = cell('div', 'card' + (i === cur ? ' me' : '') + (view.out[i] ? ' gone' : ''), '');
+      var top = cell('div', 'row between', '');
+      top.appendChild(cell('span', 'lab n', short(board.sides[i] ? board.sides[i].name : '')));
+      top.lastChild.style.cssText = 'font-size:30px;font-weight:700;color:#e8ece8';
+      top.appendChild(cell('span', 'badge' + (view.killer[i] ? '' : ' no'), view.out[i] ? 'Éliminé' : view.killer[i] ? 'Killer' : 'Pas encore'));
+      card.appendChild(top);
+      var bottom = cell('div', 'row between', '');
+      bottom.appendChild(cell('span', 'avg', 'D' + (view.numbers[i] === 'Bull' ? 'B' : view.numbers[i])));
+      bottom.firstChild.style.cssText = 'font-size:36px;line-height:1';
+      var lives = cell('div', 'row', '');
+      lives.setAttribute('role', 'img');
+      lives.setAttribute('aria-label', view.lives[i] + ' vies');
+      for (var l = 0; l < view.maxLives; l++) lives.appendChild(cell('span', 'life' + (l < view.lives[i] ? ' on' : ''), ''));
+      bottom.appendChild(lives);
+      card.appendChild(bottom);
+      wrap.appendChild(card);
+    }
+    el.appendChild(wrap);
+  }
+
+  function cell(tag, cls, text) {
+    var e = document.createElement(tag);
+    e.className = cls;
+    if (text) e.textContent = text;
+    return e;
   }
 
   // ---------- Animations ----------
