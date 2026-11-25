@@ -47,6 +47,7 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
 #outz{position:absolute;left:32px;top:392px;width:300px;height:352px;padding:20px 24px}
 .out{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:center;justify-content:center;height:58px;margin-top:12px;box-sizing:border-box;border:2px solid #4a3208;border-radius:10px;font-size:34px;font-weight:700;color:#ffb020;text-shadow:0 0 12px rgba(255,176,32,.55)}
 .out.none{border-color:#1c1f1c;color:#3a3a3a;text-shadow:none}
+.out.sum{border-color:#3dff6e;color:#3dff6e;text-shadow:0 0 12px rgba(61,255,110,.55);box-shadow:0 0 14px rgba(61,255,110,.25)}
 #othz{position:absolute;left:348px;right:32px;top:392px;height:352px;padding:18px 24px}
 #others{display:-webkit-flex;display:flex;-webkit-flex-wrap:wrap;flex-wrap:wrap;margin-top:6px}
 .oth{display:-webkit-flex;display:flex;-webkit-align-items:center;align-items:center;-webkit-justify-content:space-between;justify-content:space-between;width:280px;height:70px;margin:6px 32px 6px 0;border-bottom:1px solid #1c1f1c}
@@ -538,6 +539,13 @@ html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-sele
       o.className = 'out' + (list[j] ? '' : ' none');
       o.textContent = list[j] || '—';
       outs.appendChild(o);
+    }
+    // Entraînement : total de la volée dans un carré vert sous la dernière fléchette
+    if (kind === 'training') {
+      var sum = document.createElement('div');
+      sum.className = 'out' + (view.total !== null ? ' sum' : ' none');
+      sum.textContent = view.total !== null ? view.total : '—';
+      outs.appendChild(sum);
     }
     // Autres joueurs, dans l'ordre de passage après celui qui lance
     var others = $('others');
